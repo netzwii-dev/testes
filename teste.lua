@@ -36,7 +36,7 @@ local isFlicking = false
 local lastFlickTime = 0
 local Camera = workspace.CurrentCamera
 
--- NOVO CONTROLE
+-- CONTROLE DE WALLHOP REAL
 local isWallHopping = false
 
 -- DOUBLE JUMP
@@ -64,7 +64,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- DOUBLE JUMP INPUT (CORRIGIDO)
+-- DOUBLE JUMP INPUT
 UserInputService.JumpRequest:Connect(function()
     if not isWallHopEnabled then return end
 
@@ -73,14 +73,14 @@ UserInputService.JumpRequest:Connect(function()
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hum or not hrp then return end
 
-    -- BLOQUEIA SE NÃO FOR WALLHOP REAL
     if not isWallHopping then return end
 
     if canDoubleJump and tick() - lastDoubleJump > DOUBLE_JUMP_COOLDOWN then
         lastDoubleJump = tick()
         canDoubleJump = false
 
-        hrp.Velocity = Vector3.new(hrp.Velocity.X, 36, hrp.Velocity.Z)
+        -- ALTERADO PARA 34.5
+        hrp.Velocity = Vector3.new(hrp.Velocity.X, 34.5, hrp.Velocity.Z)
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
         task.delay(0.18, function()
@@ -96,7 +96,6 @@ local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
 
-    -- ATIVA JANELA DE WALLHOP
     isWallHopping = true
 
     local char = LocalPlayer.Character
@@ -108,7 +107,9 @@ local function performVideoFlick()
     end
 
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
-    hrp.Velocity = Vector3.new(hrp.Velocity.X, 45, hrp.Velocity.Z)
+
+    -- ALTERADO PARA 44.8
+    hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
     local startCFrame = Camera.CFrame
     local targetCFrame = startCFrame * CFrame.Angles(0, math.rad(45), 0)
@@ -133,7 +134,6 @@ local function performVideoFlick()
         end
     end)
 
-    -- DESATIVA DEPOIS DE UM TEMPO CURTO
     task.delay(0.25, function()
         isWallHopping = false
     end)
@@ -194,11 +194,11 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- TOGGLE (CORRIGIDO BUG DE QUEBRA DE LINHA)
+-- TOGGLE
 TextButton.MouseButton1Click:Connect(function()
     isWallHopEnabled = not isWallHopEnabled
     TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Multi-Ray Fix + DoubleJump Fix)")
+print("WallHop Loaded (Valores calibrados FTF)")
