@@ -1,4 +1,3 @@
-
 -- AUTO WALLHOP + DOUBLE JUMP (REFINADO - FIX ANIMAÇÃO)
 
 local Players = game:GetService("Players")
@@ -73,7 +72,8 @@ UserInputService.JumpRequest:Connect(function()
         lastDoubleJump = tick()
         canDoubleJump = false
 
-        hrp.Velocity = Vector3.new(hrp.Velocity.X, 42, hrp.Velocity.Z)
+        -- AJUSTE AQUI (altura legítima)
+        hrp.Velocity = Vector3.new(hrp.Velocity.X, 36, hrp.Velocity.Z)
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
         task.delay(0.18, function()
@@ -117,7 +117,7 @@ local function performVideoFlick()
         task.wait(fastFlick and 0.0045 or 0.0065)
     end
 
-    -- ✅ FIX AQUI (sem travar braço)
+    -- FIX animação (sem travar braço)
     task.delay(0.1, function()
         if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
             hum:ChangeState(Enum.HumanoidStateType.Freefall)
