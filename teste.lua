@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (REFINADO - FIX ANIMAÇÃO)
+-- AUTO WALLHOP + DOUBLE JUMP (STEALTH VERSION)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -41,16 +41,13 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
--- CHARACTER HANDLER
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
     hum.StateChanged:Connect(function(_, new)
         if new == Enum.HumanoidStateType.Freefall then
             canDoubleJump = true
-        end
-
-        if new == Enum.HumanoidStateType.Landed then
+        elseif new == Enum.HumanoidStateType.Landed then
             canDoubleJump = false
         end
     end)
@@ -61,7 +58,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- DOUBLE JUMP INPUT
+-- DOUBLE JUMP (natural)
 UserInputService.JumpRequest:Connect(function()
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChild("Humanoid")
@@ -73,17 +70,11 @@ UserInputService.JumpRequest:Connect(function()
         canDoubleJump = false
 
         hrp.Velocity = Vector3.new(hrp.Velocity.X, 42, hrp.Velocity.Z)
-        hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
-        task.delay(0.18, function()
-            if hum then
-                hum:ChangeState(Enum.HumanoidStateType.Freefall)
-            end
-        end)
+        hum.Jump = true -- natural
     end
 end)
 
--- FLICK
+-- FLICK (stealth)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -96,7 +87,7 @@ local function performVideoFlick()
         return
     end
 
-    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    hum.Jump = true -- 🔥 NATURAL
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 52, hrp.Velocity.Z)
 
     local startCFrame = Camera.CFrame
@@ -115,13 +106,6 @@ local function performVideoFlick()
         Camera.CFrame = targetCFrame:Lerp(startCFrame, alpha)
         task.wait(fastFlick and 0.0045 or 0.0065)
     end
-
-    -- ✅ FIX AQUI (sem travar braço)
-    task.delay(0.1, function()
-        if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
-            hum:ChangeState(Enum.HumanoidStateType.Freefall)
-        end
-    end)
 
     isFlicking = false
 end
@@ -163,7 +147,6 @@ end)
 TextButton.MouseButton1Click:Connect(function()
     isWallHopEnabled = not isWallHopEnabled
     TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
-    TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Animation Fix)")
+print("WallHop Loaded (Stealth Mode)")
