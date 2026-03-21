@@ -125,7 +125,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (AJUSTADO)
+-- WALL DETECT (FIX LOOKVECTOR + FOOT OFFSET)
 local lastHitInstance = nil
 
 RunService.Heartbeat:Connect(function()
@@ -139,12 +139,19 @@ RunService.Heartbeat:Connect(function()
     params.FilterDescendantsInstances = {char}
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- OFFSET AJUSTADO (-2.2)
     local origin = hrp.Position + Vector3.new(0, -2.2, 0)
+
+    -- FIX: ignorar eixo Y da câmera
+    local look = Camera.CFrame.LookVector
+    local horizontal = Vector3.new(look.X, 0, look.Z)
+
+    if horizontal.Magnitude > 0 then
+        horizontal = horizontal.Unit
+    end
 
     local result = workspace:Raycast(
         origin,
-        Camera.CFrame.LookVector * 3,
+        horizontal * 3,
         params
     )
 
@@ -168,4 +175,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Foot Adjust -2.2)")
+print("WallHop Loaded (Camera Fix + Foot Offset)")
