@@ -1,93 +1,56 @@
--- LocalScript: Wallhop View 3D otimizado (igual FTF Practice)
+-- Ultra Optimized Wallhop View (FE Safe)
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
--- Configurações
-local LineColor = Color3.fromRGB(255,255,255)
-local LineThickness = 0.05 -- espessura da “linha” 3D
-local MaxDistance = 50 -- distância máxima para desenhar
-local WallhopHeightTolerance = 5 -- altura das superfícies que podem ser wallhopadas
+local HighlightParts = {} -- tabela de Neons já criados
+local LastPlayerPos = Vector3.new(0,0,0)
+local UpdateDistance = 5 -- distância mínima para atualizar highlights
 
--- Tabela de adorns ativos
-local adorns = {}
+local function CreateNeon(part)
+    local neon = Instance.new("Part")
+    neon.Size = Vector3.new(part.Size.X, 0.2, part.Size.Z)
+    neon.CFrame = part.CFrame + Vector3.new(0, part.Size.Y/2, 0)
+    neon.Anchored = true
+    neon.CanCollide = false
+    neon.Transparency = 0.5
+    neon.Material = Enum.Material.Neon
+    neon.Color = Color3.fromRGB(0, 255, 255)
+    neon.Parent = Workspace
+    return neon
+end
 
--- Remove adorns antigos
-local function ClearAdorns()
-    for _, a in pairs(adorns) do
-        a:Destroy()
+local function UpdateHighlights()
+    local playerPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
+    if not playerPos then return end
+
+    if (playerPos - LastPlayerPos).Magnitude < UpdateDistance then
+        return -- não atualiza se o jogador quase não se moveu
     end
-    adorns = {}
-end
+    LastPlayerPos = playerPos
 
--- Cria um highlight 3D tipo linha fina na superfície
-local function CreateLinePart(cframe, size)
-    local part = Instance.new("Part")
-    part.Anchored = true
-    part.CanCollide = false
-    part.Size = size
-    part.CFrame = cframe
-    part.Color = LineColor
-    part.Material = Enum.Material.Neon
-    part.Transparency = 0
-    part.Parent = Workspace
-    table.insert(adorns, part)
-end
-
--- Pega partes relevantes para wallhop perto do jogador
-local function GetRelevantParts()
-    local parts = {}
-    local rootPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
-    if not rootPos then return parts end
-
-    for _, part in pairs(Workspace:GetDescendants()) do
-        if part:IsA("BasePart") and part.Anchored and part.CanCollide and part.Size.Magnitude > 2 then
-            local distance = (part.Position - rootPos).Magnitude
-            if distance <= MaxDistance then
-                -- só partes acessíveis (altura próxima do jogador)
-                local relY = math.abs(part.Position.Y - rootPos.Y)
-                if relY <= WallhopHeightTolerance then
-                    table.insert(parts, part)
+    local index = 1
+    for _, part in ipairs(Workspace:GetDescendants()) do
+        if part:IsA("BasePart") and part.Anchored and part.CanCollide then
+            local partTop = part.Position.Y + part.Size.Y/2
+            local distance = (Vector3.new(part.Position.X, 0, part.Position.Z) - Vector3.new(playerPos.X, 0, playerPos.Z)).Magnitude
+            if distance < 20 then -- alcance máximo para highlight
+                if not HighlightParts[index] then
+                    HighlightParts[index] = CreateNeon(part)
                 end
+                HighlightParts[index].Size = Vector3.new(part.Size.X, 0.2, part.Size.Z)
+                HighlightParts[index].CFrame = part.CFrame + Vector3.new(0, part.Size.Y/2, 0)
+                index = index + 1
             end
         end
     end
-    return parts
-end
 
--- Desenha as “linhas” 3D nas bordas das partes relevantes
-local function DrawWallhopView()
-    ClearAdorns()
-    local parts = GetRelevantParts()
-    for _, part in pairs(parts) do
-        local pos = part.Position
-        local size = part.Size
-
-        -- borda superior (horizontal)
-        local topY = pos.Y + size.Y/2
-        local leftX = pos.X - size.X/2
-        local rightX = pos.X + size.X/2
-        local frontZ = pos.Z - size.Z/2
-        local backZ = pos.Z + size.Z/2
-
-        local thickness = LineThickness
-
-        -- cria linhas horizontais (topo da plataforma)
-        CreateLinePart(CFrame.new((leftX+rightX)/2, topY, frontZ), Vector3.new(size.X, thickness, thickness))
-        CreateLinePart(CFrame.new((leftX+rightX)/2, topY, backZ), Vector3.new(size.X, thickness, thickness))
-        CreateLinePart(CFrame.new(leftX, topY, (frontZ+backZ)/2), Vector3.new(thickness, thickness, size.Z))
-        CreateLinePart(CFrame.new(rightX, topY, (frontZ+backZ)/2), Vector3.new(thickness, thickness, size.Z))
-
-        -- cria linhas verticais (bordas)
-        CreateLinePart(CFrame.new(leftX, topY - size.Y/2, frontZ), Vector3.new(thickness, size.Y, thickness))
-        CreateLinePart(CFrame.new(rightX, topY - size.Y/2, frontZ), Vector3.new(thickness, size.Y, thickness))
-        CreateLinePart(CFrame.new(leftX, topY - size.Y/2, backZ), Vector3.new(thickness, size.Y, thickness))
-        CreateLinePart(CFrame.new(rightX, topY - size.Y/2, backZ), Vector3.new(thickness, size.Y, thickness))
+    -- remove neons excedentes
+    for i = index, #HighlightParts do
+        HighlightParts[i]:Destroy()
+        HighlightParts[i] = nil
     end
 end
 
--- Atualiza a cada 0.3s para não travar
-RunService.Heartbeat:Connect(function(step)
-    DrawWallhopView()
-end)
+RunService.RenderStepped:Connect(UpdateHighlights)
