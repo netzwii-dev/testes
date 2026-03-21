@@ -20,14 +20,13 @@ button.Text = "D"
 button.TextColor3 = Color3.fromRGB(255,255,255)
 button.TextScaled = true
 button.Font = Enum.Font.GothamBold
+button.Parent = screenGui
 
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0.5,0)
 corner.Parent = button
 
-button.Parent = screenGui
-
--- Função para detectar RemoteEvent de emotes
+-- Função para detectar RemoteEvent de emote automaticamente
 local function findEmoteRemote(root)
     for _, obj in ipairs(root:GetDescendants()) do
         if obj:IsA("RemoteEvent") and obj.Name:lower():find("emote") then
@@ -40,13 +39,12 @@ end
 local emoteRemote = findEmoteRemote(ReplicatedStorage)
 
 if not emoteRemote then
-    warn("Não foi possível encontrar RemoteEvent de emotes. Dance2 não funcionará.")
+    warn("Não foi possível localizar RemoteEvent de emote. Dance2 não funcionará.")
 end
 
--- Função para disparar a dança uma vez
+-- Função que dispara a dança uma vez
 local function sendDance2()
     if emoteRemote then
-        -- Executa apenas uma vez por clique
         pcall(function()
             emoteRemote:FireServer("dance2")
         end)
