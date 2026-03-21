@@ -1,8 +1,9 @@
--- WALLHOP (ANIMATION SYNC VERSION - CALIBRATED)
+-- WALLHOP (ANIMATION SYNC VERSION - CLEAN)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 
 local Camera = workspace.CurrentCamera
@@ -41,6 +42,7 @@ local function setupChar(char)
     local hum = char:WaitForChild("Humanoid")
     animator = hum:WaitForChild("Animator")
 
+    -- pega animações já existentes
     for _,track in ipairs(animator:GetPlayingAnimationTracks()) do
         local name = track.Name:lower()
         if name:find("jump") then
@@ -61,7 +63,7 @@ local function playJumpAnim()
     end
 end
 
--- FLICK (ajustado timing)
+-- FLICK
 local function flick()
     if flicking then return end
     flicking = true
@@ -75,10 +77,10 @@ local function flick()
 
     playJumpAnim()
 
-    -- timing antecipado (ANTES batia atrasado)
-    task.wait(0.015)
+    -- delay mínimo pra bater com animação real
+    task.wait(0.025)
 
-    -- impulso calibrado
+    -- boost calibrado
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
 
     -- câmera
@@ -101,7 +103,7 @@ local function flick()
     flicking = false
 end
 
--- WALL DETECT (corrigido delay)
+-- WALL DETECT
 local lastHit = nil
 
 RunService.Heartbeat:Connect(function()
@@ -115,16 +117,14 @@ RunService.Heartbeat:Connect(function()
     params.FilterDescendantsInstances = {char}
     params.FilterType = Enum.RaycastFilterType.Exclude
 
-    -- alcance aumentado (detecta ANTES da linha)
     local result = workspace:Raycast(
         hrp.Position,
-        Camera.CFrame.LookVector * 4.5,
+        Camera.CFrame.LookVector * 3,
         params
     )
 
     if result and result.Instance and result.Instance.CanCollide then
-        -- removido atraso de troca antiga
-        if result.Instance ~= lastHit then
+        if lastHit and lastHit ~= result.Instance then
             if hrp.Velocity.Y < -1 and tick() - lastFlick > 0.07 then
                 lastFlick = tick()
                 flick()
@@ -143,4 +143,4 @@ Button.MouseButton1Click:Connect(function()
     Button.BackgroundColor3 = enabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("Animation Synced WallHop Loaded (Calibrated)")
+print("Animation Synced WallHop Loaded (Clean)")
