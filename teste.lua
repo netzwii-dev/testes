@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (STEALTH VERSION)
+-- AUTO WALLHOP + DOUBLE JUMP (STEALTH + VELOCIDADE DINÂMICA FTF)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -41,6 +41,11 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
+-- CONFIG DINÂMICA (baseado no FTF)
+local BASE_JUMP = 44
+local MAX_JUMP = 56
+
+-- CHARACTER
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
@@ -58,6 +63,22 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
+-- FUNÇÃO: calcular impulso baseado na velocidade real
+local function getDynamicJump(hrp)
+    local velocity = hrp.Velocity
+    local planarSpeed = Vector3.new(velocity.X, 0, velocity.Z).Magnitude
+
+    -- normaliza baseado numa velocidade típica do FTF (~16-20)
+    local factor = math.clamp(planarSpeed / 18, 0.8, 1.2)
+
+    -- leve randomização humana
+    local randomOffset = math.random(-2, 2)
+
+    local jumpPower = BASE_JUMP * factor + randomOffset
+
+    return math.clamp(jumpPower, BASE_JUMP, MAX_JUMP)
+end
+
 -- DOUBLE JUMP (natural)
 UserInputService.JumpRequest:Connect(function()
     local char = LocalPlayer.Character
@@ -69,12 +90,14 @@ UserInputService.JumpRequest:Connect(function()
         lastDoubleJump = tick()
         canDoubleJump = false
 
-        hrp.Velocity = Vector3.new(hrp.Velocity.X, 42, hrp.Velocity.Z)
-        hum.Jump = true -- natural
+        local jump = getDynamicJump(hrp)
+
+        hrp.Velocity = Vector3.new(hrp.Velocity.X, jump, hrp.Velocity.Z)
+        hum.Jump = true
     end
 end)
 
--- FLICK (stealth)
+-- FLICK (dinâmico)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -87,8 +110,10 @@ local function performVideoFlick()
         return
     end
 
-    hum.Jump = true -- 🔥 NATURAL
-    hrp.Velocity = Vector3.new(hrp.Velocity.X, 52, hrp.Velocity.Z)
+    local jump = getDynamicJump(hrp)
+
+    hum.Jump = true
+    hrp.Velocity = Vector3.new(hrp.Velocity.X, jump, hrp.Velocity.Z)
 
     local startCFrame = Camera.CFrame
     local targetCFrame = startCFrame * CFrame.Angles(0, math.rad(45), 0)
@@ -147,6 +172,7 @@ end)
 TextButton.MouseButton1Click:Connect(function()
     isWallHopEnabled = not isWallHopEnabled
     TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
+    TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Stealth Mode)")
+print("WallHop Loaded (Stealth + Dynamic Velocity)")
