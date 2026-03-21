@@ -1,142 +1,146 @@
--- AUTO WALLHOP + DOUBLE JUMP (REFINADO)
+-- WALLHOP + DOUBLE JUMP (ANIMATION SYNC VERSION)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 
+local Camera = workspace.CurrentCamera
+
+-- UI (igual)
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- UI (mantida igual)
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AutoWallHopGui"
+local ScreenGui = Instance.new("ScreenGui", PlayerGui)
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = PlayerGui
 
-local TextButton = Instance.new("TextButton")
-TextButton.Size = UDim2.new(0, 140, 0, 50)
-TextButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-TextButton.Text = "Wall Hop Off"
-TextButton.TextColor3 = Color3.fromRGB(255,255,255)
-TextButton.Font = Enum.Font.GothamBold
-TextButton.TextScaled = true
-TextButton.Parent = ScreenGui
+local Button = Instance.new("TextButton", ScreenGui)
+Button.Size = UDim2.new(0,140,0,50)
+Button.BackgroundColor3 = Color3.fromRGB(0,0,0)
+Button.TextColor3 = Color3.fromRGB(255,255,255)
+Button.Font = Enum.Font.GothamBold
+Button.TextScaled = true
+Button.Text = "Wall Hop Off"
 
-Instance.new("UICorner", TextButton).CornerRadius = UDim.new(0, 12)
+Instance.new("UICorner", Button).CornerRadius = UDim.new(0,12)
 
 RunService.RenderStepped:Connect(function()
     local inset = GuiService:GetGuiInset()
-    TextButton.Position = UDim2.new(0, 150, 0, inset.Y - 58)
+    Button.Position = UDim2.new(0,150,0,inset.Y - 58)
 end)
 
 -- STATES
-local isWallHopEnabled = false
-local isFlicking = false
-local lastFlickTime = 0
-local Camera = workspace.CurrentCamera
+local enabled = false
+local lastFlick = 0
+local flicking = false
 
 -- DOUBLE JUMP
-local canDoubleJump = false
-local lastDoubleJump = 0
-local DOUBLE_JUMP_COOLDOWN = 3
+local canDouble = false
+local lastDouble = 0
+local DOUBLE_CD = 3
 
--- CHARACTER HANDLER
-local function setupCharacter(char)
+-- ANIMATION CACHE
+local jumpTrack, fallTrack
+local animator
+
+local function setupChar(char)
     local hum = char:WaitForChild("Humanoid")
+    animator = hum:WaitForChild("Animator")
+
+    -- pega animações já existentes
+    for _,track in ipairs(animator:GetPlayingAnimationTracks()) do
+        local name = track.Name:lower()
+        if name:find("jump") then
+            jumpTrack = track
+        elseif name:find("fall") then
+            fallTrack = track
+        end
+    end
 
     hum.StateChanged:Connect(function(_, new)
         if new == Enum.HumanoidStateType.Freefall then
-            canDoubleJump = true
-        end
-
-        if new == Enum.HumanoidStateType.Landed then
-            canDoubleJump = false
+            canDouble = true
+        elseif new == Enum.HumanoidStateType.Landed then
+            canDouble = false
         end
     end)
 end
 
 if LocalPlayer.Character then
-    setupCharacter(LocalPlayer.Character)
+    setupChar(LocalPlayer.Character)
 end
-LocalPlayer.CharacterAdded:Connect(setupCharacter)
+LocalPlayer.CharacterAdded:Connect(setupChar)
 
--- DOUBLE JUMP INPUT (mobile + PC)
+-- 🔥 PLAY REAL ANIMATION
+local function playJumpAnim()
+    if jumpTrack then
+        jumpTrack:Play(0.05, 1, 1)
+    end
+end
+
+-- DOUBLE JUMP (ANIMATION SYNC)
 UserInputService.JumpRequest:Connect(function()
     local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChild("Humanoid")
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hum or not hrp then return end
+    if not hrp then return end
 
-    if canDoubleJump and tick() - lastDoubleJump > DOUBLE_JUMP_COOLDOWN then
-        lastDoubleJump = tick()
-        canDoubleJump = false
+    if canDouble and tick() - lastDouble > DOUBLE_CD then
+        lastDouble = tick()
+        canDouble = false
 
-        -- impulso natural (sem quebrar animação)
-        hrp.Velocity = Vector3.new(hrp.Velocity.X, 42, hrp.Velocity.Z)
+        playJumpAnim()
 
-        hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
-        -- 🔥 FIX ANIMAÇÃO
-        task.delay(0.18, function()
-            if hum then
-                hum:ChangeState(Enum.HumanoidStateType.Freefall)
-            end
-        end)
+        -- impulso sincronizado com animação
+        task.wait(0.03)
+        hrp.Velocity = Vector3.new(hrp.Velocity.X, 44, hrp.Velocity.Z)
     end
 end)
 
--- FLICK (AJUSTADO)
-local function performVideoFlick()
-    if isFlicking then return end
-    isFlicking = true
+-- FLICK
+local function flick()
+    if flicking then return end
+    flicking = true
 
     local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChild("Humanoid")
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hum or not hrp then
-        isFlicking = false
+    if not hrp then
+        flicking = false
         return
     end
 
-    -- jump mais limpo
-    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    playJumpAnim()
 
-    -- 🔥 BOOST AJUSTADO (mais natural)
-    hrp.Velocity = Vector3.new(hrp.Velocity.X, 52, hrp.Velocity.Z)
+    -- delay mínimo pra bater com animação real
+    task.wait(0.025)
 
-    local startCFrame = Camera.CFrame
-    local targetCFrame = startCFrame * CFrame.Angles(0, math.rad(45), 0)
+    -- boost calibrado
+    hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z)
 
-    local fastFlick = math.random() < 0.4
+    -- câmera (igual ao seu estilo)
+    local start = Camera.CFrame
+    local target = start * CFrame.Angles(0, math.rad(45), 0)
 
-    Camera.CFrame = targetCFrame
+    local fast = math.random() < 0.4
 
-    task.wait(fastFlick and 0.013 or 0.019)
+    Camera.CFrame = target
+    task.wait(fast and 0.012 or 0.018)
 
-    local steps = fastFlick and 4 or 6
+    local steps = fast and 4 or 6
 
     for i = 1, steps do
-        local alpha = (i / steps) ^ (fastFlick and 1.8 or 2.2)
-        Camera.CFrame = targetCFrame:Lerp(startCFrame, alpha)
-        task.wait(fastFlick and 0.0045 or 0.0065)
+        local alpha = (i/steps)^(fast and 1.8 or 2.2)
+        Camera.CFrame = target:Lerp(start, alpha)
+        task.wait(fast and 0.0045 or 0.0065)
     end
 
-    -- 🔥 FIX FINAL ANIMAÇÃO (ESSENCIAL)
-    task.delay(0.12, function()
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Landed)
-        end
-    end)
-
-    isFlicking = false
+    flicking = false
 end
 
--- WALL DETECT (mantido, mas refinado)
-local lastHitInstance = nil
+-- WALL DETECT
+local lastHit = nil
 
 RunService.Heartbeat:Connect(function()
-    if not isWallHopEnabled then return end
+    if not enabled then return end
 
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -153,23 +157,23 @@ RunService.Heartbeat:Connect(function()
     )
 
     if result and result.Instance and result.Instance.CanCollide then
-        if lastHitInstance and lastHitInstance ~= result.Instance then
-            if hrp.Velocity.Y < -1 and tick() - lastFlickTime > 0.07 then
-                lastFlickTime = tick()
-                performVideoFlick()
+        if lastHit and lastHit ~= result.Instance then
+            if hrp.Velocity.Y < -1 and tick() - lastFlick > 0.07 then
+                lastFlick = tick()
+                flick()
             end
         end
-        lastHitInstance = result.Instance
+        lastHit = result.Instance
     else
-        lastHitInstance = nil
+        lastHit = nil
     end
 end)
 
 -- TOGGLE
-TextButton.MouseButton1Click:Connect(function()
-    isWallHopEnabled = not isWallHopEnabled
-    TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
-    TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
+Button.MouseButton1Click:Connect(function()
+    enabled = not enabled
+    Button.Text = enabled and "Wall Hop On" or "Wall Hop Off"
+    Button.BackgroundColor3 = enabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("Refined WallHop + DoubleJump Loaded")
+print("Animation Synced WallHop Loaded")
