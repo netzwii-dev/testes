@@ -1,20 +1,34 @@
--- CCF Parts (remove objetos visuais sem colisão)
+-- CCF Parts seguro (remove apenas folhas/decorações)
+local ignoreNames = {
+    "Door", "Freezer", "Computer", "Locker", "Cabinet", "Armory", "Button"
+}
 
 for _, v in pairs(workspace:GetDescendants()) do
-    if v:IsA("BasePart") then
+    if v:IsA("BasePart") and v.CanCollide == false then
         
-        -- remove partes sem colisão (folhas, efeitos, etc)
-        if v.CanCollide == false then
-            v.Transparency = 1
+        local skip = false
+        -- ignora objetos pelo nome
+        for _, name in pairs(ignoreNames) do
+            if v.Name:lower():find(name:lower()) then
+                skip = true
+                break
+            end
         end
         
-        -- remove também texturas dentro delas
-        for _, child in pairs(v:GetChildren()) do
-            if child:IsA("Decal") or child:IsA("Texture") then
-                child.Transparency = 1
-            end
+        -- ignora personagens
+        if v:IsDescendantOf(game.Players.LocalPlayer.Character) then
+            skip = true
+        end
+        
+        -- ignora partes grandes (paredes, freezers, armários)
+        if v.Size.Magnitude > 10 then
+            skip = true
+        end
+
+        if not skip then
+            v.Transparency = 1
         end
     end
 end
 
-print("CCF Parts aplicado")
+print("CCF Parts aplicado apenas nas folhas/decorações")
