@@ -1,106 +1,93 @@
--- LocalScript: Wallhop View otimizado FTF Practice
+-- LocalScript: Wallhop View 3D otimizado (igual FTF Practice)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local Camera = workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
 
 -- Configurações
-local LineColor = Color3.new(1,1,1)
-local LineThickness = 2
-local MaxDistance = 100 -- distância máxima para desenhar linhas
+local LineColor = Color3.fromRGB(255,255,255)
+local LineThickness = 0.05 -- espessura da “linha” 3D
+local MaxDistance = 50 -- distância máxima para desenhar
+local WallhopHeightTolerance = 5 -- altura das superfícies que podem ser wallhopadas
 
--- Tabela de linhas ativas
-local activeLines = {}
+-- Tabela de adorns ativos
+local adorns = {}
 
--- Função para criar linha 2D
-local function CreateLine(startPos, endPos)
-    local line = Drawing.new("Line")
-    line.From = startPos
-    line.To = endPos
-    line.Color = LineColor
-    line.Thickness = LineThickness
-    line.Transparency = 1
-    return line
+-- Remove adorns antigos
+local function ClearAdorns()
+    for _, a in pairs(adorns) do
+        a:Destroy()
+    end
+    adorns = {}
 end
 
--- Filtra partes relevantes (paredes, plataformas e chão acessível)
+-- Cria um highlight 3D tipo linha fina na superfície
+local function CreateLinePart(cframe, size)
+    local part = Instance.new("Part")
+    part.Anchored = true
+    part.CanCollide = false
+    part.Size = size
+    part.CFrame = cframe
+    part.Color = LineColor
+    part.Material = Enum.Material.Neon
+    part.Transparency = 0
+    part.Parent = Workspace
+    table.insert(adorns, part)
+end
+
+-- Pega partes relevantes para wallhop perto do jogador
 local function GetRelevantParts()
     local parts = {}
     local rootPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.Position
     if not rootPos then return parts end
 
-    for _, part in pairs(workspace:GetDescendants()) do
+    for _, part in pairs(Workspace:GetDescendants()) do
         if part:IsA("BasePart") and part.Anchored and part.CanCollide and part.Size.Magnitude > 2 then
             local distance = (part.Position - rootPos).Magnitude
             if distance <= MaxDistance then
-                -- Só desenha superfícies horizontais (chão/plataformas) ou verticais (paredes)
-                local size = part.Size
-                if size.Y < 0.5 or size.X < 0.5 or size.Z < 0.5 then
-                    continue
+                -- só partes acessíveis (altura próxima do jogador)
+                local relY = math.abs(part.Position.Y - rootPos.Y)
+                if relY <= WallhopHeightTolerance then
+                    table.insert(parts, part)
                 end
-                table.insert(parts, part)
             end
         end
     end
     return parts
 end
 
--- Cria linhas 2D apenas nas bordas de superfícies relevantes
-local function DrawPart(part)
-    local pos = part.Position
-    local size = part.Size
-
-    local topY = pos.Y + size.Y/2
-    local bottomY = pos.Y - size.Y/2
-    local leftX = pos.X - size.X/2
-    local rightX = pos.X + size.X/2
-    local frontZ = pos.Z - size.Z/2
-    local backZ = pos.Z + size.Z/2
-
-    local points = {
-        -- borda superior (horizontal)
-        Vector3.new(leftX, topY, frontZ),
-        Vector3.new(rightX, topY, frontZ),
-        Vector3.new(rightX, topY, backZ),
-        Vector3.new(leftX, topY, backZ),
-        -- borda inferior (horizontal)
-        Vector3.new(leftX, bottomY, frontZ),
-        Vector3.new(rightX, bottomY, frontZ),
-        Vector3.new(rightX, bottomY, backZ),
-        Vector3.new(leftX, bottomY, backZ),
-    }
-
-    local edges = {
-        {1,2},{2,3},{3,4},{4,1}, -- topo
-        {5,6},{6,7},{7,8},{8,5}, -- base
-        {1,5},{2,6},{3,7},{4,8}, -- vertical
-    }
-
-    local lineObjects = {}
-    for _, e in pairs(edges) do
-        local screenStart, onScreen1 = Camera:WorldToViewportPoint(points[e[1]])
-        local screenEnd, onScreen2 = Camera:WorldToViewportPoint(points[e[2]])
-        if onScreen1 or onScreen2 then
-            local line = CreateLine(Vector2.new(screenStart.X, screenStart.Y), Vector2.new(screenEnd.X, screenEnd.Y))
-            table.insert(lineObjects, line)
-        end
-    end
-    return lineObjects
-end
-
--- Atualiza linhas a cada frame
-RunService.RenderStepped:Connect(function()
-    -- Remove linhas antigas
-    for _, line in pairs(activeLines) do
-        line:Remove()
-    end
-    activeLines = {}
-
+-- Desenha as “linhas” 3D nas bordas das partes relevantes
+local function DrawWallhopView()
+    ClearAdorns()
     local parts = GetRelevantParts()
     for _, part in pairs(parts) do
-        local lines = DrawPart(part)
-        for _, l in pairs(lines) do
-            table.insert(activeLines, l)
-        end
+        local pos = part.Position
+        local size = part.Size
+
+        -- borda superior (horizontal)
+        local topY = pos.Y + size.Y/2
+        local leftX = pos.X - size.X/2
+        local rightX = pos.X + size.X/2
+        local frontZ = pos.Z - size.Z/2
+        local backZ = pos.Z + size.Z/2
+
+        local thickness = LineThickness
+
+        -- cria linhas horizontais (topo da plataforma)
+        CreateLinePart(CFrame.new((leftX+rightX)/2, topY, frontZ), Vector3.new(size.X, thickness, thickness))
+        CreateLinePart(CFrame.new((leftX+rightX)/2, topY, backZ), Vector3.new(size.X, thickness, thickness))
+        CreateLinePart(CFrame.new(leftX, topY, (frontZ+backZ)/2), Vector3.new(thickness, thickness, size.Z))
+        CreateLinePart(CFrame.new(rightX, topY, (frontZ+backZ)/2), Vector3.new(thickness, thickness, size.Z))
+
+        -- cria linhas verticais (bordas)
+        CreateLinePart(CFrame.new(leftX, topY - size.Y/2, frontZ), Vector3.new(thickness, size.Y, thickness))
+        CreateLinePart(CFrame.new(rightX, topY - size.Y/2, frontZ), Vector3.new(thickness, size.Y, thickness))
+        CreateLinePart(CFrame.new(leftX, topY - size.Y/2, backZ), Vector3.new(thickness, size.Y, thickness))
+        CreateLinePart(CFrame.new(rightX, topY - size.Y/2, backZ), Vector3.new(thickness, size.Y, thickness))
     end
+end
+
+-- Atualiza a cada 0.3s para não travar
+RunService.Heartbeat:Connect(function(step)
+    DrawWallhopView()
 end)
