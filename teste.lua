@@ -1,6 +1,6 @@
 -- LocalScript dentro de um ScreenGui
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 local player = Players.LocalPlayer
 
 -- Criar GUI
@@ -26,31 +26,16 @@ local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0.5,0)
 corner.Parent = button
 
--- Função para detectar RemoteEvent de emote automaticamente
-local function findEmoteRemote(root)
-    for _, obj in ipairs(root:GetDescendants()) do
-        if obj:IsA("RemoteEvent") and obj.Name:lower():find("emote") then
-            return obj
-        end
-    end
-    return nil
-end
-
-local emoteRemote = findEmoteRemote(ReplicatedStorage)
-
-if not emoteRemote then
-    warn("Não foi possível localizar RemoteEvent de emote. Dance2 não funcionará.")
-end
-
--- Função que dispara a dança uma vez
+-- Função que dispara /e dance2 via chat
 local function sendDance2()
-    if emoteRemote then
-        pcall(function()
-            emoteRemote:FireServer("dance2")
-        end)
-    else
-        warn("RemoteEvent de emote não encontrado.")
-    end
+    -- Usa pcall para evitar erros se chat não estiver pronto
+    pcall(function()
+        -- Envia a mensagem para o canal geral do chat
+        StarterGui:SetCore("ChatMakeSystemMessage", {Text = ""}) -- apenas ativa o chat
+        game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+        game:GetService("VirtualInputManager"):SendText("/e dance2")
+        game:GetService("VirtualInputManager"):SendKeyPress(Enum.KeyCode.Return, true, false, true)
+    end)
 end
 
 -- Conectar clique do botão
