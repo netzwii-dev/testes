@@ -1,5 +1,4 @@
-
--- AUTO WALLHOP + DOUBLE JUMP (REFINADO)
+-- AUTO WALLHOP + DOUBLE JUMP (REFINADO - FIX ANIMAÇÃO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -9,7 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- UI (mantida igual)
+-- UI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AutoWallHopGui"
 ScreenGui.ResetOnSpawn = false
@@ -62,7 +61,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- DOUBLE JUMP INPUT (mobile + PC)
+-- DOUBLE JUMP INPUT
 UserInputService.JumpRequest:Connect(function()
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChild("Humanoid")
@@ -73,12 +72,9 @@ UserInputService.JumpRequest:Connect(function()
         lastDoubleJump = tick()
         canDoubleJump = false
 
-        -- impulso natural (sem quebrar animação)
         hrp.Velocity = Vector3.new(hrp.Velocity.X, 42, hrp.Velocity.Z)
-
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
-        -- 🔥 FIX ANIMAÇÃO
         task.delay(0.18, function()
             if hum then
                 hum:ChangeState(Enum.HumanoidStateType.Freefall)
@@ -87,7 +83,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK (AJUSTADO)
+-- FLICK
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -100,10 +96,7 @@ local function performVideoFlick()
         return
     end
 
-    -- jump mais limpo
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
-    -- 🔥 BOOST AJUSTADO (mais natural)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 52, hrp.Velocity.Z)
 
     local startCFrame = Camera.CFrame
@@ -123,17 +116,17 @@ local function performVideoFlick()
         task.wait(fastFlick and 0.0045 or 0.0065)
     end
 
-    -- 🔥 FIX FINAL ANIMAÇÃO (ESSENCIAL)
-    task.delay(0.12, function()
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Landed)
+    -- ✅ FIX AQUI (sem travar braço)
+    task.delay(0.1, function()
+        if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
+            hum:ChangeState(Enum.HumanoidStateType.Freefall)
         end
     end)
 
     isFlicking = false
 end
 
--- WALL DETECT (mantido, mas refinado)
+-- WALL DETECT
 local lastHitInstance = nil
 
 RunService.Heartbeat:Connect(function()
@@ -173,4 +166,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("Refined WallHop + DoubleJump Loaded")
+print("WallHop Loaded (Animation Fix)")
