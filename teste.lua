@@ -72,7 +72,6 @@ UserInputService.JumpRequest:Connect(function()
         lastDoubleJump = tick()
         canDoubleJump = false
 
-        -- AJUSTE AQUI (altura legítima)
         hrp.Velocity = Vector3.new(hrp.Velocity.X, 36, hrp.Velocity.Z)
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
@@ -117,7 +116,6 @@ local function performVideoFlick()
         task.wait(fastFlick and 0.0045 or 0.0065)
     end
 
-    -- FIX animação (sem travar braço)
     task.delay(0.1, function()
         if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
             hum:ChangeState(Enum.HumanoidStateType.Freefall)
@@ -127,7 +125,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT
+-- WALL DETECT (AJUSTADO PARA O PÉ)
 local lastHitInstance = nil
 
 RunService.Heartbeat:Connect(function()
@@ -141,8 +139,11 @@ RunService.Heartbeat:Connect(function()
     params.FilterDescendantsInstances = {char}
     params.FilterType = Enum.RaycastFilterType.Exclude
 
+    -- OFFSET PARA LINHA DO PÉ
+    local origin = hrp.Position + Vector3.new(0, -2.5, 0)
+
     local result = workspace:Raycast(
-        hrp.Position,
+        origin,
         Camera.CFrame.LookVector * 3,
         params
     )
@@ -167,4 +168,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Animation Fix)")
+print("WallHop Loaded (Animation Fix - Foot Line)")
