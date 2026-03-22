@@ -137,7 +137,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (AGORA IGNORA PLAYERS)
+-- WALL DETECT (AGORA IGNORA PLAYERS + SUPERFÍCIES VERTICAIS)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -181,8 +181,8 @@ RunService.Heartbeat:Connect(function()
         local ray = workspace:Raycast(origin, direction, params)
 
         if ray and ray.Instance and ray.Instance.CanCollide then
-            -- 🔴 IGNORA JOGADORES
-            if not isPlayerCharacter(ray.Instance) then
+            -- 🔴 IGNORA JOGADORES + IGNORA SUPERFÍCIES VERTICAIS
+            if not isPlayerCharacter(ray.Instance) and ray.Normal.Y > 0.35 then
                 result = ray
                 break
             end
@@ -209,4 +209,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Sem colisão em players)")
+print("WallHop Loaded (Sem colisão em players + sem superfícies verticais)")
