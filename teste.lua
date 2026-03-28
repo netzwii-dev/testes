@@ -1,5 +1,4 @@
-
--- AUTO WALLHOP + DOUBLE JUMP (REFINADO - ANGLE + CROUCH BLOCK)
+-- AUTO WALLHOP + DOUBLE JUMP (REFINADO - FIX ANIMAÇÃO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -44,13 +43,10 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
--- CROUCH CHECK
+-- CROUCH CHECK (ADICIONADO)
 local function isCrouching(hum)
     if not hum then return false end
-    if hum.HipHeight < 1.5 then
-        return true
-    end
-    return false
+    return hum.HipHeight < 1.5
 end
 
 -- CHARACTER HANDLER
@@ -147,7 +143,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT
+-- WALL DETECT (AGORA IGNORA PLAYERS)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -168,7 +164,7 @@ RunService.Heartbeat:Connect(function()
 
     if not hrp or not hum then return end
 
-    -- 🚫 BLOQUEIA AGACHADO
+    -- 🚫 BLOQUEIO AGACHADO (ADICIONADO)
     if isCrouching(hum) then return end
 
     local params = RaycastParams.new()
@@ -182,15 +178,15 @@ RunService.Heartbeat:Connect(function()
         horizontal = horizontal.Unit
     end
 
-    -- 🔧 alcance ajustado
-    local direction = horizontal * 2.1
+    -- 🔧 ALCANCE REDUZIDO (ALTERADO)
+    local direction = horizontal * 1.8
 
     local result = nil
 
-    -- 🔧 offsets refinados
     local offsets = {
-        Vector3.new(0, -1.4, 0),
-        Vector3.new(0, -0.6, 0)
+        Vector3.new(0, -2.2, 0),
+        Vector3.new(0, -1.2, 0),
+        Vector3.new(0, -0.4, 0)
     }
 
     for _, offset in ipairs(offsets) do
@@ -206,12 +202,6 @@ RunService.Heartbeat:Connect(function()
     end
 
     if result and result.Instance then
-        -- 🔧 verificação de ângulo (DOT)
-        local dot = horizontal:Dot(result.Normal)
-        if dot > -0.85 then
-            return
-        end
-
         if lastHitInstance and lastHitInstance ~= result.Instance then
             if hrp.Velocity.Y < -1 and tick() - lastFlickTime > 0.07 then
                 lastFlickTime = tick()
@@ -231,4 +221,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Angle + Crouch Block)")
+print("WallHop Loaded (Alcance 1.8 + Crouch Block)")
