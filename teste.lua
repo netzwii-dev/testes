@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (REFINADO - FIX ANIMAÇÃO)
+-- AUTO WALLHOP + DOUBLE JUMP (REFINADO - TRYHARD + FILTROS)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -42,6 +42,13 @@ local isWallHopping = false
 local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
+
+-- CROUCH CHECK
+local function isCrouching(hum, hrp)
+    if not hum or not hrp then return false end
+    local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
+    return hum.WalkSpeed <= 9 and horizontalSpeed < 8
+end
 
 -- CHARACTER HANDLER
 local function setupCharacter(char)
@@ -137,7 +144,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (AGORA IGNORA PLAYERS)
+-- WALL DETECT
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -154,7 +161,12 @@ RunService.Heartbeat:Connect(function()
 
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    local hum = char and char:FindFirstChild("Humanoid")
+
+    if not hrp or not hum then return end
+
+    -- 🚫 BLOQUEIA AGACHADO
+    if isCrouching(hum, hrp) then return end
 
     local params = RaycastParams.new()
     params.FilterDescendantsInstances = {char}
@@ -167,7 +179,6 @@ RunService.Heartbeat:Connect(function()
         horizontal = horizontal.Unit
     end
 
-    -- alcance ajustado
     local direction = horizontal * 1.55
 
     local result = nil
@@ -191,8 +202,13 @@ RunService.Heartbeat:Connect(function()
     end
 
     if result and result.Instance then
+        -- 🚫 BLOQUEIA PAREDE VERTICAL RETA
+        local normal = result.Normal
+        if math.abs(normal.Y) < 0.1 then
+            return
+        end
+
         if lastHitInstance and lastHitInstance ~= result.Instance then
-            -- timing ajustado
             if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
                 lastFlickTime = tick()
                 performVideoFlick()
@@ -211,4 +227,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Tryhard Config)")
+print("WallHop Loaded (Tryhard + Vertical Block + Crouch)")
