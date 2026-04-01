@@ -38,10 +38,14 @@ local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
 
--- DOUBLE JUMP SYSTEM
-local wallHopCharge = 0
-local REQUIRED_CHARGE = 3
-local doubleJumpReady = false
+-- NOVO (janela após wallhop)
+local lastWallHopTime = 0
+local WALLHOP_GRACE_TIME = 1.5
+
+-- DOUBLE JUMP
+local canDoubleJump = false
+local lastDoubleJump = 0
+local DOUBLE_JUMP_COOLDOWN = 3
 
 -- CROUCH CHECK
 local function isCrouching(hum, hrp)
@@ -55,9 +59,12 @@ local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
     hum.StateChanged:Connect(function(_, new)
+        if new == Enum.HumanoidStateType.Freefall then
+            canDoubleJump = true
+        end
+
         if new == Enum.HumanoidStateType.Landed then
-            wallHopCharge = 0
-            doubleJumpReady = false
+            canDoubleJump = false
         end
     end)
 end
@@ -76,16 +83,14 @@ UserInputService.JumpRequest:Connect(function()
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if not hum or not hrp then return end
 
-    local state = hum:GetState()
+    -- NOVA LÓGICA
+    local stillValid = isWallHopping or (tick() - lastWallHopTime <= WALLHOP_GRACE_TIME)
+    if not stillValid then return end
 
-    if state ~= Enum.HumanoidStateType.Freefall and state ~= Enum.HumanoidStateType.Jumping then
-        return
-    end
+    if canDoubleJump and tick() - lastDoubleJump > DOUBLE_JUMP_COOLDOWN then
+        lastDoubleJump = tick()
+        canDoubleJump = false
 
-    if doubleJumpReady then
-        doubleJumpReady = false
-
-        -- ALTURA ORIGINAL RESTAURADA
         hrp.Velocity = Vector3.new(hrp.Velocity.X, 34.5, hrp.Velocity.Z)
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
@@ -97,12 +102,13 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK (INALTERADO)
+-- FLICK MELHORADO
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
 
     isWallHopping = true
+    lastWallHopTime = tick() -- NOVO
 
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChild("Humanoid")
@@ -165,7 +171,7 @@ local function isPlayerCharacter(instance)
     return false
 end
 
-RunService.Heartbeat:Connect(function(dt)
+RunService.Heartbeat:Connect(function()
     if not isWallHopEnabled then return end
 
     local char = LocalPlayer.Character
@@ -175,13 +181,6 @@ RunService.Heartbeat:Connect(function(dt)
     if not hrp or not hum then return end
 
     if isCrouching(hum, hrp) then return end
-
-    if isWallHopping then
-        wallHopCharge += dt
-        if wallHopCharge >= REQUIRED_CHARGE then
-            doubleJumpReady = true
-        end
-    end
 
     local params = RaycastParams.new()
     params.FilterDescendantsInstances = {char}
@@ -236,4 +235,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Final Ajustado)")
+print("WallHop Loaded (com grace time 1.5s)")
