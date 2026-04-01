@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (REFINADO - FLICK DINÂMICO)
+-- AUTO WALLHOP (SEM DOUBLE JUMP - FLICK DINÂMICO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -38,63 +38,12 @@ local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
 
--- DOUBLE JUMP
-local canDoubleJump = false
-local lastDoubleJump = 0
-local DOUBLE_JUMP_COOLDOWN = 3
-
 -- CROUCH CHECK
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
     local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
     return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
-
--- CHARACTER HANDLER
-local function setupCharacter(char)
-    local hum = char:WaitForChild("Humanoid")
-
-    hum.StateChanged:Connect(function(_, new)
-        if new == Enum.HumanoidStateType.Freefall then
-            canDoubleJump = true
-        end
-
-        if new == Enum.HumanoidStateType.Landed then
-            canDoubleJump = false
-        end
-    end)
-end
-
-if LocalPlayer.Character then
-    setupCharacter(LocalPlayer.Character)
-end
-LocalPlayer.CharacterAdded:Connect(setupCharacter)
-
--- DOUBLE JUMP
-UserInputService.JumpRequest:Connect(function()
-    if not isWallHopEnabled then return end
-
-    local char = LocalPlayer.Character
-    local hum = char and char:FindFirstChild("Humanoid")
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if not hum or not hrp then return end
-
-    if not isWallHopping then return end
-
-    if canDoubleJump and tick() - lastDoubleJump > DOUBLE_JUMP_COOLDOWN then
-        lastDoubleJump = tick()
-        canDoubleJump = false
-
-        hrp.Velocity = Vector3.new(hrp.Velocity.X, 34.5, hrp.Velocity.Z)
-        hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
-        task.delay(0.18, function()
-            if hum then
-                hum:ChangeState(Enum.HumanoidStateType.Freefall)
-            end
-        end)
-    end
-end)
 
 -- FLICK MELHORADO
 local function performVideoFlick()
@@ -116,15 +65,12 @@ local function performVideoFlick()
 
     local startCFrame = Camera.CFrame
 
-    -- intensidade baseada no ângulo vertical
     local lookY = startCFrame.LookVector.Y
     local verticalInfluence = math.clamp(math.abs(lookY), 0, 1)
 
-    -- reduz o ângulo quando olhando muito pra cima/baixo
     local baseAngle = 45
     local dynamicAngle = baseAngle * (1 - (verticalInfluence * 0.6))
 
-    -- rotação no eixo da câmera (mantém direção real)
     local flickRotation = CFrame.fromAxisAngle(startCFrame.UpVector, math.rad(dynamicAngle))
     local targetCFrame = flickRotation * startCFrame
 
@@ -231,4 +177,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Flick Inteligente)")
+print("WallHop Loaded (Sem Double Jump)")
