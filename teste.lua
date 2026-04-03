@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK HUMANIZADO AJUSTADO)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK NATURAL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -104,18 +104,22 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
+-- CROUCH CHECK
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then return false end
 	local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
 	return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
+-- CHARACTER
 local function setupCharacter(char)
 	local hum = char:WaitForChild("Humanoid")
+
 	hum.StateChanged:Connect(function(_, new)
 		if new == Enum.HumanoidStateType.Freefall then
 			canDoubleJump = true
 		end
+
 		if new == Enum.HumanoidStateType.Landed then
 			canDoubleJump = false
 		end
@@ -127,6 +131,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
+-- DOUBLE JUMP
 UserInputService.JumpRequest:Connect(function()
 	if not isWallHopEnabled then return end
 
@@ -147,7 +152,7 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
--- FLICK AJUSTADO FINO
+-- FLICK NATURAL
 local function performVideoFlick()
 	if isFlicking then return end
 	isFlicking = true
@@ -172,16 +177,16 @@ local function performVideoFlick()
 	local direction = 1
 	local target = start * CFrame.Angles(0, angle * direction, 0)
 
-	-- ida (rápida e suave)
-	local dur = math.random(18, 24) / 1000
-	local pow = math.random(18, 23) / 10
-	local t0 = tick()
+	local durationIn = math.random(45, 60) / 1000
+	local durationOut = math.random(55, 75) / 1000
 
+	-- ida
+	local t0 = tick()
 	while true do
-		local t = (tick() - t0) / dur
+		local t = (tick() - t0) / durationIn
 		if t >= 1 then break end
 
-		local alpha = t ^ pow
+		local alpha = t * 0.9 + (t^2) * 0.1
 		Camera.CFrame = start:Lerp(target, alpha)
 
 		RunService.RenderStepped:Wait()
@@ -189,15 +194,15 @@ local function performVideoFlick()
 
 	Camera.CFrame = target
 
-	-- volta (levemente mais suave)
-	local dur2 = math.random(24, 32) / 1000
-	local t1 = tick()
+	task.wait(math.random(5,10)/1000)
 
+	-- volta
+	local t1 = tick()
 	while true do
-		local t = (tick() - t1) / dur2
+		local t = (tick() - t1) / durationOut
 		if t >= 1 then break end
 
-		local alpha = t ^ 1.7
+		local alpha = t * 0.85 + (t^2) * 0.15
 		Camera.CFrame = target:Lerp(start, alpha)
 
 		RunService.RenderStepped:Wait()
@@ -212,7 +217,7 @@ local function performVideoFlick()
 	isFlicking = false
 end
 
--- WALL DETECT (igual)
+-- WALL DETECT
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -237,33 +242,41 @@ RunService.Heartbeat:Connect(function()
 
 	local look = Camera.CFrame.LookVector
 	local horizontal = Vector3.new(look.X, 0, look.Z)
+
 	if horizontal.Magnitude > 0 then
 		horizontal = horizontal.Unit
 	end
 
 	local direction = horizontal * 1.55
 
-	for _, offset in ipairs({Vector3.new(0,-2.2,0),Vector3.new(0,-1.2,0),Vector3.new(0,-0.4,0)}) do
+	for _, offset in ipairs({
+		Vector3.new(0, -2.2, 0),
+		Vector3.new(0, -1.2, 0),
+		Vector3.new(0, -0.4, 0)
+	}) do
 		local ray = workspace:Raycast(hrp.Position + offset, direction, params)
 
-		if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-			if lastHitInstance and lastHitInstance ~= ray.Instance then
-				if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
-					lastFlickTime = tick()
-					performVideoFlick()
+		if ray and ray.Instance and ray.Instance.CanCollide then
+			if not isPlayerCharacter(ray.Instance) then
+				if lastHitInstance and lastHitInstance ~= ray.Instance then
+					if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
+						lastFlickTime = tick()
+						performVideoFlick()
+					end
 				end
+				lastHitInstance = ray.Instance
+				return
 			end
-			lastHitInstance = ray.Instance
-			return
 		end
 	end
 
 	lastHitInstance = nil
 end)
 
+-- TOGGLE
 TextButton.MouseButton1Click:Connect(function()
 	isWallHopEnabled = not isWallHopEnabled
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("WallHop Loaded (flick refinado)")
+print("WallHop Loaded (flick natural)")
