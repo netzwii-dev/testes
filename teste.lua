@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VIA HUMANOID - FINAL)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK SNAP LIMPO - MOBILE)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -96,7 +96,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VIA HUMANOID (SEM BUG)
+-- FLICK SNAP LIMPO (SEM MOVIMENTO / SEM EMPURRÃO)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -116,36 +116,28 @@ local function performVideoFlick()
     -- impulso vertical
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-    -- direção atual
-    local look = hrp.CFrame.LookVector
-    local flat = Vector3.new(look.X, 0, look.Z).Unit
+    local baseCF = hrp.CFrame
 
-    -- ângulo 50°–80°
+    -- ângulo fixo (variação leve dentro de 50–80)
     local angle = math.rad(math.random(50, 80))
-    local dir = 1
 
-    local rotated = CFrame.fromAxisAngle(Vector3.new(0,1,0), angle * dir):VectorToWorldSpace(flat)
+    -- direita fixa
+    local targetCF = baseCF * CFrame.Angles(0, angle, 0)
 
-    -- aplica flick
-    local steps = math.random(4,6)
-    for i = 1, steps do
-        hum:Move(rotated, true)
-        RunService.RenderStepped:Wait()
-    end
+    -- snap rápido (ida e volta)
+    hrp.CFrame = targetCF
+    RunService.RenderStepped:Wait()
+    hrp.CFrame = baseCF
 
-    hum:Move(Vector3.zero, true)
+    -- corrige animação (braços)
+    hum:ChangeState(Enum.HumanoidStateType.Freefall)
+    hum.AutoRotate = true
 
     task.delay(0.05, function()
         blockDoubleJump = false
     end)
 
-    task.delay(0.1, function()
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Freefall)
-        end
-    end)
-
-    task.delay(0.2, function()
+    task.delay(0.15, function()
         isWallHopping = false
     end)
 
@@ -227,4 +219,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (Humanoid flick final)")
+print("WallHop Loaded (snap flick mobile fix)")
