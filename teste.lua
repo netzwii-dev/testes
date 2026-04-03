@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK NATURAL)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK NATURAL MELHORADO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -152,7 +152,7 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
--- FLICK NATURAL
+-- FLICK MELHORADO
 local function performVideoFlick()
 	if isFlicking then return end
 	isFlicking = true
@@ -173,12 +173,13 @@ local function performVideoFlick()
 
 	local start = Camera.CFrame
 
-	local angle = math.rad(math.random(42, 50))
-	local direction = 1
+	local angle = math.rad(math.random(42, 60))
+	local direction = (math.random() < 0.5) and -1 or 1
+
 	local target = start * CFrame.Angles(0, angle * direction, 0)
 
-	local durationIn = math.random(45, 60) / 1000
-	local durationOut = math.random(55, 75) / 1000
+	local durationIn = math.random(50, 70) / 1000
+	local durationOut = math.random(30, 55) / 1000
 
 	-- ida
 	local t0 = tick()
@@ -186,7 +187,7 @@ local function performVideoFlick()
 		local t = (tick() - t0) / durationIn
 		if t >= 1 then break end
 
-		local alpha = t * 0.9 + (t^2) * 0.1
+		local alpha = t * 0.85 + (t^2) * 0.15
 		Camera.CFrame = start:Lerp(target, alpha)
 
 		RunService.RenderStepped:Wait()
@@ -194,21 +195,24 @@ local function performVideoFlick()
 
 	Camera.CFrame = target
 
-	task.wait(math.random(5,10)/1000)
+	task.wait(math.random(4, 9)/1000)
 
-	-- volta
+	-- volta com leve imprecisão
 	local t1 = tick()
+	local randomOffset = math.rad(math.random(-2, 2))
+	local imperfectReturn = start * CFrame.Angles(0, randomOffset, 0)
+
 	while true do
 		local t = (tick() - t1) / durationOut
 		if t >= 1 then break end
 
-		local alpha = t * 0.85 + (t^2) * 0.15
-		Camera.CFrame = target:Lerp(start, alpha)
+		local alpha = t
+		Camera.CFrame = target:Lerp(imperfectReturn, alpha)
 
 		RunService.RenderStepped:Wait()
 	end
 
-	Camera.CFrame = start
+	Camera.CFrame = imperfectReturn
 
 	task.delay(0.25, function()
 		isWallHopping = false
@@ -279,4 +283,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("WallHop Loaded (flick natural)")
+print("WallHop Loaded (flick melhorado)")
