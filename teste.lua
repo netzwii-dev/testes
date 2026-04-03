@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL POR ROOTJOINT - 45°)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL 50° EXTREMO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -97,7 +97,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VISUAL (ROOTJOINT 45°)
+-- FLICK VISUAL (50° EXTREMO)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -108,14 +108,7 @@ local function performVideoFlick()
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChild("Humanoid")
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
-
     if not hum or not hrp then
-        isFlicking = false
-        return
-    end
-
-    local rootJoint = hrp:FindFirstChild("RootJoint") or hrp:FindFirstChildWhichIsA("Motor6D")
-    if not rootJoint then
         isFlicking = false
         return
     end
@@ -124,32 +117,21 @@ local function performVideoFlick()
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-    local duration = 0.25
-    local half = duration / 2
-    local angle = math.rad(45)
+    local oldAutoRotate = hum.AutoRotate
+    hum.AutoRotate = false
 
-    local start = tick()
+    -- ALTERAÇÃO (50° COM COMPENSAÇÃO)
+    hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(600), 0)
+    task.wait(0.18)
 
-    while tick() - start < duration do
-        local t = tick() - start
+    hrp.AssemblyAngularVelocity = Vector3.zero
+    hum.AutoRotate = oldAutoRotate
 
-        local progress
-        if t <= half then
-            progress = t / half
-        else
-            progress = 1 - ((t - half) / half)
+    task.delay(0.1, function()
+        if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
+            hum:ChangeState(Enum.HumanoidStateType.Freefall)
         end
-
-        progress = math.sin(progress * math.pi)
-
-        local currentAngle = angle * progress
-
-        rootJoint.Transform = CFrame.Angles(0, currentAngle, 0)
-
-        RunService.RenderStepped:Wait()
-    end
-
-    rootJoint.Transform = CFrame.new()
+    end)
 
     task.delay(0.25, function()
         isWallHopping = false
@@ -234,4 +216,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (RootJoint flick 45°)")
+print("WallHop Loaded (50° extremo)")
