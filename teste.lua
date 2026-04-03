@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK EXTREMO SEM CÂMERA)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK EXTREMO AJUSTADO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -96,7 +96,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK EXTREMO
+-- FLICK AJUSTADO
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -114,30 +114,27 @@ local function performVideoFlick()
 
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
-    -- impulso mais forte
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 46, hrp.Velocity.Z)
 
     local angleRad = math.rad(80)
-
     local fastFlick = math.random() < 0.4
 
-    -- SNAP MAIS LONGO (bem visível)
+    -- SNAP
     hrp.CFrame = hrp.CFrame * CFrame.Angles(0, angleRad, 0)
 
-    -- leve impulso lateral (sensação real)
     local right = hrp.CFrame.RightVector
     hrp.Velocity = hrp.Velocity + (right * 6)
 
-    task.wait(fastFlick and 0.02 or 0.028)
+    task.wait(fastFlick and 0.035 or 0.045)
 
-    -- VOLTA SUAVE E FORTE
-    local steps = fastFlick and 5 or 7
+    -- VOLTA
+    local steps = fastFlick and 7 or 10
 
     for i = 1, steps do
         local alpha = (i / steps) ^ (fastFlick and 1.6 or 2.0)
         local stepAngle = angleRad * alpha / steps
         hrp.CFrame = hrp.CFrame * CFrame.Angles(0, -stepAngle, 0)
-        task.wait(fastFlick and 0.005 or 0.007)
+        task.wait(fastFlick and 0.008 or 0.011)
     end
 
     task.delay(0.1, function()
@@ -229,4 +226,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (FLICK EXTREMO)")
+print("WallHop Loaded (FLICK AJUSTADO LENTO)")
