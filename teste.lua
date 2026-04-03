@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK SUAVE FUNCIONAL)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL SEM QUEBRAR FÍSICA)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -23,9 +23,7 @@ TextButton.Font = Enum.Font.GothamBold
 TextButton.TextScaled = true
 TextButton.Parent = ScreenGui
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = TextButton
+Instance.new("UICorner", TextButton).CornerRadius = UDim.new(0, 12)
 
 RunService.RenderStepped:Connect(function()
     local inset = GuiService:GetGuiInset()
@@ -39,6 +37,8 @@ local lastFlickTime = 0
 local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
+
+-- NOVO (janela após wallhop)
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 
@@ -47,12 +47,14 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
+-- CROUCH CHECK
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
     local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
     return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
+-- CHARACTER HANDLER
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
@@ -60,6 +62,7 @@ local function setupCharacter(char)
         if new == Enum.HumanoidStateType.Freefall then
             canDoubleJump = true
         end
+
         if new == Enum.HumanoidStateType.Landed then
             canDoubleJump = false
         end
@@ -98,7 +101,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK SUAVE REAL (0.4s ida + volta)
+-- FLICK VISUAL (BASEADO NO FLICK DE CÂMERA, MAS NO PERSONAGEM)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -114,29 +117,45 @@ local function performVideoFlick()
         return
     end
 
-    -- mantém impulso original (SEM forçar jump)
+    -- impulso original
+    hum:ChangeState(Enum.HumanoidStateType.Jumping)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    local duration = 0.4
-    local half = duration / 2
-    local angle = math.rad(50)
+    local startCFrame = hrp.CFrame
 
-    -- velocidade angular necessária
-    local angularSpeed = angle / half
+    local lookY = Camera.CFrame.LookVector.Y
+    local verticalInfluence = math.clamp(math.abs(lookY), 0, 1)
 
-    -- ida
-    hrp.AssemblyAngularVelocity = Vector3.new(0, angularSpeed, 0)
-    task.wait(half)
+    local baseAngle = 45
+    local dynamicAngle = baseAngle * (1 - (verticalInfluence * 0.6))
 
-    -- volta
-    hrp.AssemblyAngularVelocity = Vector3.new(0, -angularSpeed, 0)
-    task.wait(half)
+    local flickRotation = CFrame.fromAxisAngle(Vector3.new(0,1,0), math.rad(dynamicAngle))
+    local targetCFrame = flickRotation * startCFrame
 
-    hrp.AssemblyAngularVelocity = Vector3.zero
+    local fastFlick = math.random() < 0.4
+
+    hrp.CFrame = targetCFrame
+
+    task.wait(fastFlick and 0.013 or 0.019)
+
+    local steps = fastFlick and 4 or 6
+
+    for i = 1, steps do
+        local alpha = (i / steps) ^ (fastFlick and 1.8 or 2.2)
+        hrp.CFrame = targetCFrame:Lerp(startCFrame, alpha)
+        task.wait(fastFlick and 0.0045 or 0.0065)
+    end
+
     hum.AutoRotate = oldAutoRotate
+
+    task.delay(0.1, function()
+        if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
+            hum:ChangeState(Enum.HumanoidStateType.Freefall)
+        end
+    end)
 
     task.delay(0.25, function()
         isWallHopping = false
@@ -165,6 +184,7 @@ RunService.Heartbeat:Connect(function()
     local hum = char and char:FindFirstChild("Humanoid")
 
     if not hrp or not hum then return end
+
     if isCrouching(hum, hrp) then return end
 
     local params = RaycastParams.new()
@@ -213,10 +233,12 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
+-- TOGGLE
 TextButton.MouseButton1Click:Connect(function()
     isWallHopEnabled = not isWallHopEnabled
+
     TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick corrigido de verdade)")
+print("WallHop Loaded (flick físico estilo câmera)")
