@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK FÍSICO 45° NÍTIDO)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK FÍSICO 45° CORRIGIDO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -98,7 +98,7 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
--- FLICK FÍSICO (45° NÍTIDO)
+-- FLICK FÍSICO CORRIGIDO
 local function performVideoFlick()
 	if isFlicking then return end
 	isFlicking = true
@@ -114,32 +114,28 @@ local function performVideoFlick()
 		return
 	end
 
-	-- evita bug de pulo no ar
-	if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
-		hum:ChangeState(Enum.HumanoidStateType.Jumping)
-	end
-
 	-- impulso original
+	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 	hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
 	local oldAutoRotate = hum.AutoRotate
 	hum.AutoRotate = false
 
-	-- 1. giro rápido (~45°)
-	hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(900), 0)
-	task.wait(0.045)
+	-- 🔥 FLICK MAIS FORTE E VISÍVEL (~45°)
+	hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(1100), 0)
+	task.wait(0.06)
 
-	-- 2. contra-rotação (freio seco)
-	hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(-220), 0)
-	task.wait(0.025)
+	-- freio leve
+	hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(-180), 0)
+	task.wait(0.02)
 
-	-- 3. parar
 	hrp.AssemblyAngularVelocity = Vector3.zero
 
 	hum.AutoRotate = oldAutoRotate
 
-	task.delay(0.1, function()
-		if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
+	-- força saída do estado bugado (resolve braços)
+	task.delay(0.08, function()
+		if hum then
 			hum:ChangeState(Enum.HumanoidStateType.Freefall)
 		end
 	end)
@@ -227,4 +223,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick físico 45°)")
+print("WallHop Loaded (flick físico corrigido 45°)")
