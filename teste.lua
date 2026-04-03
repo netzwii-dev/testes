@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK HUMANIZADO DIREÇÃO FIXA)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK HUMANIZADO REAL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -158,7 +158,7 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
--- FLICK HUMANIZADO (DIREÇÃO FIXA)
+-- FLICK HUMANIZADO (SEM TELEPORTE)
 local function performVideoFlick()
 	if isFlicking then return end
 	isFlicking = true
@@ -189,37 +189,51 @@ local function performVideoFlick()
 
 	local dynamicAngle = baseAngle * (1 - (verticalInfluence * 0.6))
 
-	-- DIREÇÃO FIXA (sempre mesma)
-	local direction = 1 -- mude para -1 se quiser pro outro lado
+	local direction = 1
 
-	local flickRotation = CFrame.fromAxisAngle(
+	local targetCFrame = CFrame.fromAxisAngle(
 		startCFrame.UpVector,
 		math.rad(dynamicAngle * direction)
-	)
+	) * startCFrame
 
-	local targetCFrame = flickRotation * startCFrame
+	local duration = math.random(20, 35) / 1000
+	local startTime = tick()
 
-	task.wait(math.random(8, 16) / 1000)
+	while true do
+		local t = (tick() - startTime) / duration
+		if t >= 1 then break end
+
+		local alpha = t ^ (math.random(16, 22) / 10)
+		Camera.CFrame = startCFrame:Lerp(targetCFrame, alpha)
+
+		RunService.RenderStepped:Wait()
+	end
 
 	Camera.CFrame = targetCFrame
 
-	if math.random() < 0.35 then
-		local overshootRot = CFrame.fromAxisAngle(
+	if math.random() < 0.3 then
+		local overshoot = CFrame.fromAxisAngle(
 			startCFrame.UpVector,
-			math.rad(3 * direction)
+			math.rad(2 * direction)
 		)
-		Camera.CFrame = overshootRot * Camera.CFrame
+		Camera.CFrame = overshoot * Camera.CFrame
 	end
 
-	task.wait(math.random(10, 17) / 1000)
+	local returnStart = Camera.CFrame
+	local returnTime = tick()
+	local returnDuration = math.random(30, 50) / 1000
 
-	local steps = math.random(4, 7)
+	while true do
+		local t = (tick() - returnTime) / returnDuration
+		if t >= 1 then break end
 
-	for i = 1, steps do
-		local alpha = (i / steps) ^ (math.random(18, 24) / 10)
-		Camera.CFrame = targetCFrame:Lerp(startCFrame, alpha)
-		task.wait(math.random(3, 7) / 1000)
+		local alpha = t ^ 1.8
+		Camera.CFrame = returnStart:Lerp(startCFrame, alpha)
+
+		RunService.RenderStepped:Wait()
 	end
+
+	Camera.CFrame = startCFrame
 
 	task.delay(0.1, function()
 		if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
@@ -302,4 +316,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("WallHop Loaded (flick humano fixo)")
+print("WallHop Loaded (flick humano real)")
