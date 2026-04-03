@@ -224,3 +224,4 @@ TextButton.MouseButton1Click:Connect(function()
 end)
 
 print("WallHop Loaded (flick físico corrigido 45°)")
+
