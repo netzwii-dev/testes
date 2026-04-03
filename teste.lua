@@ -101,7 +101,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VISUAL MAIS LENTO (~0.2s)
+-- FLICK VISUAL MAIS LENTO (~0.2s / 50°)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -124,7 +124,7 @@ local function performVideoFlick()
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    -- 50° em 0.2s → bem visível
+    -- duração maior (visível)
     local duration = 0.2
     local angle = math.rad(50)
     local angularSpeed = angle / duration
@@ -217,7 +217,7 @@ RunService.Heartbeat:Connect(function()
     else
         lastHitInstance = nil
     end
-end
+end)
 
 -- TOGGLE
 TextButton.MouseButton1Click:Connect(function()
@@ -227,4 +227,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick mais lento e visível)")
+print("WallHop Loaded (flick lento)")
