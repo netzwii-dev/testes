@@ -108,7 +108,7 @@ local function pickNextFlick()
     return math.rad(angle)
 end
 
--- FLICK HUMANIZADO
+-- FLICK
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -132,56 +132,22 @@ local function performVideoFlick()
     local steps = math.random(7,9)
     local baseDelay = 0.01
 
-    local overshoot = math.rad(math.random(20,30))
-    local useOvershoot = math.random() < 0.9
-
     for i = 1, steps do
         local alpha = i / steps
-        local curve
-        if alpha <= 0.6 then
-            curve = math.sin((alpha / 0.6) * (math.pi/2))
-        else
-            curve = math.sin(((1 - alpha) / 0.4) * (math.pi/2))
-        end
+        local curve = alpha <= 0.6
+            and math.sin((alpha / 0.6) * (math.pi/2))
+            or math.sin(((1 - alpha) / 0.4) * (math.pi/2))
 
         local offset = angle * curve
         hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
 
         RunService.RenderStepped:Wait()
-        task.wait(baseDelay * (0.8 + math.random()*0.4))
-    end
-
-    if useOvershoot then
-        task.delay(0.05, function()
-            if not hrp then return end
-
-            local smallSteps = 4
-
-            for i = 1, smallSteps do
-                local alpha = i / smallSteps
-                local offset = -overshoot * alpha
-                hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
-                RunService.RenderStepped:Wait()
-                task.wait(baseDelay)
-            end
-
-            for i = 1, smallSteps do
-                local alpha = i / smallSteps
-                local offset = -overshoot * (1 - alpha)
-                hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
-                RunService.RenderStepped:Wait()
-                task.wait(baseDelay)
-            end
-
-            hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
-        end)
+        task.wait(baseDelay)
     end
 
     hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
 
-    if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
-        hum:ChangeState(Enum.HumanoidStateType.Freefall)
-    end
+    hum:ChangeState(Enum.HumanoidStateType.Freefall)
 
     task.delay(0.05, function() blockDoubleJump = false end)
     task.delay(0.15, function() isWallHopping = false end)
@@ -189,7 +155,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (FILTRO MAIS PRECISO)
+-- WALL DETECT (COM FILTRO DE DIREÇÃO)
 local lastHitInstance = nil
 local function isPlayerCharacter(instance)
     if not instance then return false end
@@ -212,30 +178,20 @@ RunService.Heartbeat:Connect(function()
     local look = Camera.CFrame.LookVector
     local horizontal = Vector3.new(look.X, 0, look.Z)
     if horizontal.Magnitude > 0 then horizontal = horizontal.Unit end
-    local direction = horizontal * 1.55
-    local result = nil
 
-    local offsets = {Vector3.new(0,-2.2,0), Vector3.new(0,-1.2,0), Vector3.new(0,-0.4,0)}
-    for _, offset in ipairs(offsets) do
-        local origin = hrp.Position + offset
-        local ray = workspace:Raycast(origin, direction, params)
-        if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-            -- 🔥 FILTRO FINAL (super preciso)
-            if math.abs(ray.Normal.Y) < 0.01 then
-                result = ray
-                break
-            end
-        end
-    end
+    local result = workspace:Raycast(hrp.Position, horizontal * 1.55, params)
 
-    if result and result.Instance then
-        if lastHitInstance and lastHitInstance ~= result.Instance then
-            if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
-                lastFlickTime = tick()
-                performVideoFlick()
+    if result and result.Instance and result.Instance.CanCollide and not isPlayerCharacter(result.Instance) then
+        local dot = result.Normal:Dot(horizontal * -1)
+        if dot > 0.7 then
+            if lastHitInstance and lastHitInstance ~= result.Instance then
+                if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
+                    lastFlickTime = tick()
+                    performVideoFlick()
+                end
             end
+            lastHitInstance = result.Instance
         end
-        lastHitInstance = result.Instance
     else
         lastHitInstance = nil
     end
@@ -248,4 +204,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (filtro preciso aplicado)")
+print("WallHop Loaded (ghost jump fix aplicado com filtro de direção)")
