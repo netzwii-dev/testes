@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK PERFEITO SEM CÂMERA)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK EXTREMO SEM CÂMERA)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -45,14 +45,12 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
--- CROUCH CHECK
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
     local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
     return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
--- CHARACTER HANDLER
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
@@ -60,7 +58,6 @@ local function setupCharacter(char)
         if new == Enum.HumanoidStateType.Freefall then
             canDoubleJump = true
         end
-
         if new == Enum.HumanoidStateType.Landed then
             canDoubleJump = false
         end
@@ -72,7 +69,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- DOUBLE JUMP (INALTERADO)
+-- DOUBLE JUMP
 UserInputService.JumpRequest:Connect(function()
     if not isWallHopEnabled then return end
 
@@ -99,7 +96,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK PERFEITO (SEM CÂMERA)
+-- FLICK EXTREMO
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -116,31 +113,31 @@ local function performVideoFlick()
     end
 
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
-    hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-    -- cálculo original do segundo script
-    local lookY = Camera.CFrame.LookVector.Y
-    local verticalInfluence = math.clamp(math.abs(lookY), 0, 1)
+    -- impulso mais forte
+    hrp.Velocity = Vector3.new(hrp.Velocity.X, 46, hrp.Velocity.Z)
 
-    local baseAngle = 45
-    local dynamicAngle = baseAngle * (1 - (verticalInfluence * 0.6))
-    local angleRad = math.rad(dynamicAngle)
+    local angleRad = math.rad(80)
 
     local fastFlick = math.random() < 0.4
 
-    -- SNAP FORTE
+    -- SNAP MAIS LONGO (bem visível)
     hrp.CFrame = hrp.CFrame * CFrame.Angles(0, angleRad, 0)
 
-    task.wait(fastFlick and 0.013 or 0.019)
+    -- leve impulso lateral (sensação real)
+    local right = hrp.CFrame.RightVector
+    hrp.Velocity = hrp.Velocity + (right * 6)
 
-    -- VOLTA SUAVE
-    local steps = fastFlick and 4 or 6
+    task.wait(fastFlick and 0.02 or 0.028)
+
+    -- VOLTA SUAVE E FORTE
+    local steps = fastFlick and 5 or 7
 
     for i = 1, steps do
-        local alpha = (i / steps) ^ (fastFlick and 1.8 or 2.2)
+        local alpha = (i / steps) ^ (fastFlick and 1.6 or 2.0)
         local stepAngle = angleRad * alpha / steps
         hrp.CFrame = hrp.CFrame * CFrame.Angles(0, -stepAngle, 0)
-        task.wait(fastFlick and 0.0045 or 0.0065)
+        task.wait(fastFlick and 0.005 or 0.007)
     end
 
     task.delay(0.1, function()
@@ -156,7 +153,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (INALTERADO)
+-- WALL DETECT
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -232,5 +229,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (FLICK REAL SEM CÂMERA)")
-
+print("WallHop Loaded (FLICK EXTREMO)")
