@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK HUMANIZADO + FÍSICA NATURAL)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK AVANÇADO, FÍSICA NATURAL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -51,6 +51,7 @@ local function isCrouching(hum, hrp)
     return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
+-- Configura Humanoid para controlar estados
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
@@ -85,7 +86,9 @@ UserInputService.JumpRequest:Connect(function()
         lastDoubleJump = tick()
         canDoubleJump = false
 
+        -- Impulso vertical natural
         hrp.Velocity = Vector3.new(hrp.Velocity.X, 34.5, hrp.Velocity.Z)
+        hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
         task.delay(0.18, function()
             if hum then
@@ -95,7 +98,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK HUMANIZADO (sem interferir na física ou animação)
+-- FLICK AVANÇADO SEM QUEBRA DE ANIMAÇÃO
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -111,39 +114,34 @@ local function performVideoFlick()
         return
     end
 
-    -- impulso vertical natural
+    -- vertical
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
+    hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
-    local baseCF = hrp.CFrame
+    -- Rotação apenas visual, sem mexer em física lateral
+    local steps = 7 + math.random(0,2) -- 7 ou 9 steps
     local angle = math.rad(math.random(50, 80))
-    local steps = 7
+    local baseCF = hrp.CFrame
 
     for i = 1, steps do
         local alpha = i / steps
-        local curve = math.sin(alpha * math.pi * 0.95)
+        local curve = math.sin(alpha * math.pi)
         local offset = angle * curve
-
-        -- apenas visual, não afeta física lateral
-        hrp.CFrame = baseCF * CFrame.Angles(0, offset, 0)
-
+        hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, offset, 0)
         RunService.RenderStepped:Wait()
-        task.wait(0.008)
+        task.wait(0.01)
     end
 
-    hrp.CFrame = baseCF
+    -- restaura para posição original
+    hrp.CFrame = CFrame.new(hrp.Position)
 
-    -- garante estado de queda sem interferir na animação de braços
+    -- mantém braços normais
     if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
         hum:ChangeState(Enum.HumanoidStateType.Freefall)
     end
 
-    task.delay(0.05, function()
-        blockDoubleJump = false
-    end)
-
-    task.delay(0.15, function()
-        isWallHopping = false
-    end)
+    task.delay(0.05, function() blockDoubleJump = false end)
+    task.delay(0.15, function() isWallHopping = false end)
 
     isFlicking = false
 end
@@ -214,4 +212,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick humanizado + física natural + braços normais)")
+print("WallHop Loaded (flick humanizado + física padrão + braços normais + double jump funcional)")
