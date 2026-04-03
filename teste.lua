@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (PULO ORIGINAL + FLICK FIXO CORRIGIDO)
+-- AUTO WALLHOP + DOUBLE JUMP (PULO ORIGINAL + FLICK SUAVE)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -41,7 +41,6 @@ local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 
 local lastTenGroup = nil
-local lastAngle = nil
 
 -- DOUBLE JUMP
 local canDoubleJump = false
@@ -72,7 +71,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- DOUBLE JUMP (inalterado)
+-- DOUBLE JUMP
 UserInputService.JumpRequest:Connect(function()
     if not isWallHopEnabled then return end
 
@@ -99,25 +98,45 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- RANDOM (mantido)
+-- RANDOM (foco nos extremos)
 local function getRandomAngle()
     local angle
     local tenGroup
 
     repeat
-        angle = math.random(45, 80)
+        if math.random() < 0.7 then
+            -- extremos (mais chance)
+            if math.random() < 0.5 then
+                angle = math.random(50, 60)
+            else
+                angle = math.random(80, 90)
+            end
+        else
+            -- meio ocasional
+            angle = math.random(60, 80)
+        end
+
         tenGroup = math.floor(angle / 10)
-    until (
-        tenGroup ~= lastTenGroup
-        and (not lastAngle or math.abs(angle - lastAngle) >= 5)
-    )
+    until tenGroup ~= lastTenGroup
 
     lastTenGroup = tenGroup
-    lastAngle = angle
     return angle
 end
 
--- FLICK CORRIGIDO (ÚNICA MUDANÇA REAL)
+-- easing (suavidade)
+local function easeOutQuad(t)
+    return 1 - (1 - t) * (1 - t)
+end
+
+local function easeInOutQuad(t)
+    if t < 0.5 then
+        return 2 * t * t
+    else
+        return 1 - ((-2 * t + 2)^2) / 2
+    end
+end
+
+-- FLICK SUAVE
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -133,20 +152,40 @@ local function performVideoFlick()
         return
     end
 
-    -- pulo original
+    -- PULO ORIGINAL
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
-    -- BASE FIXA (ESSENCIAL)
-    local baseCF = hrp.CFrame
     local angle = math.rad(getRandomAngle())
 
-    -- flick pra um lado só (direita)
-    hrp.CFrame = baseCF * CFrame.Angles(0, angle, 0)
-    task.wait(0.07)
+    local startCF = hrp.CFrame
 
-    -- volta exata
-    hrp.CFrame = baseCF
-    task.wait(0.07)
+    local durationOut = 0.16
+    local durationBack = 0.22 -- volta mais suave
+
+    local t = 0
+
+    -- IDA
+    while t < durationOut do
+        t += RunService.RenderStepped:Wait()
+        local alpha = math.clamp(t / durationOut, 0, 1)
+        local eased = easeOutQuad(alpha)
+
+        hrp.CFrame = startCF * CFrame.Angles(0, angle * eased, 0)
+    end
+
+    local midCF = hrp.CFrame
+    t = 0
+
+    -- VOLTA SUAVE
+    while t < durationBack do
+        t += RunService.RenderStepped:Wait()
+        local alpha = math.clamp(t / durationBack, 0, 1)
+        local eased = easeInOutQuad(alpha)
+
+        hrp.CFrame = midCF:Lerp(startCF, eased)
+    end
+
+    hrp.CFrame = startCF
 
     task.delay(0.25, function()
         isWallHopping = false
@@ -155,7 +194,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (inalterado)
+-- WALL DETECT
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -231,4 +270,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (FLICK FIXADO CORRETAMENTE)")
+print("WallHop Loaded (FLICK SUAVE HUMANO)")
