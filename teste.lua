@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK SNAP LIMPO - MOBILE)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VISÍVEL + BRAÇOS FIX)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -96,7 +96,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK SNAP LIMPO (SEM MOVIMENTO / SEM EMPURRÃO)
+-- FLICK VISÍVEL + BRAÇOS FIX
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -113,24 +113,30 @@ local function performVideoFlick()
         return
     end
 
-    -- impulso vertical
+    -- impulso
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
     local baseCF = hrp.CFrame
-
-    -- ângulo fixo (variação leve dentro de 50–80)
     local angle = math.rad(math.random(50, 80))
 
-    -- direita fixa
-    local targetCF = baseCF * CFrame.Angles(0, angle, 0)
+    local steps = 5 -- 🔥 mais visível
 
-    -- snap rápido (ida e volta)
-    hrp.CFrame = targetCF
-    RunService.RenderStepped:Wait()
+    for i = 1, steps do
+        local alpha = i / steps
+        local curve = math.sin(alpha * math.pi)
+        local offset = angle * curve
+
+        hrp.CFrame = baseCF * CFrame.Angles(0, offset, 0)
+        RunService.RenderStepped:Wait()
+    end
+
     hrp.CFrame = baseCF
 
-    -- corrige animação (braços)
+    -- 🔥 FIX DEFINITIVO DOS BRAÇOS
+    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    RunService.RenderStepped:Wait()
     hum:ChangeState(Enum.HumanoidStateType.Freefall)
+
     hum.AutoRotate = true
 
     task.delay(0.05, function()
@@ -219,4 +225,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (snap flick mobile fix)")
+print("WallHop Loaded (final real corrigido)")
