@@ -38,7 +38,6 @@ local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
 
--- NOVO (janela após wallhop)
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 
@@ -47,14 +46,12 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
--- CROUCH CHECK
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
     local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
     return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
--- CHARACTER HANDLER
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
@@ -62,7 +59,6 @@ local function setupCharacter(char)
         if new == Enum.HumanoidStateType.Freefall then
             canDoubleJump = true
         end
-
         if new == Enum.HumanoidStateType.Landed then
             canDoubleJump = false
         end
@@ -101,7 +97,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VISUAL (BASEADO NO FLICK DE CÂMERA, MAS NO PERSONAGEM)
+-- FLICK CORRIGIDO (FÍSICO, SUAVE, SEM MEXER NA CÂMERA)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -117,39 +113,46 @@ local function performVideoFlick()
         return
     end
 
-    -- impulso original
+    -- impulso original (INALTERADO)
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    local startCFrame = hrp.CFrame
-
+    -- lógica do ângulo (igual câmera)
     local lookY = Camera.CFrame.LookVector.Y
     local verticalInfluence = math.clamp(math.abs(lookY), 0, 1)
 
     local baseAngle = 45
     local dynamicAngle = baseAngle * (1 - (verticalInfluence * 0.6))
 
-    local flickRotation = CFrame.fromAxisAngle(Vector3.new(0,1,0), math.rad(dynamicAngle))
-    local targetCFrame = flickRotation * startCFrame
-
     local fastFlick = math.random() < 0.4
 
-    hrp.CFrame = targetCFrame
+    local duration = fastFlick and 0.06 or 0.09
+    local startTime = tick()
 
-    task.wait(fastFlick and 0.013 or 0.019)
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        local elapsed = tick() - startTime
+        local alpha = math.clamp(elapsed / duration, 0, 1)
 
-    local steps = fastFlick and 4 or 6
+        -- curva suave ida/volta (igual câmera)
+        local curve = math.sin(alpha * math.pi)
 
-    for i = 1, steps do
-        local alpha = (i / steps) ^ (fastFlick and 1.8 or 2.2)
-        hrp.CFrame = targetCFrame:Lerp(startCFrame, alpha)
-        task.wait(fastFlick and 0.0045 or 0.0065)
-    end
+        local targetAngle = math.rad(dynamicAngle) * curve
 
-    hum.AutoRotate = oldAutoRotate
+        hrp.AssemblyAngularVelocity = Vector3.new(0, targetAngle * 25, 0)
+
+        if alpha >= 1 then
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            connection:Disconnect()
+        end
+    end)
+
+    task.delay(duration + 0.02, function()
+        hum.AutoRotate = oldAutoRotate
+    end)
 
     task.delay(0.1, function()
         if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
@@ -184,7 +187,6 @@ RunService.Heartbeat:Connect(function()
     local hum = char and char:FindFirstChild("Humanoid")
 
     if not hrp or not hum then return end
-
     if isCrouching(hum, hrp) then return end
 
     local params = RaycastParams.new()
@@ -241,4 +243,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick físico estilo câmera)")
+print("WallHop Loaded (flick físico suave, sem mover câmera)")
