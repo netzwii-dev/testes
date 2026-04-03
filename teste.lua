@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK HARD LOCK + RANDOM AVANÇADO)
+-- AUTO WALLHOP + DOUBLE JUMP (SEM RECUO / SEM TRAVAR POSIÇÃO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -37,7 +37,6 @@ local lastFlickTime = 0
 local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
-
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 
@@ -113,90 +112,41 @@ local function performVideoFlick()
         return
     end
 
-    -- direção original
-    local originalVel = hrp.Velocity
-    local horizontal = Vector3.new(originalVel.X, 0, originalVel.Z)
-    local speed = horizontal.Magnitude
-    local direction = speed > 0 and horizontal.Unit or Vector3.zero
-
-    -- impulso
+    -- impulso vertical
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
-    hrp.Velocity = Vector3.new(originalVel.X, 44.8, originalVel.Z)
+    hrp.Velocity = Vector3.new(0, 44.8, 0)
 
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    -- RANDOM VELOCITY (1500–2000, sino)
-    local possibleValues = {1500,1550,1600,1650,1700,1750,1800,1850,1900,1950,2000}
+    -- RANDOM 1500–2000 (sino)
+    local values = {1500,1550,1600,1650,1700,1750,1800,1850,1900,1950,2000}
 
-    local function getRandomAngularVelocity()
-        local weights = {}
-        local totalWeight = 0
-        local mid = math.ceil(#possibleValues/2)
+    local function getRand()
+        local total, weights = 0, {}
+        local mid = math.ceil(#values/2)
 
-        for i = 1, #possibleValues do
+        for i = 1, #values do
             local d = math.abs(i - mid)
             local w = 1 / (1 + d^1.3)
             weights[i] = w
-            totalWeight += w
+            total += w
         end
 
-        local r = math.random() * totalWeight
+        local r = math.random() * total
         for i, w in ipairs(weights) do
             r -= w
             if r <= 0 then
-                return possibleValues[i]
+                return values[i]
             end
         end
 
-        return possibleValues[#possibleValues]
+        return values[#values]
     end
 
-    -- RANDOM TIME (0.015–0.08, sino)
-    local possibleTimes = {0.015,0.02,0.025,0.03,0.035,0.04,0.045,0.05,0.06,0.07,0.08}
+    hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(getRand()), 0)
 
-    local function getRandomTime()
-        local weights = {}
-        local totalWeight = 0
-        local mid = math.ceil(#possibleTimes/2)
-
-        for i = 1, #possibleTimes do
-            local d = math.abs(i - mid)
-            local w = 1 / (1 + d^1.4)
-            weights[i] = w
-            totalWeight += w
-        end
-
-        local r = math.random() * totalWeight
-        for i, w in ipairs(weights) do
-            r -= w
-            if r <= 0 then
-                return possibleTimes[i]
-            end
-        end
-
-        return possibleTimes[#possibleTimes]
-    end
-
-    -- normal da parede
-    local wallNormal = nil
-    do
-        local params = RaycastParams.new()
-        params.FilterDescendantsInstances = {char}
-        params.FilterType = Enum.RaycastFilterType.Exclude
-
-        local look = Camera.CFrame.LookVector
-        local horizontalLook = Vector3.new(look.X, 0, look.Z).Unit
-
-        local ray = workspace:Raycast(hrp.Position, horizontalLook * 2, params)
-        if ray then
-            wallNormal = ray.Normal
-        end
-    end
-
-    hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(getRandomAngularVelocity()), 0)
-
-    -- HARD LOCK
+    -- neutraliza movimento lateral (SEM mexer na colisão)
     local connection
     connection = RunService.Heartbeat:Connect(function()
         if not hrp or not hrp.Parent then
@@ -204,17 +154,12 @@ local function performVideoFlick()
             return
         end
 
-        local currentY = hrp.Velocity.Y
-        local finalDir = direction
-
-        if wallNormal then
-            finalDir = (direction - wallNormal * 0.25).Unit
-        end
-
-        hrp.Velocity = finalDir * speed + Vector3.new(0, currentY, 0)
+        -- mantém apenas eixo Y
+        hrp.Velocity = Vector3.new(0, hrp.Velocity.Y, 0)
     end)
 
-    local flickTime = getRandomTime()
+    -- tempo curto: 0.015–0.020
+    local flickTime = math.random(15,20) / 1000
     task.wait(flickTime)
 
     hrp.AssemblyAngularVelocity = Vector3.zero
@@ -222,9 +167,6 @@ local function performVideoFlick()
     if connection then
         connection:Disconnect()
     end
-
-    local currentY = hrp.Velocity.Y
-    hrp.Velocity = direction * speed + Vector3.new(0, currentY, 0)
 
     hum.AutoRotate = oldAutoRotate
 
@@ -241,16 +183,13 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT
+-- WALL DETECT (igual)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
     if not instance then return false end
     local model = instance:FindFirstAncestorOfClass("Model")
-    if model and model:FindFirstChildOfClass("Humanoid") then
-        return true
-    end
-    return false
+    return model and model:FindFirstChildOfClass("Humanoid") ~= nil
 end
 
 RunService.Heartbeat:Connect(function()
@@ -316,4 +255,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (zero recuo + random avançado)")
+print("WallHop Loaded (sem recuo real, colisão intacta)")
