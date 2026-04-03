@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL 50° EXTREMO DOBRADO FIX)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL 50° EXTREMO DOBRADO FIX REAL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -97,7 +97,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VISUAL (FIX BACKPUSH)
+-- FLICK VISUAL (FIX REAL)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -120,18 +120,23 @@ local function performVideoFlick()
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    -- SALVA VELOCIDADE HORIZONTAL
-    local horizontalVel = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z)
+    -- DIREÇÃO PRA FRENTE
+    local forward = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z).Unit
+
+    -- MICRO EMPURRÃO PRA FRENTE (REMOVE CONTATO COM PAREDE)
+    hrp.CFrame = hrp.CFrame + (forward * 0.6)
+
+    -- SALVA VELOCIDADE
+    local speed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
 
     -- FLICK EXTREMO
     hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(1800), 0)
     task.wait(0.08)
 
-    -- REMOVE ROTAÇÃO
     hrp.AssemblyAngularVelocity = Vector3.zero
 
-    -- RESTAURA VELOCIDADE (REMOVE BACKPUSH)
-    hrp.Velocity = Vector3.new(horizontalVel.X, hrp.Velocity.Y, horizontalVel.Z)
+    -- FORÇA MOVIMENTO PRA FRENTE (ANTI BACKPUSH TOTAL)
+    hrp.Velocity = Vector3.new(forward.X * speed, hrp.Velocity.Y, forward.Z * speed)
 
     hum.AutoRotate = oldAutoRotate
 
@@ -148,7 +153,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT
+-- WALL DETECT (inalterado)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -224,4 +229,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("Cu Loaded (50° extremo DOBRADO - FIX)")
+print("WallHop Cu Loaded (50° extremo DOBRADO - FIX REAL)")
