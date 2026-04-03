@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL 50° EXTREMO DOBRADO FIX REAL)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL PURO - SEM BACKPUSH)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -97,7 +97,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VISUAL (FIX REAL)
+-- FLICK VISUAL PURO (SEM FÍSICA)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -120,23 +120,22 @@ local function performVideoFlick()
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    -- DIREÇÃO PRA FRENTE
-    local forward = Vector3.new(Camera.CFrame.LookVector.X, 0, Camera.CFrame.LookVector.Z).Unit
+    local originalCF = hrp.CFrame
 
-    -- MICRO EMPURRÃO PRA FRENTE (REMOVE CONTATO COM PAREDE)
-    hrp.CFrame = hrp.CFrame + (forward * 0.6)
+    -- direção baseada na câmera
+    local look = Camera.CFrame.LookVector
+    local horizontal = Vector3.new(look.X, 0, look.Z).Unit
 
-    -- SALVA VELOCIDADE
-    local speed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
+    -- rotação de 50°
+    local angle = math.rad(50)
 
-    -- FLICK EXTREMO
-    hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(1800), 0)
-    task.wait(0.08)
+    -- gira
+    hrp.CFrame = originalCF * CFrame.Angles(0, angle, 0)
+    task.wait(0.04)
 
-    hrp.AssemblyAngularVelocity = Vector3.zero
-
-    -- FORÇA MOVIMENTO PRA FRENTE (ANTI BACKPUSH TOTAL)
-    hrp.Velocity = Vector3.new(forward.X * speed, hrp.Velocity.Y, forward.Z * speed)
+    -- volta
+    hrp.CFrame = originalCF
+    task.wait(0.04)
 
     hum.AutoRotate = oldAutoRotate
 
@@ -153,7 +152,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (inalterado)
+-- WALL DETECT (mesmo)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -229,4 +228,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Cu Loaded (50° extremo DOBRADO - FIX REAL)")
+print("WallHop Loaded (FLICK VISUAL PURO - SEM BACKPUSH)")
