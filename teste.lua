@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VIA CÂMERA INVISÍVEL)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK ESTÁVEL FINAL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -96,7 +96,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VIA CÂMERA (SEM EMPURRÃO)
+-- FLICK CORRIGIDO (SEM EMPURRÃO)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -113,36 +113,41 @@ local function performVideoFlick()
         return
     end
 
-    -- impulso normal
-    hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
+    -- salva velocidade horizontal
+    local vel = hrp.Velocity
+    local horizontalVel = Vector3.new(vel.X, 0, vel.Z)
 
-    -- ângulo variável (50°–80°)
+    -- impulso vertical
+    hrp.Velocity = Vector3.new(vel.X, 44.8, vel.Z)
+
+    local oldAutoRotate = hum.AutoRotate
+    hum.AutoRotate = false
+    hrp.AssemblyAngularVelocity = Vector3.zero
+
+    -- ângulo 50°–80°
     local angle = math.rad(math.random(50, 80))
     local dir = 1
 
-    local steps = math.random(5, 7)
-    local originalCF = Camera.CFrame
+    local baseCF = hrp.CFrame
+    local _, baseYaw, _ = baseCF:ToOrientation()
 
-    -- opcional (remove jitter total)
-    local oldType = Camera.CameraType
-    Camera.CameraType = Enum.CameraType.Scriptable
+    local steps = math.random(5, 7)
 
     for i = 1, steps do
         local alpha = i / steps
         local curve = math.sin(alpha * math.pi)
         local offset = angle * curve * dir
 
-        local rotated = originalCF * CFrame.Angles(0, offset, 0)
-        Camera.CFrame = rotated
-
-        -- compensa pra não mover visualmente
-        Camera.CFrame = Camera.CFrame:Lerp(originalCF, 1)
+        local pos = hrp.Position
+        hrp.CFrame = CFrame.new(pos) * CFrame.Angles(0, baseYaw + offset, 0)
 
         RunService.RenderStepped:Wait()
     end
 
-    Camera.CFrame = originalCF
-    Camera.CameraType = oldType
+    hum.AutoRotate = oldAutoRotate
+
+    -- restaura velocidade (remove empurrão)
+    hrp.Velocity = Vector3.new(horizontalVel.X, hrp.Velocity.Y, horizontalVel.Z)
 
     task.delay(0.05, function()
         blockDoubleJump = false
@@ -236,4 +241,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick câmera invisível)")
+print("WallHop Loaded (final estável sem empurrão)")
