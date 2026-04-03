@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK PERFEITO SEM MOVER CÂMERA)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK PERFEITO SEM CÂMERA)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -45,14 +45,14 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
--- CROUCH
+-- CROUCH CHECK
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
     local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
     return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
--- CHARACTER
+-- CHARACTER HANDLER
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
@@ -60,6 +60,7 @@ local function setupCharacter(char)
         if new == Enum.HumanoidStateType.Freefall then
             canDoubleJump = true
         end
+
         if new == Enum.HumanoidStateType.Landed then
             canDoubleJump = false
         end
@@ -98,7 +99,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK (MESMO DO SEGUNDO, MAS SEM CÂMERA)
+-- FLICK PERFEITO (SEM CÂMERA)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -117,30 +118,28 @@ local function performVideoFlick()
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-    local startCFrame = hrp.CFrame
-
+    -- cálculo original do segundo script
     local lookY = Camera.CFrame.LookVector.Y
     local verticalInfluence = math.clamp(math.abs(lookY), 0, 1)
 
     local baseAngle = 45
     local dynamicAngle = baseAngle * (1 - (verticalInfluence * 0.6))
+    local angleRad = math.rad(dynamicAngle)
 
     local fastFlick = math.random() < 0.4
+
+    -- SNAP FORTE
+    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, angleRad, 0)
+
+    task.wait(fastFlick and 0.013 or 0.019)
+
+    -- VOLTA SUAVE
     local steps = fastFlick and 4 or 6
 
-    -- ida
-    for i = 1, steps do
-        local alpha = i / steps
-        local angleStep = math.rad(dynamicAngle) * (alpha / steps)
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, angleStep, 0)
-        task.wait(fastFlick and 0.0045 or 0.0065)
-    end
-
-    -- volta (igual lógica do original)
     for i = 1, steps do
         local alpha = (i / steps) ^ (fastFlick and 1.8 or 2.2)
-        local angleStep = math.rad(dynamicAngle) * ((1 - alpha) / steps)
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, -angleStep, 0)
+        local stepAngle = angleRad * alpha / steps
+        hrp.CFrame = hrp.CFrame * CFrame.Angles(0, -stepAngle, 0)
         task.wait(fastFlick and 0.0045 or 0.0065)
     end
 
@@ -233,5 +232,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (FLICK ORIGINAL SEM CÂMERA)")
-
+print("WallHop Loaded (FLICK REAL SEM CÂMERA)")
