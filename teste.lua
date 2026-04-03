@@ -23,7 +23,10 @@ TextButton.Font = Enum.Font.GothamBold
 TextButton.TextScaled = true
 TextButton.Parent = ScreenGui
 
-Instance.new("UICorner", TextButton).CornerRadius = UDim.new(0, 12)
+-- CORREÇÃO AQUI
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 12)
+corner.Parent = TextButton
 
 RunService.RenderStepped:Connect(function()
     local inset = GuiService:GetGuiInset()
@@ -38,7 +41,6 @@ local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
 
--- NOVO (janela após wallhop)
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 
@@ -47,14 +49,12 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
--- CROUCH CHECK
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
     local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
     return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
--- CHARACTER HANDLER
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
@@ -74,7 +74,6 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- DOUBLE JUMP
 UserInputService.JumpRequest:Connect(function()
     if not isWallHopEnabled then return end
 
@@ -101,7 +100,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VISUAL MAIS LENTO (~0.2s / 50°)
+-- FLICK VISUAL LENTO (~0.2s / 50°)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -117,14 +116,12 @@ local function performVideoFlick()
         return
     end
 
-    -- impulso original
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    -- duração maior (visível)
     local duration = 0.2
     local angle = math.rad(50)
     local angularSpeed = angle / duration
@@ -150,7 +147,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (INALTERADO)
+-- WALL DETECT
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -170,7 +167,6 @@ RunService.Heartbeat:Connect(function()
     local hum = char and char:FindFirstChild("Humanoid")
 
     if not hrp or not hum then return end
-
     if isCrouching(hum, hrp) then return end
 
     local params = RaycastParams.new()
@@ -227,4 +223,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick lento)")
+print("WallHop Loaded (flick lento corrigido)")
