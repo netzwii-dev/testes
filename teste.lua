@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FIX SECOND JUMP)
+-- AUTO WALLHOP + DOUBLE JUMP (FIX REAL DOUBLE TRIGGER)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -39,6 +39,7 @@ local Camera = workspace.CurrentCamera
 local isWallHopping = false
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
+local WALLHOP_COOLDOWN = 0.22
 
 -- DOUBLE JUMP
 local canDoubleJump = false
@@ -96,7 +97,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- RANDOM CENTRAL
+-- RANDOM CENTRAL (igual)
 local function pickCentral(values)
     local mid = math.ceil(#values/2)
     local total, weights = 0, {}
@@ -119,7 +120,7 @@ local function pickCentral(values)
     return values[#values]
 end
 
--- FLICK
+-- FLICK (igual ao último estável)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -136,7 +137,6 @@ local function performVideoFlick()
         return
     end
 
-    -- IMPULSO CORRIGIDO (SEM SEGUNDO PULO)
     if hrp.Velocity.Y < 2 then
         hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
     end
@@ -146,29 +146,8 @@ local function performVideoFlick()
 
     hrp.AssemblyAngularVelocity = Vector3.zero
 
-    local roll = math.random()
-    local values, tMin, tMax
-
-    if roll < 0.7 then
-        if math.random() < 0.5 then
-            values = {2500,2550,2600,2650,2700,2750,2800}
-            tMin, tMax = 0.085, 0.115
-        else
-            values = {2700,2750,2800,2850,2900,2950,3000,3050,3100}
-            tMin, tMax = 0.065, 0.085
-        end
-    else
-        if math.random() < 0.5 then
-            values = {1500,1550,1600,1650,1700,1750,1800,1850,1900}
-            tMin, tMax = 0.06, 0.09
-        else
-            values = {1800,1850,1900,1950,2000,2050,2100}
-            tMin, tMax = 0.085, 0.115
-        end
-    end
-
-    local ang = pickCentral(values)
-    local flickTime = math.random()*(tMax - tMin) + tMin
+    local ang = pickCentral({2600,2650,2700,2750,2800})
+    local flickTime = math.random()*(0.11 - 0.08) + 0.08
 
     local totalAngle = math.rad(math.clamp(ang / 40, 45, 90))
 
@@ -194,12 +173,6 @@ local function performVideoFlick()
         blockDoubleJump = false
     end)
 
-    task.delay(0.1, function()
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Freefall)
-        end
-    end)
-
     task.delay(0.25, function()
         isWallHopping = false
     end)
@@ -207,17 +180,8 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (ORIGINAL)
+-- WALL DETECT (FIX REAL)
 local lastHitInstance = nil
-
-local function isPlayerCharacter(instance)
-    if not instance then return false end
-    local model = instance:FindFirstAncestorOfClass("Model")
-    if model and model:FindFirstChildOfClass("Humanoid") then
-        return true
-    end
-    return false
-end
 
 RunService.Heartbeat:Connect(function()
     if not isWallHopEnabled then return end
@@ -240,30 +204,14 @@ RunService.Heartbeat:Connect(function()
     end
 
     local direction = horizontal * 1.55
-    local result = nil
 
-    local offsets = {
-        Vector3.new(0, -2.2, 0),
-        Vector3.new(0, -1.2, 0),
-        Vector3.new(0, -0.4, 0)
-    }
-
-    for _, offset in ipairs(offsets) do
-        local origin = hrp.Position + offset
-        local ray = workspace:Raycast(origin, direction, params)
-
-        if ray and ray.Instance and ray.Instance.CanCollide then
-            if not isPlayerCharacter(ray.Instance) then
-                result = ray
-                break
-            end
-        end
-    end
+    local result = workspace:Raycast(hrp.Position, direction, params)
 
     if result and result.Instance then
-        if lastHitInstance and lastHitInstance ~= result.Instance then
-            if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
+        if lastHitInstance ~= result.Instance then
+            if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > WALLHOP_COOLDOWN then
                 lastFlickTime = tick()
+                lastHitInstance = nil
                 performVideoFlick()
             end
         end
@@ -281,4 +229,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (sem segundo pulo)")
+print("WallHop Loaded (double trigger corrigido)")
