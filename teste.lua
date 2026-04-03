@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK SUAVE E CONSISTENTE)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK CORRIGIDO DE VERDADE)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -148,7 +148,7 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
--- FLICK SUAVE
+-- FLICK CORRIGIDO (SEM IR PRO CENTRO)
 local function performVideoFlick()
 	if isFlicking then return end
 	isFlicking = true
@@ -168,20 +168,15 @@ local function performVideoFlick()
 	hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
 	local start = Camera.CFrame
+
 	local direction = 1
 	local angle = math.rad(math.random(42, 60))
 
-	local look = start.LookVector
-	local flatLook = Vector3.new(look.X, 0, look.Z).Unit
+	-- 🔥 mantém pitch original (SEM lookVector)
+	local target = start * CFrame.Angles(0, angle * direction, 0)
 
-	local right = Vector3.new(-flatLook.Z, 0, flatLook.X)
-
-	local rotatedLook = (flatLook * math.cos(angle)) + (right * math.sin(angle) * direction)
-	local target = CFrame.new(start.Position, start.Position + rotatedLook)
-
-	-- MAIS SUAVE
-	local durationIn = math.random(80, 110) / 1000
-	local durationOut = math.random(55, 80) / 1000
+	local durationIn = math.random(90, 120) / 1000
+	local durationOut = math.random(60, 90) / 1000
 
 	-- ida
 	local t0 = tick()
@@ -189,7 +184,7 @@ local function performVideoFlick()
 		local t = (tick() - t0) / durationIn
 		if t >= 1 then break end
 
-		local alpha = t * 0.7 + (t^2) * 0.3
+		local alpha = t * 0.75 + (t^2) * 0.25
 		Camera.CFrame = start:Lerp(target, alpha)
 
 		RunService.RenderStepped:Wait()
@@ -199,7 +194,7 @@ local function performVideoFlick()
 
 	task.wait(math.random(6, 12)/1000)
 
-	-- retorno baseado no FLAT ORIGINAL (sem mexer no Y)
+	-- retorno controlado
 	local rand = math.random()
 	local offset = 0
 
@@ -211,10 +206,9 @@ local function performVideoFlick()
 		offset = math.rad(-1)
 	end
 
-	local returnLook = (flatLook * math.cos(offset)) + (right * math.sin(offset))
-	local finalCF = CFrame.new(start.Position, start.Position + returnLook)
+	local finalCF = start * CFrame.Angles(0, offset, 0)
 
-	-- volta suave e consistente
+	-- volta
 	local t1 = tick()
 	while true do
 		local t = (tick() - t1) / durationOut
@@ -235,7 +229,7 @@ local function performVideoFlick()
 	isFlicking = false
 end
 
--- WALL DETECT (igual)
+-- WALL DETECT
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -296,4 +290,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("WallHop Loaded (flick suave e consistente)")
+print("WallHop Loaded (flick realmente corrigido)")
