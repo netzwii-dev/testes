@@ -155,7 +155,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (COM FILTRO DE DIREÇÃO)
+-- WALL DETECT (FIX APLICADO CORRETAMENTE)
 local lastHitInstance = nil
 local function isPlayerCharacter(instance)
     if not instance then return false end
@@ -178,20 +178,32 @@ RunService.Heartbeat:Connect(function()
     local look = Camera.CFrame.LookVector
     local horizontal = Vector3.new(look.X, 0, look.Z)
     if horizontal.Magnitude > 0 then horizontal = horizontal.Unit end
+    local direction = horizontal * 1.55
+    local result = nil
 
-    local result = workspace:Raycast(hrp.Position, horizontal * 1.55, params)
+    local offsets = {Vector3.new(0,-2.2,0), Vector3.new(0,-1.2,0), Vector3.new(0,-0.4,0)}
+    for _, offset in ipairs(offsets) do
+        local origin = hrp.Position + offset
+        local ray = workspace:Raycast(origin, direction, params)
+        if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
+            
+            local dot = ray.Normal:Dot(horizontal * -1)
 
-    if result and result.Instance and result.Instance.CanCollide and not isPlayerCharacter(result.Instance) then
-        local dot = result.Normal:Dot(horizontal * -1)
-        if dot > 0.7 then
-            if lastHitInstance and lastHitInstance ~= result.Instance then
-                if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
-                    lastFlickTime = tick()
-                    performVideoFlick()
-                end
+            if dot > 0.7 then -- 🔥 FIX REAL
+                result = ray
+                break
             end
-            lastHitInstance = result.Instance
         end
+    end
+
+    if result and result.Instance then
+        if lastHitInstance and lastHitInstance ~= result.Instance then
+            if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
+                lastFlickTime = tick()
+                performVideoFlick()
+            end
+        end
+        lastHitInstance = result.Instance
     else
         lastHitInstance = nil
     end
@@ -204,4 +216,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (ghost jump fix aplicado com filtro de direção)")
+print("WallHop Loaded (fix cu direção aplicado corretamente)")
