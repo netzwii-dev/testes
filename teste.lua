@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK CORRIGIDO DE VERDADE)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK FÍSICO - SEM CÂMERA)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -90,7 +90,6 @@ end)
 local isWallHopEnabled = false
 local isFlicking = false
 local lastFlickTime = 0
-local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
 local lastWallHopTime = 0
@@ -148,7 +147,7 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
--- FLICK CORRIGIDO (SEM IR PRO CENTRO)
+-- 🔥 FLICK FÍSICO (SEM CÂMERA)
 local function performVideoFlick()
 	if isFlicking then return end
 	isFlicking = true
@@ -157,9 +156,9 @@ local function performVideoFlick()
 	lastWallHopTime = tick()
 
 	local char = LocalPlayer.Character
-	local hum = char and char:FindFirstChild("Humanoid")
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if not hum or not hrp then
+	local hum = char and char:FindFirstChild("Humanoid")
+	if not hrp or not hum then
 		isFlicking = false
 		return
 	end
@@ -167,16 +166,15 @@ local function performVideoFlick()
 	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 	hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-	local start = Camera.CFrame
+	local startCF = hrp.CFrame
 
-	local direction = 1
-	local angle = math.rad(math.random(42, 60))
+	local angle = math.rad(math.random(42, 50))
+	local direction = 1 -- lado fixo
 
-	-- 🔥 mantém pitch original (SEM lookVector)
-	local target = start * CFrame.Angles(0, angle * direction, 0)
+	local targetCF = startCF * CFrame.Angles(0, angle * direction, 0)
 
-	local durationIn = math.random(90, 120) / 1000
-	local durationOut = math.random(60, 90) / 1000
+	local durationIn = 0.08
+	local durationOut = 0.06
 
 	-- ida
 	local t0 = tick()
@@ -184,29 +182,13 @@ local function performVideoFlick()
 		local t = (tick() - t0) / durationIn
 		if t >= 1 then break end
 
-		local alpha = t * 0.75 + (t^2) * 0.25
-		Camera.CFrame = start:Lerp(target, alpha)
-
+		hrp.CFrame = startCF:Lerp(targetCF, t)
 		RunService.RenderStepped:Wait()
 	end
 
-	Camera.CFrame = target
+	hrp.CFrame = targetCF
 
-	task.wait(math.random(6, 12)/1000)
-
-	-- retorno controlado
-	local rand = math.random()
-	local offset = 0
-
-	if rand <= 0.4 then
-		offset = 0
-	elseif rand <= 0.7 then
-		offset = math.rad(1)
-	else
-		offset = math.rad(-1)
-	end
-
-	local finalCF = start * CFrame.Angles(0, offset, 0)
+	task.wait(0.01)
 
 	-- volta
 	local t1 = tick()
@@ -214,13 +196,11 @@ local function performVideoFlick()
 		local t = (tick() - t1) / durationOut
 		if t >= 1 then break end
 
-		local alpha = t * 0.85 + (t^2) * 0.15
-		Camera.CFrame = target:Lerp(finalCF, alpha)
-
+		hrp.CFrame = targetCF:Lerp(startCF, t)
 		RunService.RenderStepped:Wait()
 	end
 
-	Camera.CFrame = finalCF
+	hrp.CFrame = startCF
 
 	task.delay(0.25, function()
 		isWallHopping = false
@@ -229,7 +209,7 @@ local function performVideoFlick()
 	isFlicking = false
 end
 
--- WALL DETECT
+-- WALL DETECT (igual)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -252,7 +232,7 @@ RunService.Heartbeat:Connect(function()
 	params.FilterDescendantsInstances = {char}
 	params.FilterType = Enum.RaycastFilterType.Exclude
 
-	local look = Camera.CFrame.LookVector
+	local look = workspace.CurrentCamera.CFrame.LookVector
 	local horizontal = Vector3.new(look.X, 0, look.Z)
 
 	if horizontal.Magnitude > 0 then
@@ -290,4 +270,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("WallHop Loaded (flick realmente corrigido)")
+print("WallHop Loaded (flick físico)")
