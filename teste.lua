@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK ESTÁVEL FINAL)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VIA HUMANOID - FINAL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -96,7 +96,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK CORRIGIDO (SEM EMPURRÃO)
+-- FLICK VIA HUMANOID (SEM BUG)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -113,41 +113,27 @@ local function performVideoFlick()
         return
     end
 
-    -- salva velocidade horizontal
-    local vel = hrp.Velocity
-    local horizontalVel = Vector3.new(vel.X, 0, vel.Z)
-
     -- impulso vertical
-    hrp.Velocity = Vector3.new(vel.X, 44.8, vel.Z)
+    hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-    local oldAutoRotate = hum.AutoRotate
-    hum.AutoRotate = false
-    hrp.AssemblyAngularVelocity = Vector3.zero
+    -- direção atual
+    local look = hrp.CFrame.LookVector
+    local flat = Vector3.new(look.X, 0, look.Z).Unit
 
     -- ângulo 50°–80°
     local angle = math.rad(math.random(50, 80))
     local dir = 1
 
-    local baseCF = hrp.CFrame
-    local _, baseYaw, _ = baseCF:ToOrientation()
+    local rotated = CFrame.fromAxisAngle(Vector3.new(0,1,0), angle * dir):VectorToWorldSpace(flat)
 
-    local steps = math.random(5, 7)
-
+    -- aplica flick
+    local steps = math.random(4,6)
     for i = 1, steps do
-        local alpha = i / steps
-        local curve = math.sin(alpha * math.pi)
-        local offset = angle * curve * dir
-
-        local pos = hrp.Position
-        hrp.CFrame = CFrame.new(pos) * CFrame.Angles(0, baseYaw + offset, 0)
-
+        hum:Move(rotated, true)
         RunService.RenderStepped:Wait()
     end
 
-    hum.AutoRotate = oldAutoRotate
-
-    -- restaura velocidade (remove empurrão)
-    hrp.Velocity = Vector3.new(horizontalVel.X, hrp.Velocity.Y, horizontalVel.Z)
+    hum:Move(Vector3.zero, true)
 
     task.delay(0.05, function()
         blockDoubleJump = false
@@ -241,4 +227,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (final estável sem empurrão)")
+print("WallHop Loaded (Humanoid flick final)")
