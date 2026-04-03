@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK SINCRONIZADO FINAL)
+-- AUTO WALLHOP + DOUBLE JUMP (ULTRA CLEAN FINAL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -96,7 +96,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK SINCRONIZADO
+-- 🔥 FLICK ULTRA CLEAN
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -113,23 +113,26 @@ local function performVideoFlick()
         return
     end
 
-    -- 🔥 impulso + flick no MESMO MOMENTO
+    -- 🔥 REMOVE COLISÃO SOMENTE DO HRP
+    local oldCollide = hrp.CanCollide
+    hrp.CanCollide = false
+
+    -- impulso
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
     hrp.AssemblyAngularVelocity = Vector3.zero
 
-    -- ângulo variável (50°–80°)
+    -- ângulo variável forte
     local angle = math.rad(math.random(50, 80))
     local dir = 1
 
     local baseCF = hrp.CFrame
     local _, baseYaw, _ = baseCF:ToOrientation()
 
-    -- tempo variável (rápido)
-    local flickTime = math.random(4,7) / 100 -- 0.04s – 0.07s
-    local steps = math.max(1, math.floor(flickTime / 0.008))
+    -- flick rápido
+    local steps = math.random(5, 7)
 
     for i = 1, steps do
         local alpha = i / steps
@@ -144,14 +147,23 @@ local function performVideoFlick()
 
     hum.AutoRotate = oldAutoRotate
 
-    task.delay(0.05, function()
-        blockDoubleJump = false
+    -- 🔥 RESTAURA COLISÃO
+    task.delay(0.04, function()
+        if hrp then
+            hrp.CanCollide = oldCollide
+        end
     end)
 
-    task.delay(0.08, function()
+    -- 🔥 CORREÇÃO DEFINITIVA DOS BRAÇOS
+    task.delay(0.06, function()
         if hum then
             hum:ChangeState(Enum.HumanoidStateType.Freefall)
+            hum.AutoRotate = true
         end
+    end)
+
+    task.delay(0.05, function()
+        blockDoubleJump = false
     end)
 
     task.delay(0.2, function()
@@ -161,7 +173,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (INALTERADO)
+-- WALL DETECT
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -236,4 +248,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick sincronizado)")
+print("WallHop Loaded (ULTRA CLEAN FINAL)")
