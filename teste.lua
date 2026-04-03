@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK ORIGINAL + SEM TRAVADA)
+-- AUTO WALLHOP + DOUBLE JUMP (PULO ORIGINAL + FLICK SNAP)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -41,6 +41,7 @@ local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 
 local lastTenGroup = nil
+local lastAngle = nil
 
 -- DOUBLE JUMP
 local canDoubleJump = false
@@ -71,7 +72,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- DOUBLE JUMP
+-- DOUBLE JUMP (mantido como estava)
 UserInputService.JumpRequest:Connect(function()
     if not isWallHopEnabled then return end
 
@@ -98,32 +99,25 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- ANGULO HUMANIZADO
+-- RANDOM (extremos liberados + controle leve)
 local function getRandomAngle()
     local angle
     local tenGroup
 
     repeat
-        local chance = math.random()
-
-        if chance <= 0.7 then
-            angle = math.random(50, 65)
-        else
-            if math.random() < 0.5 then
-                angle = math.random(45, 49)
-            else
-                angle = math.random(66, 80)
-            end
-        end
-
+        angle = math.random(45, 80)
         tenGroup = math.floor(angle / 10)
-    until tenGroup ~= lastTenGroup
+    until (
+        tenGroup ~= lastTenGroup
+        and (not lastAngle or math.abs(angle - lastAngle) >= 5)
+    )
 
     lastTenGroup = tenGroup
+    lastAngle = angle
     return angle
 end
 
--- FLICK (ORIGINAL SNAP)
+-- FLICK + PULO ORIGINAL
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -139,20 +133,16 @@ local function performVideoFlick()
         return
     end
 
-    -- PULO AJUSTADO
-    local vel = hrp.Velocity
+    -- PULO ORIGINAL (sem velocity)
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
-    hum:Move(Vector3.new(0,0,0), true)
-    hrp.Velocity = Vector3.new(vel.X * 1.05, 62, vel.Z * 1.05)
 
-    local originalCF = hrp.CFrame
     local angle = math.rad(getRandomAngle())
 
-    -- FLICK ORIGINAL (SEM LERP)
-    hrp.CFrame = originalCF * CFrame.Angles(0, angle, 0)
+    -- FLICK SEM BUG DE CÂMERA
+    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, angle, 0)
     task.wait(0.07)
 
-    hrp.CFrame = originalCF
+    hrp.CFrame = hrp.CFrame * CFrame.Angles(0, -angle, 0)
     task.wait(0.07)
 
     task.delay(0.25, function()
@@ -238,4 +228,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (FLICK ORIGINAL RESTAURADO)")
+print("WallHop Loaded (PULO 100% ORIGINAL)")
