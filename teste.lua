@@ -121,7 +121,7 @@ local function performVideoFlick()
     hum.AutoRotate = false
 
     -- ALTERAÇÃO (DOBRADO)
-    hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(2800), 0)
+    hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(1800), 0)
     task.wait(0.08)
 
     hrp.AssemblyAngularVelocity = Vector3.zero
