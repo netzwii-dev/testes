@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK NATURAL CORRIGIDO)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK NATURAL + ARCO SUAVIZADO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -14,7 +14,6 @@ ScreenGui.Name = "AutoWallHopGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
 
--- BOTÃO PRINCIPAL
 local TextButton = Instance.new("TextButton")
 TextButton.Size = UDim2.new(0, 140, 0, 50)
 TextButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -25,13 +24,11 @@ TextButton.TextScaled = true
 TextButton.Parent = ScreenGui
 Instance.new("UICorner", TextButton).CornerRadius = UDim.new(0, 12)
 
--- POSIÇÃO ORIGINAL
 RunService.RenderStepped:Connect(function()
 	local inset = GuiService:GetGuiInset()
 	TextButton.Position = UDim2.new(0, 150, 0, inset.Y - 58)
 end)
 
--- BOTÃO FLUTUANTE
 local ToggleUI = Instance.new("TextButton")
 ToggleUI.Size = UDim2.new(0, 50, 0, 50)
 ToggleUI.Position = UDim2.new(0, 20, 0, 200)
@@ -83,7 +80,6 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
--- MOSTRAR / ESCONDER UI
 local uiVisible = true
 ToggleUI.MouseButton1Click:Connect(function()
 	uiVisible = not uiVisible
@@ -152,7 +148,7 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
--- FLICK CORRIGIDO
+-- FLICK SUAVIZADO
 local function performVideoFlick()
 	if isFlicking then return end
 	isFlicking = true
@@ -172,23 +168,34 @@ local function performVideoFlick()
 	hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
 	local start = Camera.CFrame
-
-	-- lado fixo (direita)
 	local direction = 1
+	local angle = math.rad(math.random(42, 58))
 
-	local angle = math.rad(math.random(42, 60))
+	local look = start.LookVector.Unit
+	local right = start.RightVector.Unit
 
-	local look = start.LookVector
-	local flatLook = Vector3.new(look.X, 0, look.Z).Unit
+	-- mistura pra arco mais natural
+	local blend = 0.85
 
 	local rotatedLook =
-		(flatLook * math.cos(angle)) +
-		(Vector3.new(-flatLook.Z, 0, flatLook.X) * math.sin(angle) * direction)
+		(look * math.cos(angle)) +
+		((right * blend + look * (1 - blend)) * math.sin(angle) * direction)
+
+	rotatedLook = rotatedLook.Unit
 
 	local target = CFrame.new(start.Position, start.Position + rotatedLook)
 
-	local durationIn = math.random(50, 70) / 1000
-	local durationOut = math.random(30, 50) / 1000
+	local durationIn = math.random(60, 85) / 1000
+	local durationOut = math.random(45, 65) / 1000
+
+	-- easing suave
+	local function easeOutQuad(t)
+		return 1 - (1 - t) * (1 - t)
+	end
+
+	local function easeInOut(t)
+		return t < 0.5 and 2*t*t or 1 - ((-2*t + 2)^2)/2
+	end
 
 	-- ida
 	local t0 = tick()
@@ -196,21 +203,22 @@ local function performVideoFlick()
 		local t = (tick() - t0) / durationIn
 		if t >= 1 then break end
 
-		local alpha = t * 0.8 + (t^2) * 0.2
-		Camera.CFrame = start:Lerp(target, alpha)
-
+		Camera.CFrame = start:Lerp(target, easeOutQuad(t))
 		RunService.RenderStepped:Wait()
 	end
 
 	Camera.CFrame = target
 
-	task.wait(math.random(4, 8)/1000)
+	task.wait(math.random(5, 9)/1000)
 
-	-- volta com leve imprecisão
-	local offsetAngle = math.rad(math.random(-2, 2))
+	-- volta suavizada
+	local offsetAngle = math.rad(math.random(-3, 3))
+
 	local returnLook =
-		(flatLook * math.cos(offsetAngle)) +
-		(Vector3.new(-flatLook.Z, 0, flatLook.X) * math.sin(offsetAngle) * direction)
+		(look * math.cos(offsetAngle)) +
+		((right * blend + look * (1 - blend)) * math.sin(offsetAngle) * direction)
+
+	returnLook = returnLook.Unit
 
 	local imperfectReturn = CFrame.new(start.Position, start.Position + returnLook)
 
@@ -219,8 +227,7 @@ local function performVideoFlick()
 		local t = (tick() - t1) / durationOut
 		if t >= 1 then break end
 
-		Camera.CFrame = target:Lerp(imperfectReturn, t)
-
+		Camera.CFrame = target:Lerp(imperfectReturn, easeInOut(t))
 		RunService.RenderStepped:Wait()
 	end
 
@@ -257,13 +264,7 @@ RunService.Heartbeat:Connect(function()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 
 	local look = Camera.CFrame.LookVector
-	local horizontal = Vector3.new(look.X, 0, look.Z)
-
-	if horizontal.Magnitude > 0 then
-		horizontal = horizontal.Unit
-	end
-
-	local direction = horizontal * 1.55
+	local direction = look.Unit * 1.55
 
 	for _, offset in ipairs({
 		Vector3.new(0, -2.2, 0),
@@ -289,10 +290,9 @@ RunService.Heartbeat:Connect(function()
 	lastHitInstance = nil
 end)
 
--- TOGGLE
 TextButton.MouseButton1Click:Connect(function()
 	isWallHopEnabled = not isWallHopEnabled
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("WallHop Loaded (flick corrigido)")
+print("WallHop Loaded (arco suavizado)")
