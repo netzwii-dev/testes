@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL SEM QUEBRAR FÍSICA - 60° EM 0.15s)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL SEM QUEBRAR FÍSICA - 80° EM 0.15s)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -97,7 +97,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VISUAL (60° EM 0.15s)
+-- FLICK VISUAL (80° EM 0.15s)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -120,8 +120,8 @@ local function performVideoFlick()
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    -- velocidade ajustada pra ~60° em 0.15s
-    hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(400), 0)
+    -- velocidade ajustada pra ~80° em 0.15s
+    hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(533), 0)
 
     task.wait(0.15)
 
@@ -217,4 +217,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick 60° em 0.15s)")
+print("WallHop Loaded (flick 80° em 0.15s)")
