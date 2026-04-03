@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VIA HUMANOID - SEM EMPURRÃO)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK HUMANOID CORRIGIDO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -70,7 +70,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- DOUBLE JUMP (PROTEGIDO)
+-- DOUBLE JUMP
 UserInputService.JumpRequest:Connect(function()
     if not isWallHopEnabled or blockDoubleJump then return end
 
@@ -96,7 +96,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VIA HUMANOID (AVANÇADO)
+-- FLICK HUMANOID (BURST)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -113,12 +113,10 @@ local function performVideoFlick()
         return
     end
 
-    -- impulso original (mantido)
+    -- impulso original
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-    hum.AutoRotate = true -- importante
-
-    -- direção base (igual câmera)
+    -- direção base
     local baseDir = Camera.CFrame.LookVector
     baseDir = Vector3.new(baseDir.X, 0, baseDir.Z).Unit
 
@@ -126,23 +124,16 @@ local function performVideoFlick()
     local angle = math.rad(math.random(45, 60))
     local dir = 1
 
-    local steps = 10
+    local rotatedDir = (CFrame.Angles(0, angle * dir, 0):VectorToWorldSpace(baseDir))
 
-    for i = 1, steps do
-        local alpha = i / steps
-        local curve = math.sin(alpha * math.pi)
-        local offset = angle * curve * dir
+    -- input curto (sem quebrar animação)
+    hum:Move(rotatedDir, true)
 
-        local rotated = (CFrame.Angles(0, offset, 0):VectorToWorldSpace(baseDir))
-
-        -- 🔥 AQUI ESTÁ O MÉTODO LIMPO
-        hum:Move(rotated, true)
-
-        RunService.RenderStepped:Wait()
-    end
-
-    -- para o input artificial
-    hum:Move(Vector3.zero, true)
+    task.delay(0.03, function()
+        if hum then
+            hum:Move(Vector3.zero, true)
+        end
+    end)
 
     task.delay(0.05, function()
         blockDoubleJump = false
@@ -161,7 +152,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (INALTERADO)
+-- WALL DETECT
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -236,4 +227,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick via humanoid - zero empurrão)")
+print("WallHop Loaded (flick humanoid corrigido)")
