@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK AVANÇADO, FÍSICA NATURAL)
+-- AUTO WALLHOP + DOUBLE JUMP (ULTRA CLEAN COM FLICK HUMANIZADO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -51,10 +51,8 @@ local function isCrouching(hum, hrp)
     return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
--- Configura Humanoid para controlar estados
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
-
     hum.StateChanged:Connect(function(_, new)
         if new == Enum.HumanoidStateType.Freefall then
             canDoubleJump = true
@@ -73,7 +71,6 @@ LocalPlayer.CharacterAdded:Connect(setupCharacter)
 -- DOUBLE JUMP
 UserInputService.JumpRequest:Connect(function()
     if not isWallHopEnabled or blockDoubleJump then return end
-
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChild("Humanoid")
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -86,7 +83,6 @@ UserInputService.JumpRequest:Connect(function()
         lastDoubleJump = tick()
         canDoubleJump = false
 
-        -- Impulso vertical natural
         hrp.Velocity = Vector3.new(hrp.Velocity.X, 34.5, hrp.Velocity.Z)
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
@@ -98,7 +94,21 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK AVANÇADO SEM QUEBRA DE ANIMAÇÃO
+-- LAST FLICK ANGLE
+local lastFlickAngle = nil
+local function pickNextFlick()
+    local minAngle, maxAngle = 50, 80
+    local attempt = 0
+    local angle
+    repeat
+        angle = math.random(minAngle, maxAngle)
+        attempt += 1
+    until not lastFlickAngle or math.abs(angle - lastFlickAngle) >= 10 or attempt > 20
+    lastFlickAngle = angle
+    return math.rad(angle)
+end
+
+-- FLICK HUMANIZADO
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -114,53 +124,53 @@ local function performVideoFlick()
         return
     end
 
-    -- vertical
+    -- impulso vertical
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
-    -- Rotação apenas visual, sem mexer em física lateral
-    local steps = 7 + math.random(0,2) -- 7 ou 9 steps
-    local angle = math.rad(math.random(50, 80))
-    local baseCF = hrp.CFrame
+    local baseYaw = hrp.Orientation.Y
+    local angle = pickNextFlick()
+    local steps = math.random(7,9)
+    local baseDelay = 0.01
 
     for i = 1, steps do
         local alpha = i / steps
-        local curve = math.sin(alpha * math.pi)
+        local curve
+        if alpha <= 0.6 then
+            -- ida rápida
+            curve = math.sin((alpha / 0.6) * (math.pi/2))
+        else
+            -- volta lenta
+            curve = math.sin(((1 - alpha) / 0.4) * (math.pi/2))
+        end
         local offset = angle * curve
-        hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, offset, 0)
+        hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+
         RunService.RenderStepped:Wait()
-        task.wait(0.01)
+        task.wait(baseDelay * (0.8 + math.random()*0.4))
     end
 
-    -- restaura para posição original
-    hrp.CFrame = CFrame.new(hrp.Position)
-
-    -- mantém braços normais
+    -- reset rotação
+    hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
     if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
         hum:ChangeState(Enum.HumanoidStateType.Freefall)
     end
 
     task.delay(0.05, function() blockDoubleJump = false end)
     task.delay(0.15, function() isWallHopping = false end)
-
     isFlicking = false
 end
 
 -- WALL DETECT
 local lastHitInstance = nil
-
 local function isPlayerCharacter(instance)
     if not instance then return false end
     local model = instance:FindFirstAncestorOfClass("Model")
-    if model and model:FindFirstChildOfClass("Humanoid") then
-        return true
-    end
-    return false
+    return model and model:FindFirstChildOfClass("Humanoid")
 end
 
 RunService.Heartbeat:Connect(function()
     if not isWallHopEnabled then return end
-
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChild("Humanoid")
@@ -173,22 +183,17 @@ RunService.Heartbeat:Connect(function()
 
     local look = Camera.CFrame.LookVector
     local horizontal = Vector3.new(look.X, 0, look.Z)
-    if horizontal.Magnitude > 0 then
-        horizontal = horizontal.Unit
-    end
+    if horizontal.Magnitude > 0 then horizontal = horizontal.Unit end
     local direction = horizontal * 1.55
     local result = nil
 
-    local offsets = {Vector3.new(0, -2.2, 0), Vector3.new(0, -1.2, 0), Vector3.new(0, -0.4, 0)}
-
+    local offsets = {Vector3.new(0,-2.2,0), Vector3.new(0,-1.2,0), Vector3.new(0,-0.4,0)}
     for _, offset in ipairs(offsets) do
         local origin = hrp.Position + offset
         local ray = workspace:Raycast(origin, direction, params)
-        if ray and ray.Instance and ray.Instance.CanCollide then
-            if not isPlayerCharacter(ray.Instance) then
-                result = ray
-                break
-            end
+        if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
+            result = ray
+            break
         end
     end
 
@@ -196,7 +201,7 @@ RunService.Heartbeat:Connect(function()
         if lastHitInstance and lastHitInstance ~= result.Instance then
             if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
                 lastFlickTime = tick()
-                task.spawn(performVideoFlick)
+                performVideoFlick()
             end
         end
         lastHitInstance = result.Instance
@@ -212,4 +217,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick humanizado + física padrão + braços normais + double jump funcional)")
+print("WallHop Loaded (ultra clean + flick humanizado)")
