@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (CFRAME FLICK - ZERO RECUO)
+-- AUTO WALLHOP + DOUBLE JUMP (CFRAME FIX FINAL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -119,7 +119,7 @@ local function pickCentral(values)
     return values[#values]
 end
 
--- FLICK VIA CFRAME (SEM RECUO)
+-- FLICK CORRIGIDO (CFRAME SEM TRAVAR POSIÇÃO)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -142,13 +142,13 @@ local function performVideoFlick()
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    -- ESCOLHA (90° MAIS COMUM)
-    local roll = math.random()
+    hrp.AssemblyAngularVelocity = Vector3.zero
 
+    -- escolha
+    local roll = math.random()
     local values, tMin, tMax
 
     if roll < 0.7 then
-        -- 90°
         if math.random() < 0.5 then
             values = {2500,2550,2600,2650,2700,2750,2800}
             tMin, tMax = 0.085, 0.115
@@ -157,7 +157,6 @@ local function performVideoFlick()
             tMin, tMax = 0.065, 0.085
         end
     else
-        -- 80°
         if math.random() < 0.5 then
             values = {1500,1550,1600,1650,1700,1750,1800,1850,1900}
             tMin, tMax = 0.06, 0.09
@@ -170,25 +169,21 @@ local function performVideoFlick()
     local ang = pickCentral(values)
     local flickTime = math.random()*(tMax - tMin) + tMin
 
-    -- CONVERSÃO PARA ÂNGULO VISUAL
     local angle = math.rad(ang) * flickTime
     local dir = (math.random() < 0.5) and 1 or -1
 
-    local startCF = hrp.CFrame
-
     local steps = math.max(1, math.floor(flickTime / 0.005))
-    local stepTime = flickTime / steps
 
     for i = 1, steps do
         local alpha = i / steps
         local curve = math.sin(alpha * math.pi)
         local offset = angle * curve * dir
 
-        hrp.CFrame = startCF * CFrame.Angles(0, offset, 0)
+        local currentCF = hrp.CFrame
+        hrp.CFrame = currentCF * CFrame.Angles(0, offset, 0)
+
         RunService.RenderStepped:Wait()
     end
-
-    hrp.CFrame = startCF
 
     hum.AutoRotate = oldAutoRotate
 
@@ -205,7 +200,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (INALTERADO)
+-- WALL DETECT (ORIGINAL)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -279,4 +274,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (CFrame flick perfeito)")
+print("WallHop Loaded (final real fix)")
