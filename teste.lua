@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK SUAVE 50° / 0.4s)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK SUAVE FUNCIONAL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -71,6 +71,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
+-- DOUBLE JUMP
 UserInputService.JumpRequest:Connect(function()
     if not isWallHopEnabled then return end
 
@@ -97,7 +98,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK SUAVE (IDA E VOLTA)
+-- FLICK SUAVE REAL (0.4s ida + volta)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -113,52 +114,29 @@ local function performVideoFlick()
         return
     end
 
-    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+    -- mantém impulso original (SEM forçar jump)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    local originalCF = hrp.CFrame
     local duration = 0.4
     local half = duration / 2
     local angle = math.rad(50)
 
-    local startTime = tick()
+    -- velocidade angular necessária
+    local angularSpeed = angle / half
 
-    while true do
-        local t = tick() - startTime
-        if t >= duration then break end
+    -- ida
+    hrp.AssemblyAngularVelocity = Vector3.new(0, angularSpeed, 0)
+    task.wait(half)
 
-        local alpha
-        if t < half then
-            alpha = t / half
-        else
-            alpha = 1 - ((t - half) / half)
-        end
+    -- volta
+    hrp.AssemblyAngularVelocity = Vector3.new(0, -angularSpeed, 0)
+    task.wait(half)
 
-        -- easing (suave)
-        alpha = alpha * alpha * (3 - 2 * alpha)
-
-        local currentAngle = angle * alpha
-        local newCF = originalCF * CFrame.Angles(0, currentAngle, 0)
-
-        -- preserva velocidade
-        local vel = hrp.Velocity
-        hrp.CFrame = newCF
-        hrp.Velocity = vel
-
-        RunService.Heartbeat:Wait()
-    end
-
-    hrp.CFrame = originalCF
+    hrp.AssemblyAngularVelocity = Vector3.zero
     hum.AutoRotate = oldAutoRotate
-
-    task.delay(0.1, function()
-        if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
-            hum:ChangeState(Enum.HumanoidStateType.Freefall)
-        end
-    end)
 
     task.delay(0.25, function()
         isWallHopping = false
@@ -167,7 +145,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT (inalterado)
+-- WALL DETECT (INALTERADO)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -241,4 +219,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick suave 0.4s)")
+print("WallHop Loaded (flick corrigido de verdade)")
