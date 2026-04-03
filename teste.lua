@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL LENTO E VISÍVEL)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK SUAVE 50° / 0.4s)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -97,7 +97,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VISUAL LENTO (~0.2s / 50°)
+-- FLICK SUAVE (IDA E VOLTA)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -119,15 +119,39 @@ local function performVideoFlick()
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    local duration = 0.2
+    local originalCF = hrp.CFrame
+    local duration = 0.4
+    local half = duration / 2
     local angle = math.rad(50)
-    local angularSpeed = angle / duration
 
-    hrp.AssemblyAngularVelocity = Vector3.new(0, angularSpeed, 0)
+    local startTime = tick()
 
-    task.wait(duration)
+    while true do
+        local t = tick() - startTime
+        if t >= duration then break end
 
-    hrp.AssemblyAngularVelocity = Vector3.zero
+        local alpha
+        if t < half then
+            alpha = t / half
+        else
+            alpha = 1 - ((t - half) / half)
+        end
+
+        -- easing (suave)
+        alpha = alpha * alpha * (3 - 2 * alpha)
+
+        local currentAngle = angle * alpha
+        local newCF = originalCF * CFrame.Angles(0, currentAngle, 0)
+
+        -- preserva velocidade
+        local vel = hrp.Velocity
+        hrp.CFrame = newCF
+        hrp.Velocity = vel
+
+        RunService.Heartbeat:Wait()
+    end
+
+    hrp.CFrame = originalCF
     hum.AutoRotate = oldAutoRotate
 
     task.delay(0.1, function()
@@ -143,7 +167,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT
+-- WALL DETECT (inalterado)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -217,4 +241,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (OK)")
+print("WallHop Loaded (flick suave 0.4s)")
