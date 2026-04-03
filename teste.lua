@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL AJUSTADO)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL SEM QUEBRAR FÍSICA - AJUSTADO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -37,6 +37,7 @@ local lastFlickTime = 0
 local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
+
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 
@@ -96,7 +97,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK AJUSTADO
+-- FLICK VISUAL (AJUSTADO)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -112,18 +113,25 @@ local function performVideoFlick()
         return
     end
 
+    -- impulso original
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    -- MAIS VISÍVEL
+    -- ALTERAÇÃO MÍNIMA AQUI
     hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(500), 0)
     task.wait(0.16)
-    hrp.AssemblyAngularVelocity = Vector3.zero
 
+    hrp.AssemblyAngularVelocity = Vector3.zero
     hum.AutoRotate = oldAutoRotate
+
+    task.delay(0.1, function()
+        if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
+            hum:ChangeState(Enum.HumanoidStateType.Freefall)
+        end
+    end)
 
     task.delay(0.25, function()
         isWallHopping = false
@@ -132,7 +140,7 @@ local function performVideoFlick()
     isFlicking = false
 end
 
--- WALL DETECT
+-- WALL DETECT (INALTERADO)
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -200,7 +208,7 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- TOGGLE (FIXED)
+-- TOGGLE
 TextButton.MouseButton1Click:Connect(function()
     isWallHopEnabled = not isWallHopEnabled
 
@@ -208,4 +216,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (versão 1 corrigida)")
+print("WallHop Loaded (ajuste mínimo aplicado)")
