@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (SEM FLICK DE CÂMERA)
+-- AUTO WALLHOP + DOUBLE JUMP (COM FLICK ADICIONADO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -47,6 +47,9 @@ local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
+-- ADICIONADO DO SCRIPT 2
+local blockDoubleJump = false
+
 -- CROUCH CHECK
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
@@ -74,9 +77,9 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
--- DOUBLE JUMP
+-- DOUBLE JUMP (mantido igual, só bloqueado durante flick)
 UserInputService.JumpRequest:Connect(function()
-    if not isWallHopEnabled then return end
+    if not isWallHopEnabled or blockDoubleJump then return end
 
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChild("Humanoid")
@@ -101,13 +104,37 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK (AGORA SEM MEXER NA CÂMERA)
+-- FUNÇÃO DO SCRIPT 2 (INALTERADA)
+local function pickCentral(values)
+    local mid = math.ceil(#values/2)
+    local total, weights = 0, {}
+
+    for i=1,#values do
+        local d = math.abs(i - mid)
+        local w = 1/(1 + d^1.3)
+        weights[i] = w
+        total += w
+    end
+
+    local r = math.random() * total
+    for i, w in ipairs(weights) do
+        r -= w
+        if r <= 0 then
+            return values[i]
+        end
+    end
+
+    return values[#values]
+end
+
+-- FLICK (AGORA COM O SISTEMA DO SCRIPT 2)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
 
     isWallHopping = true
     lastWallHopTime = tick()
+    blockDoubleJump = true
 
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChild("Humanoid")
@@ -117,14 +144,45 @@ local function performVideoFlick()
         return
     end
 
-    -- mantém exatamente o mesmo impulso
+    -- impulso original
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-    -- NÃO mexe na câmera (removido completamente)
+    local oldAutoRotate = hum.AutoRotate
+    hum.AutoRotate = false
+
+    hrp.AssemblyAngularVelocity = Vector3.zero
+
+    local values = {2700,2750,2800,2850,2900,2950,3000}
+    local ang = pickCentral(values)
+
+    local totalAngle = math.rad(math.clamp(ang / 40, 45, 90))
+    local dir = 1
+
+    local baseCF = hrp.CFrame
+    local _, baseYaw, _ = baseCF:ToOrientation()
+
+    local steps = 12
+
+    for i = 1, steps do
+        local alpha = i / steps
+        local curve = math.sin(alpha * math.pi)
+        local offset = totalAngle * curve * dir
+
+        local pos = hrp.Position
+        hrp.CFrame = CFrame.new(pos) * CFrame.Angles(0, baseYaw + offset, 0)
+
+        RunService.RenderStepped:Wait()
+    end
+
+    hum.AutoRotate = oldAutoRotate
+
+    task.delay(0.05, function()
+        blockDoubleJump = false
+    end)
 
     task.delay(0.1, function()
-        if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
+        if hum then
             hum:ChangeState(Enum.HumanoidStateType.Freefall)
         end
     end)
@@ -213,4 +271,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (sem flick de câmera)")
+print("WallHop Loaded (com flick integrado)")
