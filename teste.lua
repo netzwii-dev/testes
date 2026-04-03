@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (ULTRA CLEAN FINAL)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VIA CÂMERA INVISÍVEL)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -96,7 +96,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- 🔥 FLICK ULTRA CLEAN
+-- FLICK VIA CÂMERA (SEM EMPURRÃO)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -113,57 +113,45 @@ local function performVideoFlick()
         return
     end
 
-    -- 🔥 REMOVE COLISÃO SOMENTE DO HRP
-    local oldCollide = hrp.CanCollide
-    hrp.CanCollide = false
-
-    -- impulso
+    -- impulso normal
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-    local oldAutoRotate = hum.AutoRotate
-    hum.AutoRotate = false
-    hrp.AssemblyAngularVelocity = Vector3.zero
-
-    -- ângulo variável forte
+    -- ângulo variável (50°–80°)
     local angle = math.rad(math.random(50, 80))
     local dir = 1
 
-    local baseCF = hrp.CFrame
-    local _, baseYaw, _ = baseCF:ToOrientation()
-
-    -- flick rápido
     local steps = math.random(5, 7)
+    local originalCF = Camera.CFrame
+
+    -- opcional (remove jitter total)
+    local oldType = Camera.CameraType
+    Camera.CameraType = Enum.CameraType.Scriptable
 
     for i = 1, steps do
         local alpha = i / steps
         local curve = math.sin(alpha * math.pi)
         local offset = angle * curve * dir
 
-        local pos = hrp.Position
-        hrp.CFrame = CFrame.new(pos) * CFrame.Angles(0, baseYaw + offset, 0)
+        local rotated = originalCF * CFrame.Angles(0, offset, 0)
+        Camera.CFrame = rotated
+
+        -- compensa pra não mover visualmente
+        Camera.CFrame = Camera.CFrame:Lerp(originalCF, 1)
 
         RunService.RenderStepped:Wait()
     end
 
-    hum.AutoRotate = oldAutoRotate
-
-    -- 🔥 RESTAURA COLISÃO
-    task.delay(0.04, function()
-        if hrp then
-            hrp.CanCollide = oldCollide
-        end
-    end)
-
-    -- 🔥 CORREÇÃO DEFINITIVA DOS BRAÇOS
-    task.delay(0.06, function()
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Freefall)
-            hum.AutoRotate = true
-        end
-    end)
+    Camera.CFrame = originalCF
+    Camera.CameraType = oldType
 
     task.delay(0.05, function()
         blockDoubleJump = false
+    end)
+
+    task.delay(0.1, function()
+        if hum then
+            hum:ChangeState(Enum.HumanoidStateType.Freefall)
+        end
     end)
 
     task.delay(0.2, function()
@@ -248,4 +236,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (ULTRA CLEAN FINAL)")
+print("WallHop Loaded (flick câmera invisível)")
