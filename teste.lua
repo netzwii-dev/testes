@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL NO PERSONAGEM)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK NATURAL CORRIGIDO)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -14,6 +14,7 @@ ScreenGui.Name = "AutoWallHopGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
 
+-- BOTÃO PRINCIPAL
 local TextButton = Instance.new("TextButton")
 TextButton.Size = UDim2.new(0, 140, 0, 50)
 TextButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -24,11 +25,13 @@ TextButton.TextScaled = true
 TextButton.Parent = ScreenGui
 Instance.new("UICorner", TextButton).CornerRadius = UDim.new(0, 12)
 
+-- POSIÇÃO ORIGINAL
 RunService.RenderStepped:Connect(function()
 	local inset = GuiService:GetGuiInset()
 	TextButton.Position = UDim2.new(0, 150, 0, inset.Y - 58)
 end)
 
+-- BOTÃO FLUTUANTE
 local ToggleUI = Instance.new("TextButton")
 ToggleUI.Size = UDim2.new(0, 50, 0, 50)
 ToggleUI.Position = UDim2.new(0, 20, 0, 200)
@@ -80,6 +83,7 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
+-- MOSTRAR / ESCONDER UI
 local uiVisible = true
 ToggleUI.MouseButton1Click:Connect(function()
 	uiVisible = not uiVisible
@@ -148,7 +152,7 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
--- 🔥 FLICK VISUAL (SEM MEXER NA CÂMERA)
+-- FLICK CORRIGIDO
 local function performVideoFlick()
 	if isFlicking then return end
 	isFlicking = true
@@ -157,41 +161,70 @@ local function performVideoFlick()
 	lastWallHopTime = tick()
 
 	local char = LocalPlayer.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	local hum = char and char:FindFirstChild("Humanoid")
-	if not hrp or not hum then
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hum or not hrp then
 		isFlicking = false
 		return
 	end
 
-	-- wallhop original
 	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 	hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-	-- flick visual
-	local original = hrp.CFrame
-	local angle = math.rad(math.random(42, 50))
-	local target = original * CFrame.Angles(0, angle, 0)
+	local start = Camera.CFrame
 
+	-- lado fixo (direita)
+	local direction = 1
+
+	local angle = math.rad(math.random(42, 60))
+
+	local look = start.LookVector
+	local flatLook = Vector3.new(look.X, 0, look.Z).Unit
+
+	local rotatedLook =
+		(flatLook * math.cos(angle)) +
+		(Vector3.new(-flatLook.Z, 0, flatLook.X) * math.sin(angle) * direction)
+
+	local target = CFrame.new(start.Position, start.Position + rotatedLook)
+
+	local durationIn = math.random(50, 70) / 1000
+	local durationOut = math.random(30, 50) / 1000
+
+	-- ida
 	local t0 = tick()
-	while tick() - t0 < 0.06 do
-		local t = (tick() - t0) / 0.06
-		char:PivotTo(original:Lerp(target, t))
+	while true do
+		local t = (tick() - t0) / durationIn
+		if t >= 1 then break end
+
+		local alpha = t * 0.8 + (t^2) * 0.2
+		Camera.CFrame = start:Lerp(target, alpha)
+
 		RunService.RenderStepped:Wait()
 	end
 
-	char:PivotTo(target)
+	Camera.CFrame = target
 
-	task.wait(0.01)
+	task.wait(math.random(4, 8)/1000)
+
+	-- volta com leve imprecisão
+	local offsetAngle = math.rad(math.random(-2, 2))
+	local returnLook =
+		(flatLook * math.cos(offsetAngle)) +
+		(Vector3.new(-flatLook.Z, 0, flatLook.X) * math.sin(offsetAngle) * direction)
+
+	local imperfectReturn = CFrame.new(start.Position, start.Position + returnLook)
 
 	local t1 = tick()
-	while tick() - t1 < 0.05 do
-		local t = (tick() - t1) / 0.05
-		char:PivotTo(target:Lerp(original, t))
+	while true do
+		local t = (tick() - t1) / durationOut
+		if t >= 1 then break end
+
+		Camera.CFrame = target:Lerp(imperfectReturn, t)
+
 		RunService.RenderStepped:Wait()
 	end
 
-	char:PivotTo(original)
+	Camera.CFrame = imperfectReturn
 
 	task.delay(0.25, function()
 		isWallHopping = false
@@ -200,7 +233,7 @@ local function performVideoFlick()
 	isFlicking = false
 end
 
--- WALL DETECT (original)
+-- WALL DETECT
 local lastHitInstance = nil
 
 local function isPlayerCharacter(instance)
@@ -256,9 +289,10 @@ RunService.Heartbeat:Connect(function()
 	lastHitInstance = nil
 end)
 
+-- TOGGLE
 TextButton.MouseButton1Click:Connect(function()
 	isWallHopEnabled = not isWallHopEnabled
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("WallHop Loaded (flick visual no personagem)")
+print("WallHop Loaded (flick corrigido)")
