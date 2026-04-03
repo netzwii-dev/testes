@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (ULTRA CLEAN COM FLICK HUMANIZADO + OVERSHOOT)
+-- AUTO WALLHOP + DOUBLE JUMP (ULTRA CLEAN COM FLICK HUMANIZADO + OVERSHOOT FIX)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -108,7 +108,7 @@ local function pickNextFlick()
     return math.rad(angle)
 end
 
--- FLICK HUMANIZADO COM OVERSHOOT
+-- FLICK HUMANIZADO COM OVERSHOOT ATRASADO
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -131,14 +131,13 @@ local function performVideoFlick()
     local baseYaw = hrp.Orientation.Y
     local angle = pickNextFlick()
 
-    local steps = math.random(7,9)
-    local delay = 0.01
+    local steps = math.random(6,7)
+    local delay = 0.008
 
-    -- overshoot real (20°–30°)
     local overshoot = math.rad(math.random(20,30))
     local useOvershoot = math.random() < 0.9
 
-    -- 1. IDA
+    -- IDA
     for i = 1, steps do
         local alpha = i / steps
         local curve = math.sin(alpha * (math.pi/2))
@@ -148,7 +147,7 @@ local function performVideoFlick()
         task.wait(delay)
     end
 
-    -- 2. VOLTA NORMAL
+    -- VOLTA
     for i = 1, steps do
         local alpha = i / steps
         local curve = math.cos(alpha * (math.pi/2))
@@ -158,33 +157,40 @@ local function performVideoFlick()
         task.wait(delay)
     end
 
-    -- 3. OVERSHOOT + CORREÇÃO
+    -- OVERSHOOT ATRASADO (NÃO QUEBRA WALLHOP)
     if useOvershoot then
-        local smallSteps = 4
-        for i = 1, smallSteps do
-            local alpha = i / smallSteps
-            local offset = -overshoot * alpha
-            hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
-            RunService.RenderStepped:Wait()
-            task.wait(delay)
-        end
-        for i = 1, smallSteps do
-            local alpha = i / smallSteps
-            local offset = -overshoot * (1 - alpha)
-            hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
-            RunService.RenderStepped:Wait()
-            task.wait(delay)
-        end
+        task.delay(0.05, function()
+            if not hrp then return end
+
+            local smallSteps = 4
+
+            for i = 1, smallSteps do
+                local alpha = i / smallSteps
+                local offset = -overshoot * alpha
+                hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+                RunService.RenderStepped:Wait()
+                task.wait(delay)
+            end
+
+            for i = 1, smallSteps do
+                local alpha = i / smallSteps
+                local offset = -overshoot * (1 - alpha)
+                hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+                RunService.RenderStepped:Wait()
+                task.wait(delay)
+            end
+
+            hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+        end)
     end
 
-    -- reset final
-    hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
     if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
         hum:ChangeState(Enum.HumanoidStateType.Freefall)
     end
 
     task.delay(0.05, function() blockDoubleJump = false end)
     task.delay(0.15, function() isWallHopping = false end)
+
     isFlicking = false
 end
 
@@ -244,4 +250,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (ultra clean + flick humanizado + overshoot)")
+print("WallHop Loaded (flick perfeito + overshoot limpo)")
