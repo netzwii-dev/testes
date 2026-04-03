@@ -1,4 +1,4 @@
--- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL CORRIGIDO)
+-- AUTO WALLHOP + DOUBLE JUMP (FLICK VISUAL SEM QUEBRAR FÍSICA)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -101,7 +101,7 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
--- FLICK VISUAL (COM PRESERVAÇÃO DE VELOCIDADE)
+-- FLICK VISUAL (SEM QUEBRAR FÍSICA)
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -117,32 +117,21 @@ local function performVideoFlick()
         return
     end
 
-    -- impulso original
+    -- impulso original (INALTERADO)
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
     hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 
-    -- salva velocidade
-    local originalVelocity = hrp.Velocity
-
-    -- flick visual
-    local originalCFrame = hrp.CFrame
+    -- flick usando rotação física (não quebra pulo)
     local oldAutoRotate = hum.AutoRotate
     hum.AutoRotate = false
 
-    local flickCFrame = originalCFrame * CFrame.Angles(0, math.rad(45), 0)
-    hrp.CFrame = flickCFrame
+    -- aplica rotação rápida para direita
+    hrp.AssemblyAngularVelocity = Vector3.new(0, math.rad(1200), 0)
 
-    task.wait(0.015)
+    task.wait(0.03)
 
-    local steps = 5
-    for i = 1, steps do
-        local alpha = (i / steps) ^ 2
-        hrp.CFrame = flickCFrame:Lerp(originalCFrame, alpha)
-        task.wait(0.005)
-    end
-
-    -- restaura velocidade (corrige pulo)
-    hrp.Velocity = originalVelocity
+    -- para rotação
+    hrp.AssemblyAngularVelocity = Vector3.zero
 
     hum.AutoRotate = oldAutoRotate
 
@@ -236,4 +225,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick visual corrigido)")
+print("WallHop Loaded (flick físico correto)")
