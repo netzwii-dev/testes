@@ -14,81 +14,75 @@ ScreenGui.Name = "AutoWallHopGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
 
+-- BOTÃO PRINCIPAL
 local TextButton = Instance.new("TextButton")
 TextButton.Size = UDim2.new(0, 140, 0, 50)
+TextButton.Position = UDim2.new(0, 150, 0, 100)
 TextButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 TextButton.Text = "Wall Hop Off"
 TextButton.TextColor3 = Color3.fromRGB(255,255,255)
 TextButton.Font = Enum.Font.GothamBold
 TextButton.TextScaled = true
 TextButton.Parent = ScreenGui
-
 Instance.new("UICorner", TextButton).CornerRadius = UDim.new(0, 12)
 
-RunService.RenderStepped:Connect(function()
-    local inset = GuiService:GetGuiInset()
-    TextButton.Position = UDim2.new(0, 150, 0, inset.Y - 58)
-end)
+-- BOTÃO FLUTUANTE (ESCONDER UI)
+local ToggleUI = Instance.new("TextButton")
+ToggleUI.Size = UDim2.new(0, 50, 0, 50)
+ToggleUI.Position = UDim2.new(0, 20, 0, 200)
+ToggleUI.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ToggleUI.Text = "≡"
+ToggleUI.TextScaled = true
+ToggleUI.TextColor3 = Color3.fromRGB(255,255,255)
+ToggleUI.Font = Enum.Font.GothamBold
+ToggleUI.Parent = ScreenGui
+Instance.new("UICorner", ToggleUI).CornerRadius = UDim.new(1, 0)
 
--- BOTÃO DE ESCONDER/MOSTRAR
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 40, 0, 40)
-ToggleButton.Position = UDim2.new(0, 20, 0, 200)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-ToggleButton.Text = "+"
-ToggleButton.TextColor3 = Color3.fromRGB(255,255,255)
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.TextScaled = true
-ToggleButton.Parent = ScreenGui
-
-Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(1, 0)
-
-local uiVisible = true
-
-ToggleButton.MouseButton1Click:Connect(function()
-    uiVisible = not uiVisible
-    TextButton.Visible = uiVisible
-    ToggleButton.Text = uiVisible and "-" or "+"
-end)
-
--- DRAG
+-- ARRASTAR BOTÃO
 local dragging = false
 local dragInput, dragStart, startPos
 
 local function update(input)
-    local delta = input.Position - dragStart
-    ToggleButton.Position = UDim2.new(
-        startPos.X.Scale,
-        startPos.X.Offset + delta.X,
-        startPos.Y.Scale,
-        startPos.Y.Offset + delta.Y
-    )
+	local delta = input.Position - dragStart
+	ToggleUI.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
 end
 
-ToggleButton.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = ToggleButton.Position
+ToggleUI.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStart = input.Position
+		startPos = ToggleUI.Position
 
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
 end)
 
-ToggleButton.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
+ToggleUI.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+		dragInput = input
+	end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
-    end
+	if input == dragInput and dragging then
+		update(input)
+	end
+end)
+
+-- ESCONDER/MOSTRAR UI
+local uiVisible = true
+ToggleUI.MouseButton1Click:Connect(function()
+	uiVisible = not uiVisible
+	TextButton.Visible = uiVisible
 end)
 
 -- STATES
@@ -99,23 +93,159 @@ local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
 
--- NOVO
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 
--- DOUBLE JUMP
 local canDoubleJump = false
 local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 
--- CROUCH CHECK
 local function isCrouching(hum, hrp)
-    if not hum or not hrp then return false end
-    local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
-    return hum.WalkSpeed <= 9 and horizontalSpeed < 8
+	if not hum or not hrp then return false end
+	local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
+	return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
--- CHARACTER HANDLER (FECHADO PRA NÃO DAR ERRO)
 local function setupCharacter(char)
-    -- sua lógica original aqui
+	local hum = char:WaitForChild("Humanoid")
+
+	hum.StateChanged:Connect(function(_, new)
+		if new == Enum.HumanoidStateType.Freefall then
+			canDoubleJump = true
+		end
+
+		if new == Enum.HumanoidStateType.Landed then
+			canDoubleJump = false
+		end
+	end)
 end
+
+if LocalPlayer.Character then
+	setupCharacter(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(setupCharacter)
+
+UserInputService.JumpRequest:Connect(function()
+	if not isWallHopEnabled then return end
+
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hum or not hrp then return end
+
+	local stillValid = isWallHopping or (tick() - lastWallHopTime <= WALLHOP_GRACE_TIME)
+	if not stillValid then return end
+
+	if canDoubleJump and tick() - lastDoubleJump > DOUBLE_JUMP_COOLDOWN then
+		lastDoubleJump = tick()
+		canDoubleJump = false
+
+		hrp.Velocity = Vector3.new(hrp.Velocity.X, 34.5, hrp.Velocity.Z)
+		hum:ChangeState(Enum.HumanoidStateType.Jumping)
+
+		task.delay(0.18, function()
+			if hum then
+				hum:ChangeState(Enum.HumanoidStateType.Freefall)
+			end
+		end)
+	end
+end)
+
+local function performVideoFlick()
+	if isFlicking then return end
+	isFlicking = true
+
+	isWallHopping = true
+	lastWallHopTime = tick()
+
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hum or not hrp then
+		isFlicking = false
+		return
+	end
+
+	hum:ChangeState(Enum.HumanoidStateType.Jumping)
+	hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
+
+	task.delay(0.1, function()
+		if hum and hum:GetState() == Enum.HumanoidStateType.Jumping then
+			hum:ChangeState(Enum.HumanoidStateType.Freefall)
+		end
+	end)
+
+	task.delay(0.25, function()
+		isWallHopping = false
+	end)
+
+	isFlicking = false
+end
+
+local lastHitInstance = nil
+
+local function isPlayerCharacter(instance)
+	if not instance then return false end
+	local model = instance:FindFirstAncestorOfClass("Model")
+	if model and model:FindFirstChildOfClass("Humanoid") then
+		return true
+	end
+	return false
+end
+
+RunService.Heartbeat:Connect(function()
+	if not isWallHopEnabled then return end
+
+	local char = LocalPlayer.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChild("Humanoid")
+
+	if not hrp or not hum then return end
+	if isCrouching(hum, hrp) then return end
+
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {char}
+	params.FilterType = Enum.RaycastFilterType.Exclude
+
+	local look = Camera.CFrame.LookVector
+	local horizontal = Vector3.new(look.X, 0, look.Z)
+
+	if horizontal.Magnitude > 0 then
+		horizontal = horizontal.Unit
+	end
+
+	local direction = horizontal * 1.55
+
+	local offsets = {
+		Vector3.new(0, -2.2, 0),
+		Vector3.new(0, -1.2, 0),
+		Vector3.new(0, -0.4, 0)
+	}
+
+	for _, offset in ipairs(offsets) do
+		local origin = hrp.Position + offset
+		local ray = workspace:Raycast(origin, direction, params)
+
+		if ray and ray.Instance and ray.Instance.CanCollide then
+			if not isPlayerCharacter(ray.Instance) then
+				if lastHitInstance and lastHitInstance ~= ray.Instance then
+					if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.085 then
+						lastFlickTime = tick()
+						performVideoFlick()
+					end
+				end
+				lastHitInstance = ray.Instance
+				return
+			end
+		end
+	end
+
+	lastHitInstance = nil
+end)
+
+TextButton.MouseButton1Click:Connect(function()
+	isWallHopEnabled = not isWallHopEnabled
+	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
+end)
+
+print("WallHop Loaded (com botão oculto)")
