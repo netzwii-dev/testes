@@ -46,12 +46,11 @@ local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 local blockDoubleJump = false
 
--- GEM READY TRACKER
+-- GEM READY TRACKER (SÓ DO DOUBLE JUMP DO SCRIPT)
 local gemReadyEffect = nil
 local gemReadyTweening = false
-local nextGemReadyTime = 0
-local gemReadyPending = false
 local gemReadyPart = nil
+local gemRechargeCycle = 0
 
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
@@ -180,8 +179,7 @@ end
 local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
-    gemReadyPending = false
-    nextGemReadyTime = 0
+    gemRechargeCycle = 0
     gemReadyTweening = false
 
     task.defer(function()
@@ -216,12 +214,19 @@ UserInputService.JumpRequest:Connect(function()
 
     if canDoubleJump and tick() - lastDoubleJump > DOUBLE_JUMP_COOLDOWN then
         lastDoubleJump = tick()
-
-        -- agenda a recarga do DOUBLE JUMP DO SCRIPT
-        nextGemReadyTime = tick() + DOUBLE_JUMP_COOLDOWN
-        gemReadyPending = true
-
         canDoubleJump = false
+
+        -- agenda APENAS a recarga visual do DOUBLE JUMP DO SCRIPT
+        gemRechargeCycle += 1
+        local myCycle = gemRechargeCycle
+
+        task.delay(DOUBLE_JUMP_COOLDOWN, function()
+            if myCycle ~= gemRechargeCycle then return end
+            if not LocalPlayer.Character then return end
+
+            task.spawn(playGemReadyEffect)
+            task.spawn(playGemRechargeAnimation)
+        end)
 
         hrp.Velocity = Vector3.new(hrp.Velocity.X, 30, hrp.Velocity.Z)
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
@@ -438,13 +443,6 @@ local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
 end
 
 RunService.Heartbeat:Connect(function()
-    -- recarga do DOUBLE JUMP DO SCRIPT
-    if gemReadyPending and tick() >= nextGemReadyTime then
-        gemReadyPending = false
-        task.spawn(playGemReadyEffect)
-        task.spawn(playGemRechargeAnimation)
-    end
-
     if not isWallHopEnabled then return end
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -500,4 +498,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("Humanoid pi Wallhop - Loaded Successfully ✅")
+print("Humanoid Wallhop cu - Loaded Successfully ✅")
