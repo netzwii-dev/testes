@@ -130,10 +130,10 @@ local function performVideoFlick()
     hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
     local baseYaw = hrp.Orientation.Y
-    local angle = pickNextFlick()
+    local angle = -pickNextFlick() -- esquerda
 
-    -- 95% flick atual / 5% flick rápido
-    local useFastFlick = math.random() < 0.05
+    -- 85% flick atual / 15% flick rápido
+    local useFastFlick = math.random() < 0.15
 
     local steps
     local delayMin
@@ -181,7 +181,7 @@ local function performVideoFlick()
 
             for i = 1, smallSteps do
                 local alpha = i / smallSteps
-                local offset = -overshoot * alpha
+                local offset = overshoot * alpha
                 hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
                 RunService.RenderStepped:Wait()
                 task.wait(baseDelay)
@@ -189,7 +189,7 @@ local function performVideoFlick()
 
             for i = 1, smallSteps do
                 local alpha = i / smallSteps
-                local offset = -overshoot * (1 - alpha)
+                local offset = overshoot * (1 - alpha)
                 hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
                 RunService.RenderStepped:Wait()
                 task.wait(baseDelay)
@@ -333,4 +333,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("Humanoid Wallhop - Loaded Successfully ✅")
+print("cu Humanoid Wallhop - Loaded Successfully ✅")
