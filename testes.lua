@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
+local UserInputService = game:GetService("UserInputService")
 
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
@@ -39,11 +40,37 @@ local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 local WALLHOP_COOLDOWN = 0.18
 
+-- INPUT BUFFER
+local lastJumpRequestTime = 0
+local JUMP_REQUEST_BUFFER = 0.18
+local jumpConsumedForWallhop = false
+
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
     local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
     return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
+
+local function setupCharacter(char)
+    local hum = char:WaitForChild("Humanoid")
+
+    hum.StateChanged:Connect(function(_, new)
+        if new == Enum.HumanoidStateType.Landed then
+            jumpConsumedForWallhop = false
+        end
+    end)
+end
+
+if LocalPlayer.Character then
+    setupCharacter(LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(setupCharacter)
+
+-- REGISTRA INPUT REAL DE PULO
+UserInputService.JumpRequest:Connect(function()
+    lastJumpRequestTime = tick()
+    jumpConsumedForWallhop = false
+end)
 
 -- LAST FLICK ANGLE
 local lastFlickAngle = nil
@@ -65,6 +92,7 @@ local function performVideoFlick()
     isFlicking = true
     isWallHopping = true
     lastWallHopTime = tick()
+    jumpConsumedForWallhop = true
 
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChild("Humanoid")
@@ -100,7 +128,7 @@ local function performVideoFlick()
     local overshoot = math.rad(math.random(20,30))
     local useOvershoot = math.random() < 0.9
 
-    -- deixa o jogo cuidar do estado do pulo
+    -- deixa o jogo ver um jump real
     hum.Jump = true
 
     -- espera 1 frame antes do impulso
@@ -216,6 +244,7 @@ end
 
 RunService.Heartbeat:Connect(function()
     if not isWallHopEnabled then return end
+
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChild("Humanoid")
@@ -247,9 +276,15 @@ RunService.Heartbeat:Connect(function()
         end
     end
 
+    local hasRecentJumpInput = (tick() - lastJumpRequestTime) <= JUMP_REQUEST_BUFFER
+
     if result and result.Instance then
         if lastHitInstance and lastHitInstance ~= result.Instance then
-            if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > WALLHOP_COOLDOWN then
+            if hrp.Velocity.Y < -2.2
+                and tick() - lastFlickTime > WALLHOP_COOLDOWN
+                and hasRecentJumpInput
+                and not jumpConsumedForWallhop then
+
                 lastFlickTime = tick()
                 performVideoFlick()
             end
@@ -257,6 +292,10 @@ RunService.Heartbeat:Connect(function()
         lastHitInstance = result.Instance
     else
         lastHitInstance = nil
+    end
+
+    if not hasRecentJumpInput and not isWallHopping then
+        jumpConsumedForWallhop = false
     end
 end)
 
@@ -267,4 +306,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (sem ChangeState, só Jump + AssemblyLinearVelocity)")
+print("WallHop Loaded (wallhop atrelado a JumpRequest recente)")
