@@ -46,13 +46,12 @@ local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 local blockDoubleJump = false
 
--- GEM READY TRACKER (SÓ DO DOUBLE JUMP DO SCRIPT)
+-- GEM READY TRACKER
 local gemReadyEffect = nil
 local gemReadyTweening = false
 local gemReadyPart = nil
-local hasUsedFirstScriptDoubleJump = false
-local nextGemNotifyAt = 0
-local gemNotifyPending = false
+local scriptDoubleJumpUses = 0
+local rechargeNotifyId = 0
 
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
@@ -182,9 +181,8 @@ local function setupCharacter(char)
     local hum = char:WaitForChild("Humanoid")
 
     gemReadyTweening = false
-    hasUsedFirstScriptDoubleJump = false
-    nextGemNotifyAt = 0
-    gemNotifyPending = false
+    scriptDoubleJumpUses = 0
+    rechargeNotifyId = 0
 
     task.defer(function()
         gemReadyEffect = createGemReadyEffect(char)
@@ -208,6 +206,7 @@ LocalPlayer.CharacterAdded:Connect(setupCharacter)
 -- DOUBLE JUMP
 UserInputService.JumpRequest:Connect(function()
     if not isWallHopEnabled or blockDoubleJump then return end
+
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChild("Humanoid")
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -220,20 +219,28 @@ UserInputService.JumpRequest:Connect(function()
         lastDoubleJump = tick()
         canDoubleJump = false
 
-        -- ignora o primeiro double jump do script
-        -- e avisa a recarga só nos próximos
-        if hasUsedFirstScriptDoubleJump then
-            nextGemNotifyAt = lastDoubleJump + DOUBLE_JUMP_COOLDOWN
-            gemNotifyPending = true
-        else
-            hasUsedFirstScriptDoubleJump = true
+        scriptDoubleJumpUses += 1
+
+        if scriptDoubleJumpUses > 1 then
+            rechargeNotifyId += 1
+            local thisNotifyId = rechargeNotifyId
+
+            task.delay(DOUBLE_JUMP_COOLDOWN, function()
+                if thisNotifyId ~= rechargeNotifyId then return end
+
+                local currentChar = LocalPlayer.Character
+                if not currentChar or currentChar ~= char then return end
+
+                task.spawn(playGemReadyEffect)
+                task.spawn(playGemRechargeAnimation)
+            end)
         end
 
         hrp.Velocity = Vector3.new(hrp.Velocity.X, 30, hrp.Velocity.Z)
         hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
         task.delay(0.18, function()
-            if hum then
+            if hum and hum.Parent then
                 hum:ChangeState(Enum.HumanoidStateType.Freefall)
             end
         end)
@@ -254,7 +261,7 @@ local function pickNextFlick()
     return math.rad(angle)
 end
 
--- FLICK HUMANIZADO (ORIGINAL + OVERSHOOT ATRASADO)
+-- FLICK HUMANIZADO
 local function performVideoFlick()
     if isFlicking then return end
     isFlicking = true
@@ -348,8 +355,13 @@ local function performVideoFlick()
         hum:ChangeState(Enum.HumanoidStateType.Freefall)
     end
 
-    task.delay(0.05, function() blockDoubleJump = false end)
-    task.delay(0.15, function() isWallHopping = false end)
+    task.delay(0.05, function()
+        blockDoubleJump = false
+    end)
+
+    task.delay(0.15, function()
+        isWallHopping = false
+    end)
 
     isFlicking = false
 end
@@ -444,14 +456,8 @@ local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
 end
 
 RunService.Heartbeat:Connect(function()
-    -- aviso preso ao cooldown real do double jump do script
-    if gemNotifyPending and tick() >= nextGemNotifyAt then
-        gemNotifyPending = false
-        task.spawn(playGemReadyEffect)
-        task.spawn(playGemRechargeAnimation)
-    end
-
     if not isWallHopEnabled then return end
+
     local char = LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChild("Humanoid")
@@ -506,4 +512,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("Humanoid Wallhop - Loaded Successfullyyyy ✅")
+print("Humanoid Wallhop - Loaded Successfully ✅")
