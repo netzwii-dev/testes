@@ -49,6 +49,7 @@ local blockDoubleJump = false
 -- GEM EFFECT
 local gemReadyEffect = nil
 local gemReadyTweening = false
+local gemCooldownToken = 0
 
 local function isCrouching(hum, hrp)
     if not hum or not hrp then return false end
@@ -57,6 +58,11 @@ local function isCrouching(hum, hrp)
 end
 
 local function createGemReadyEffect(char)
+    local old = char:FindFirstChild("GemReadyEffect", true)
+    if old then
+        old:Destroy()
+    end
+
     local rightArm = char:FindFirstChild("RightUpperArm")
         or char:FindFirstChild("Right Arm")
         or char:FindFirstChild("RightLowerArm")
@@ -67,7 +73,7 @@ local function createGemReadyEffect(char)
     local holder = Instance.new("BillboardGui")
     holder.Name = "GemReadyEffect"
     holder.Size = UDim2.new(0, 90, 0, 90)
-    holder.StudsOffset = Vector3.new(1.0, 0.15, 0)
+    holder.StudsOffset = Vector3.new(1.28, 0.12, 0) -- mais para a direita
     holder.AlwaysOnTop = true
     holder.LightInfluence = 0
     holder.Enabled = false
@@ -164,9 +170,11 @@ UserInputService.JumpRequest:Connect(function()
 
     if canDoubleJump and tick() - lastDoubleJump > DOUBLE_JUMP_COOLDOWN then
         lastDoubleJump = tick()
+        gemCooldownToken += 1
+        local thisToken = gemCooldownToken
 
         task.delay(DOUBLE_JUMP_COOLDOWN, function()
-            if LocalPlayer.Character and tick() - lastDoubleJump >= DOUBLE_JUMP_COOLDOWN - 0.05 then
+            if LocalPlayer.Character and thisToken == gemCooldownToken then
                 playGemReadyEffect()
             end
         end)
@@ -455,4 +463,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("Humanoid Wallhop cu - Loaded Successfully ✅")
+print("Humanoid Wallhop - Loaded Successfully ✅")
