@@ -100,9 +100,8 @@ local function performVideoFlick()
     local overshoot = math.rad(math.random(20,30))
     local useOvershoot = math.random() < 0.9
 
-    -- tenta fazer o jogo reconhecer como jump real
+    -- deixa o jogo cuidar do estado do pulo
     hum.Jump = true
-    hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
     -- espera 1 frame antes do impulso
     RunService.RenderStepped:Wait()
@@ -268,4 +267,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (AssemblyLinearVelocity + jump 1 frame antes)")
+print("WallHop Loaded (sem ChangeState, só Jump + AssemblyLinearVelocity)")
