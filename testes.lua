@@ -1,19 +1,75 @@
--- (Wallhop Humanoid Type - Made by NT)
+-- (Wallhop Humanoid Type - Made by NT) | FIX DUPLICAÇÃO
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Camera = workspace.CurrentCamera
 
+--==================================================
+-- SINGLETON / CLEANUP
+--==================================================
+getgenv().NT_WALLHOP_DATA = getgenv().NT_WALLHOP_DATA or {}
+
+if getgenv().NT_WALLHOP_DATA.Cleanup then
+	pcall(getgenv().NT_WALLHOP_DATA.Cleanup)
+end
+
+local ScriptData = {
+	Connections = {},
+	Gui = nil
+}
+getgenv().NT_WALLHOP_DATA = ScriptData
+
+local function connect(signal, fn)
+	local c = signal:Connect(fn)
+	table.insert(ScriptData.Connections, c)
+	return c
+end
+
+local function cleanup()
+	for _, c in ipairs(ScriptData.Connections) do
+		pcall(function()
+			if c and c.Disconnect then
+				c:Disconnect()
+			end
+		end)
+	end
+	ScriptData.Connections = {}
+
+	if ScriptData.Gui and ScriptData.Gui.Parent then
+		pcall(function()
+			ScriptData.Gui:Destroy()
+		end)
+	end
+	ScriptData.Gui = nil
+
+	local oldGui = PlayerGui:FindFirstChild("AutoWallHopGui")
+	if oldGui then
+		pcall(function()
+			oldGui:Destroy()
+		end)
+	end
+end
+
+ScriptData.Cleanup = cleanup
+
+local oldGui = PlayerGui:FindFirstChild("AutoWallHopGui")
+if oldGui then
+	oldGui:Destroy()
+end
+
+--==================================================
 -- UI
+--==================================================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AutoWallHopGui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = PlayerGui
+ScriptData.Gui = ScreenGui
 
 local TextButton = Instance.new("TextButton")
 TextButton.Size = UDim2.new(0, 140, 0, 50)
@@ -25,16 +81,17 @@ TextButton.TextScaled = true
 TextButton.Parent = ScreenGui
 Instance.new("UICorner", TextButton).CornerRadius = UDim.new(0, 12)
 
-RunService.RenderStepped:Connect(function()
+connect(RunService.RenderStepped, function()
 	local inset = GuiService:GetGuiInset()
 	TextButton.Position = UDim2.new(0, 150, 0, inset.Y - 58)
 end)
 
+--==================================================
 -- STATES
+--==================================================
 local isWallHopEnabled = false
 local isFlicking = false
 local lastFlickTime = 0
-local Camera = workspace.CurrentCamera
 
 local isWallHopping = false
 local lastWallHopTime = 0
@@ -47,9 +104,9 @@ local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 local blockDoubleJump = false
 
--- ARM FLASH
-local armFlashPart = nil
-local flashPlayedForCurrentCharge = false
+-- anti duplicação extra do flick
+local lastWallhopInstance = nil
+local lastWallhopStamp = 0
 
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then return false end
@@ -57,150 +114,15 @@ local function isCrouching(hum, hrp)
 	return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
-local function getRightArmParts(char)
-	local rightArm = char:FindFirstChild("Right Arm")
-	local rightUpperArm = char:FindFirstChild("RightUpperArm")
-	local rightLowerArm = char:FindFirstChild("RightLowerArm")
-	local rightHand = char:FindFirstChild("RightHand")
-	return rightArm, rightUpperArm, rightLowerArm, rightHand
-end
-
-local function createArmFlash(char)
-	if armFlashPart then
-		armFlashPart:Destroy()
-		armFlashPart = nil
-	end
-
-	local rightArm, rightUpperArm, rightLowerArm, rightHand = getRightArmParts(char)
-	local attachTo = rightArm or rightLowerArm or rightUpperArm or rightHand
-	if not attachTo then return end
-
-	local p = Instance.new("Part")
-	p.Name = "DoubleJumpArmFlash"
-	p.Anchored = false
-	p.CanCollide = false
-	p.CanQuery = false
-	p.CanTouch = false
-	p.Massless = true
-	p.CastShadow = false
-	p.Transparency = 1
-	p.Material = Enum.Material.Neon
-	p.Color = Color3.fromRGB(0, 170, 255)
-	p.Size = Vector3.new(0.32, 0.32, 0.32)
-	p.Shape = Enum.PartType.Ball
-	p.Parent = char
-
-	if attachTo.Name == "Right Arm" then
-		p.CFrame = attachTo.CFrame * CFrame.new(0.45, -0.15, 0)
-	elseif attachTo.Name == "RightLowerArm" then
-		p.CFrame = attachTo.CFrame * CFrame.new(0.35, 0.05, 0)
-	elseif attachTo.Name == "RightUpperArm" then
-		p.CFrame = attachTo.CFrame * CFrame.new(0.38, -0.35, 0)
-	elseif attachTo.Name == "RightHand" then
-		p.CFrame = attachTo.CFrame * CFrame.new(0.18, 0.12, 0)
-	else
-		p.CFrame = attachTo.CFrame
-	end
-
-	local weld = Instance.new("WeldConstraint")
-	weld.Part0 = p
-	weld.Part1 = attachTo
-	weld.Parent = p
-
-	local light = Instance.new("PointLight")
-	light.Color = Color3.fromRGB(0, 170, 255)
-	light.Range = 0
-	light.Brightness = 0
-	light.Shadows = false
-	light.Enabled = true
-	light.Parent = p
-
-	armFlashPart = p
-end
-
-local function playArmRechargeFlash()
-	if flashPlayedForCurrentCharge then return end
-	flashPlayedForCurrentCharge = true
-
-	local char = LocalPlayer.Character
-	if not char then return end
-
-	if not armFlashPart or not armFlashPart.Parent then
-		createArmFlash(char)
-	end
-	if not armFlashPart then return end
-
-	local light = armFlashPart:FindFirstChildOfClass("PointLight")
-	if not light then return end
-
-	armFlashPart.Transparency = 0.22
-	armFlashPart.Size = Vector3.new(0.18, 0.18, 0.18)
-	light.Range = 0
-	light.Brightness = 0
-
-	local t1 = TweenService:Create(
-		armFlashPart,
-		TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{
-			Transparency = 0.02,
-			Size = Vector3.new(0.55, 0.55, 0.55)
-		}
-	)
-
-	local t2 = TweenService:Create(
-		light,
-		TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{
-			Range = 8,
-			Brightness = 2.2
-		}
-	)
-
-	t1:Play()
-	t2:Play()
-
-	task.delay(0.16, function()
-		if not armFlashPart or not armFlashPart.Parent then return end
-		local currentLight = armFlashPart:FindFirstChildOfClass("PointLight")
-		if not currentLight then return end
-
-		local t3 = TweenService:Create(
-			armFlashPart,
-			TweenInfo.new(0.24, Enum.EasingStyle.Sine, Enum.EasingDirection.In),
-			{
-				Transparency = 1,
-				Size = Vector3.new(0.9, 0.9, 0.9)
-			}
-		)
-
-		local t4 = TweenService:Create(
-			currentLight,
-			TweenInfo.new(0.24, Enum.EasingStyle.Sine, Enum.EasingDirection.In),
-			{
-				Range = 0,
-				Brightness = 0
-			}
-		)
-
-		t3:Play()
-		t4:Play()
-	end)
-end
-
 local function setupCharacter(char)
 	local hum = char:WaitForChild("Humanoid")
-	char:WaitForChild("HumanoidRootPart")
 
-	createArmFlash(char)
-	flashPlayedForCurrentCharge = false
-
-	hum.StateChanged:Connect(function(_, new)
+	connect(hum.StateChanged, function(_, new)
 		if new == Enum.HumanoidStateType.Freefall then
 			canDoubleJump = true
 		end
 		if new == Enum.HumanoidStateType.Landed then
 			canDoubleJump = false
-			flashPlayedForCurrentCharge = false
 		end
 	end)
 end
@@ -208,11 +130,15 @@ end
 if LocalPlayer.Character then
 	setupCharacter(LocalPlayer.Character)
 end
-LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
+connect(LocalPlayer.CharacterAdded, setupCharacter)
+
+--==================================================
 -- DOUBLE JUMP
-UserInputService.JumpRequest:Connect(function()
+--==================================================
+connect(UserInputService.JumpRequest, function()
 	if not isWallHopEnabled or blockDoubleJump then return end
+
 	local char = LocalPlayer.Character
 	local hum = char and char:FindFirstChild("Humanoid")
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -224,7 +150,6 @@ UserInputService.JumpRequest:Connect(function()
 	if canDoubleJump and tick() - lastDoubleJump > DOUBLE_JUMP_COOLDOWN then
 		lastDoubleJump = tick()
 		canDoubleJump = false
-		flashPlayedForCurrentCharge = false
 
 		hrp.Velocity = Vector3.new(hrp.Velocity.X, 30, hrp.Velocity.Z)
 		hum:ChangeState(Enum.HumanoidStateType.Jumping)
@@ -237,21 +162,27 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
+--==================================================
 -- LAST FLICK ANGLE
+--==================================================
 local lastFlickAngle = nil
 local function pickNextFlick()
 	local minAngle, maxAngle = 50, 80
 	local attempt = 0
 	local angle
+
 	repeat
 		angle = math.random(minAngle, maxAngle)
 		attempt += 1
 	until not lastFlickAngle or math.abs(angle - lastFlickAngle) >= 10 or attempt > 20
+
 	lastFlickAngle = angle
 	return math.rad(angle)
 end
 
--- FLICK HUMANIZADO (ORIGINAL + OVERSHOOT ATRASADO)
+--==================================================
+-- FLICK
+--==================================================
 local function performVideoFlick()
 	if isFlicking then return end
 	isFlicking = true
@@ -264,17 +195,16 @@ local function performVideoFlick()
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hum or not hrp then
 		isFlicking = false
+		blockDoubleJump = false
 		return
 	end
 
-	-- impulso vertical (INALTERADO)
 	hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
 	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick() -- esquerda
 
-	-- 60% flick normal / 30% flick rápido / 10% flick ultra rápido
 	local flickRoll = math.random()
 
 	local steps
@@ -282,36 +212,32 @@ local function performVideoFlick()
 	local delayMax
 
 	if flickRoll < 0.10 then
-		-- ultra rápido (10%)
-		steps = math.random(3, 4)
+		steps = math.random(3,4)
 		delayMin = 0.003
 		delayMax = 0.0045
 	elseif flickRoll < 0.40 then
-		-- rápido (30%)
-		steps = math.random(4, 5)
+		steps = math.random(4,5)
 		delayMin = 0.0045
 		delayMax = 0.0065
 	else
-		-- normal (60%)
-		steps = math.random(7, 9)
+		steps = math.random(7,9)
 		delayMin = 0.008
 		delayMax = 0.012
 	end
 
 	local baseDelay = 0.01
-
-	-- OVERSHOOT CONFIG (INALTERADO)
-	local overshoot = math.rad(math.random(20, 30))
+	local overshoot = math.rad(math.random(20,30))
 	local useOvershoot = math.random() < 0.9
 
-	-- FLICK
 	for i = 1, steps do
+		if not hrp or not hrp.Parent then break end
+
 		local alpha = i / steps
 		local curve
 		if alpha <= 0.6 then
-			curve = math.sin((alpha / 0.6) * (math.pi / 2))
+			curve = math.sin((alpha / 0.6) * (math.pi/2))
 		else
-			curve = math.sin(((1 - alpha) / 0.4) * (math.pi / 2))
+			curve = math.sin(((1 - alpha) / 0.4) * (math.pi/2))
 		end
 
 		local offset = angle * curve
@@ -321,7 +247,6 @@ local function performVideoFlick()
 		task.wait(delayMin + math.random() * (delayMax - delayMin))
 	end
 
-	-- OVERSHOOT ATRASADO (NÃO INTERFERE NO WALLHOP)
 	if useOvershoot then
 		task.delay(0.05, function()
 			if not hrp or not hrp.Parent then return end
@@ -329,6 +254,7 @@ local function performVideoFlick()
 			local smallSteps = 4
 
 			for i = 1, smallSteps do
+				if not hrp or not hrp.Parent then break end
 				local alpha = i / smallSteps
 				local offset = overshoot * alpha
 				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
@@ -337,6 +263,7 @@ local function performVideoFlick()
 			end
 
 			for i = 1, smallSteps do
+				if not hrp or not hrp.Parent then break end
 				local alpha = i / smallSteps
 				local offset = overshoot * (1 - alpha)
 				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
@@ -344,14 +271,17 @@ local function performVideoFlick()
 				task.wait(baseDelay)
 			end
 
-			hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+			if hrp and hrp.Parent then
+				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+			end
 		end)
 	end
 
-	-- reset padrão
-	hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+	if hrp and hrp.Parent then
+		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+	end
 
-	if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
+	if hum and hum.Parent and hum:GetState() ~= Enum.HumanoidStateType.Freefall then
 		hum:ChangeState(Enum.HumanoidStateType.Freefall)
 	end
 
@@ -366,15 +296,17 @@ local function performVideoFlick()
 	isFlicking = false
 end
 
+--==================================================
 -- WALL DETECT
+--==================================================
 local lastHitInstance = nil
+
 local function isPlayerCharacter(instance)
 	if not instance then return false end
 	local model = instance:FindFirstAncestorOfClass("Model")
 	return model and model:FindFirstChildOfClass("Humanoid")
 end
 
--- só aceita parede se houver borda horizontal próxima do ponto atingido
 local function hasValidHorizontalEdge(rayResult, params)
 	if not rayResult or not rayResult.Instance then return false end
 
@@ -407,18 +339,14 @@ local function hasValidHorizontalEdge(rayResult, params)
 		end
 	end
 
-	if not foundHorizontalEdge then
-		return false
-	end
-
-	return true
+	return foundHorizontalEdge
 end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -1.2, 0),
-		Vector3.new(0, -0.4, 0)
+		Vector3.new(0,-2.2,0),
+		Vector3.new(0,-1.2,0),
+		Vector3.new(0,-0.4,0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -456,7 +384,7 @@ local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
 	return frontAngle <= maxAngleDeg or backAngle <= maxAngleDeg
 end
 
-RunService.Heartbeat:Connect(function()
+connect(RunService.Heartbeat, function()
 	if not isWallHopEnabled then return end
 
 	local char = LocalPlayer.Character
@@ -479,7 +407,6 @@ RunService.Heartbeat:Connect(function()
 
 	horizontal = horizontal.Unit
 
-	-- frente e costas apenas; sem lados
 	local forwardDirection = horizontal * 1.55
 	local backwardDirection = -horizontal * 1.55
 
@@ -493,8 +420,15 @@ RunService.Heartbeat:Connect(function()
 
 		if validAngle then
 			if lastHitInstance and lastHitInstance ~= result.Instance then
-				if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > WALLHOP_COOLDOWN then
-					lastFlickTime = tick()
+				local now = tick()
+
+				local sameWallTooSoon =
+					lastWallhopInstance == result.Instance and (now - lastWallhopStamp) < 0.12
+
+				if not sameWallTooSoon and hrp.Velocity.Y < -2.2 and now - lastFlickTime > WALLHOP_COOLDOWN then
+					lastFlickTime = now
+					lastWallhopInstance = result.Instance
+					lastWallhopStamp = now
 					performVideoFlick()
 				end
 			end
@@ -505,20 +439,15 @@ RunService.Heartbeat:Connect(function()
 	else
 		lastHitInstance = nil
 	end
-
-	local stillValid = isWallHopping or (tick() - lastWallHopTime <= WALLHOP_GRACE_TIME)
-	local readyByCooldown = (tick() - lastDoubleJump) >= DOUBLE_JUMP_COOLDOWN
-
-	if canDoubleJump and readyByCooldown and stillValid and not blockDoubleJump then
-		playArmRechargeFlash()
-	end
 end)
 
+--==================================================
 -- TOGGLE
-TextButton.MouseButton1Click:Connect(function()
+--==================================================
+connect(TextButton.MouseButton1Click, function()
 	isWallHopEnabled = not isWallHopEnabled
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 	TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("Humanoid WWWWWallhop - Loaded Successfully ✅")
+print("Humanoid WaLLLllhop - Loaded Successfully ✅")
