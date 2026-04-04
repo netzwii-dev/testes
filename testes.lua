@@ -38,8 +38,6 @@ local Camera = workspace.CurrentCamera
 local isWallHopping = false
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
-
--- NOVO: cooldown para evitar segundo wallhop instantâneo
 local WALLHOP_COOLDOWN = 0.18
 
 -- DOUBLE JUMP
@@ -205,6 +203,53 @@ local function isPlayerCharacter(instance)
     return model and model:FindFirstChildOfClass("Humanoid")
 end
 
+-- NOVO: só aceita parede se houver borda horizontal próxima do ponto atingido
+local function hasValidHorizontalEdge(rayResult, params)
+    if not rayResult or not rayResult.Instance then return false end
+
+    local hitPos = rayResult.Position
+    local normal = rayResult.Normal.Unit
+
+    -- eixo lateral da parede
+    local right = normal:Cross(Vector3.new(0, 1, 0))
+    if right.Magnitude < 0.01 then
+        return false
+    end
+    right = right.Unit
+
+    -- empurra um pouco pra fora da parede para evitar pegar a mesma face colada
+    local surfaceOffset = normal * 0.08
+
+    -- procura borda horizontal acima/abaixo do ponto
+    -- se acima ou abaixo "sumir" a parede, é sinal de quebra horizontal útil
+    local verticalChecks = {
+        Vector3.new(0, 0.9, 0),
+        Vector3.new(0, -0.9, 0),
+        Vector3.new(0, 1.25, 0),
+        Vector3.new(0, -1.25, 0),
+    }
+
+    local foundHorizontalEdge = false
+    for _, vOffset in ipairs(verticalChecks) do
+        local origin = hitPos + vOffset + surfaceOffset
+        local probe = workspace:Raycast(origin, -normal * 0.22, params)
+
+        if not probe or not probe.Instance or probe.Instance ~= rayResult.Instance then
+            foundHorizontalEdge = true
+            break
+        end
+    end
+
+    if not foundHorizontalEdge then
+        return false
+    end
+
+    -- rejeita casos onde só existe mudança lateral/vertical seam
+    -- se pros lados a parede continua igual, tudo bem;
+    -- mas se só há "quebra lateral" sem quebra horizontal, não passa.
+    return true
+end
+
 RunService.Heartbeat:Connect(function()
     if not isWallHopEnabled then return end
     local char = LocalPlayer.Character
@@ -228,15 +273,16 @@ RunService.Heartbeat:Connect(function()
         local origin = hrp.Position + offset
         local ray = workspace:Raycast(origin, direction, params)
         if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-            result = ray
-            break
+            if hasValidHorizontalEdge(ray, params) then
+                result = ray
+                break
+            end
         end
     end
 
     if result and result.Instance then
         if lastHitInstance and lastHitInstance ~= result.Instance then
-            -- ALTERAÇÃO: aplica cooldown para evitar segundo wallhop instantâneo
-            if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > 0.18 then
+            if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > WALLHOP_COOLDOWN then
                 lastFlickTime = tick()
                 performVideoFlick()
             end
@@ -254,4 +300,4 @@ TextButton.MouseButton1Click:Connect(function()
     TextButton.BackgroundColor3 = isWallHopEnabled and Color3.fromRGB(40,40,40) or Color3.fromRGB(0,0,0)
 end)
 
-print("WallHop Loaded (flick original + overshoot limpo + cooldown ajustado)")
+print("WallHop Loaded (flick original + overshoot limpo + filtro de borda horizontal)")
