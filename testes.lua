@@ -15,31 +15,29 @@ local MiniButton
 local MobileButton
 local MobileHideButton
 
-local function addModernShadow(parent, cornerRadius, zindex)
-	local shadows = {}
+local function addGradientShadow(parent, cornerRadius, zindex, spread)
+	spread = spread or 10
+	zindex = zindex or 0
 
-	local configs = {
-		{size = 8, y = 1, transparency = 0.78},
-		{size = 16, y = 2, transparency = 0.86},
-		{size = 26, y = 3, transparency = 0.92},
+	local layers = {
+		{grow = spread * 0.45, y = 1, transparency = 0.84},
+		{grow = spread * 0.9,  y = 2, transparency = 0.90},
+		{grow = spread * 1.3,  y = 3, transparency = 0.95},
 	}
 
-	for _, cfg in ipairs(configs) do
+	for _, cfg in ipairs(layers) do
 		local shadow = Instance.new("Frame")
-		shadow.Name = "ShadowLayer"
+		shadow.Name = "GradientShadow"
 		shadow.AnchorPoint = Vector2.new(0.5, 0.5)
 		shadow.Position = UDim2.new(0.5, 0, 0.5, cfg.y)
-		shadow.Size = UDim2.new(1, cfg.size, 1, cfg.size)
+		shadow.Size = UDim2.new(1, cfg.grow, 1, cfg.grow)
 		shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 		shadow.BackgroundTransparency = cfg.transparency
 		shadow.BorderSizePixel = 0
-		shadow.ZIndex = zindex or 0
+		shadow.ZIndex = zindex
 		shadow.Parent = parent
-		Instance.new("UICorner", shadow).CornerRadius = UDim.new(0, cornerRadius)
-		table.insert(shadows, shadow)
+		Instance.new("UICorner", shadow).CornerRadius = UDim.new(0, cornerRadius + math.floor(cfg.grow / 3))
 	end
-
-	return shadows
 end
 
 local function createModeSelector(onPick)
@@ -57,11 +55,11 @@ local function createModeSelector(onPick)
 	frame.Parent = selectorGui
 	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 16)
 
-	addModernShadow(frame, 18, 0)
+	addGradientShadow(frame, 16, 0, 12)
 
 	local stroke = Instance.new("UIStroke")
-	stroke.Color = Color3.fromRGB(20, 20, 20)
-	stroke.Transparency = 0.12
+	stroke.Color = Color3.fromRGB(18, 18, 18)
+	stroke.Transparency = 0.18
 	stroke.Parent = frame
 
 	local title = Instance.new("TextLabel")
@@ -133,10 +131,10 @@ local function buildPCGui()
 	MainFrame.Parent = ScreenGui
 	Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
 
-	addModernShadow(MainFrame, 18, 0)
+	addGradientShadow(MainFrame, 16, 0, 12)
 
 	local Stroke = Instance.new("UIStroke")
-	Stroke.Color = Color3.fromRGB(22, 22, 22)
+	Stroke.Color = Color3.fromRGB(20, 20, 20)
 	Stroke.Thickness = 1
 	Stroke.Transparency = 0.2
 	Stroke.Parent = MainFrame
@@ -244,7 +242,7 @@ local function buildPCGui()
 	MiniButton.Parent = ScreenGui
 	Instance.new("UICorner", MiniButton).CornerRadius = UDim.new(1, 0)
 
-	addModernShadow(MiniButton, 999, 0)
+	addGradientShadow(MiniButton, 999, 0, 10)
 
 	MinimizeButton.MouseButton1Click:Connect(function()
 		MainFrame.Visible = false
@@ -263,6 +261,7 @@ local function buildMobileGui()
 	ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = "AutoWallHopGuiMobile"
 	ScreenGui.ResetOnSpawn = false
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	ScreenGui.Parent = PlayerGui
 
 	MobileButton = Instance.new("TextButton")
@@ -275,119 +274,117 @@ local function buildMobileGui()
 	MobileButton.Parent = ScreenGui
 	Instance.new("UICorner", MobileButton).CornerRadius = UDim.new(0, 12)
 
-	addModernShadow(MobileButton, 14, 0)
+	addGradientShadow(MobileButton, 14, 0, 10)
 
 	MobileHideButton = Instance.new("TextButton")
 	MobileHideButton.Size = UDim2.new(0, 54, 0, 54)
 	MobileHideButton.Position = UDim2.new(0, 20, 0, 180)
 	MobileHideButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	MobileHideButton.Text = "gui"
+	MobileHideButton.Text = "≡"
 	MobileHideButton.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileHideButton.Font = Enum.Font.GothamBold
-	MobileHideButton.TextSize = 16
+	MobileHideButton.TextSize = 22
 	MobileHideButton.Parent = ScreenGui
 	Instance.new("UICorner", MobileHideButton).CornerRadius = UDim.new(1, 0)
 
-	addModernShadow(MobileHideButton, 999, 0)
+	addGradientShadow(MobileHideButton, 999, 0, 10)
 
 	RunService.RenderStepped:Connect(function()
 		if selectedMode ~= "Mobile" then return end
 		local inset = GuiService:GetGuiInset()
-		if MobileButton:GetAttribute("CustomMoved") ~= true then
+		if not MobileButton:GetAttribute("CustomMoved") then
 			MobileButton.Position = UDim2.new(0, 150, 0, inset.Y - 58)
 		end
 	end)
 
-	local holding = false
-	local holdStart = 0
-	local dragReady = false
-	local dragging = false
-	local dragStart
-	local startPos
+	local dragState = {
+		target = nil,
+		input = nil,
+		startInputPos = nil,
+		startTargetPos = nil,
+		holdStartedAt = 0,
+		holdReady = false,
+		moved = false,
+	}
 
-	local function beginHold(input)
-		holding = true
-		holdStart = tick()
-		dragReady = false
-		dragStart = input.Position
-		startPos = MobileButton.Position
+	local function startHold(target, input)
+		dragState.target = target
+		dragState.input = input
+		dragState.startInputPos = input.Position
+		dragState.startTargetPos = target.Position
+		dragState.holdStartedAt = tick()
+		dragState.holdReady = false
+		dragState.moved = false
 
 		task.spawn(function()
-			local thisHold = holdStart
-			task.wait(1)
-			if holding and holdStart == thisHold then
-				dragReady = true
+			local started = dragState.holdStartedAt
+			task.wait(0.5)
+			if dragState.target == target and dragState.input == input and dragState.holdStartedAt == started then
+				dragState.holdReady = true
 			end
 		end)
 	end
 
+	local function clearDrag()
+		dragState.target = nil
+		dragState.input = nil
+		dragState.startInputPos = nil
+		dragState.startTargetPos = nil
+		dragState.holdStartedAt = 0
+		dragState.holdReady = false
+	end
+
 	MobileButton.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			beginHold(input)
+			startHold(MobileButton, input)
 
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
-					if dragging == false and dragReady == false then
-						-- click normal
-					end
-					holding = false
-					dragReady = false
-					dragging = false
+					clearDrag()
 				end
 			end)
 		end
 	end)
-
-	MobileButton.InputChanged:Connect(function(input)
-		if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) and dragReady then
-			dragging = true
-			local delta = input.Position - dragStart
-			MobileButton.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
-			MobileButton:SetAttribute("CustomMoved", true)
-		end
-	end)
-
-	local movedHide = false
-	local hideDragging = false
-	local hideDragStart
-	local hideStartPos
 
 	MobileHideButton.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			movedHide = false
-			hideDragging = true
-			hideDragStart = input.Position
-			hideStartPos = MobileHideButton.Position
+			dragState.target = MobileHideButton
+			dragState.input = input
+			dragState.startInputPos = input.Position
+			dragState.startTargetPos = MobileHideButton.Position
+			dragState.holdStartedAt = tick()
+			dragState.holdReady = true
+			dragState.moved = false
 
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
-					hideDragging = false
+					if dragState.target == MobileHideButton and not dragState.moved then
+						MobileButton.Visible = not MobileButton.Visible
+					end
+					clearDrag()
 				end
 			end)
 		end
 	end)
 
-	MobileHideButton.InputChanged:Connect(function(input)
-		if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) and hideDragging then
-			local delta = input.Position - hideDragStart
-			MobileHideButton.Position = UDim2.new(
-				hideStartPos.X.Scale,
-				hideStartPos.X.Offset + delta.X,
-				hideStartPos.Y.Scale,
-				hideStartPos.Y.Offset + delta.Y
-			)
-			movedHide = true
-		end
-	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if selectedMode ~= "Mobile" then return end
+		if not dragState.target or not dragState.input then return end
+		if input ~= dragState.input then return end
+		if not dragState.holdReady then return end
 
-	MobileHideButton.MouseButton1Click:Connect(function()
-		if movedHide then return end
-		MobileButton.Visible = not MobileButton.Visible
+		local delta = input.Position - dragState.startInputPos
+		dragState.target.Position = UDim2.new(
+			dragState.startTargetPos.X.Scale,
+			dragState.startTargetPos.X.Offset + delta.X,
+			dragState.startTargetPos.Y.Scale,
+			dragState.startTargetPos.Y.Offset + delta.Y
+		)
+		dragState.moved = true
+
+		if dragState.target == MobileButton then
+			MobileButton:SetAttribute("CustomMoved", true)
+		end
 	end)
 end
 
