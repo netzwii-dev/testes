@@ -52,8 +52,8 @@ local lastFlickAngle = nil
 
 local airborneStartY = nil
 local airborneStartTime = 0
-local MIN_FALL_DISTANCE = 3.8
-local MIN_AIR_TIME = 0.16
+local MIN_FALL_DISTANCE = 1.8
+local MIN_AIR_TIME = 0.08
 
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then
@@ -339,7 +339,7 @@ local function findValidWall(hrp, params, directions)
 end
 
 local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
-	local look = Vector3.new(cameraLook.X, 0, look.Z)
+	local look = Vector3.new(cameraLook.X, 0, cameraLook.Z)
 	local normal = Vector3.new(wallNormal.X, 0, wallNormal.Z)
 
 	if look.Magnitude <= 0 or normal.Magnitude <= 0 then
@@ -447,4 +447,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwwwwwii | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
