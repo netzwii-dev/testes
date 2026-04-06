@@ -1,12 +1,10 @@
 -- (Wallhop Humanoid Type - Made by NT)
 -- Simple button version
 -- Ajustes:
--- 1) evita wallhop em telhado/chão inclinado
--- 2) exige estar no ar e caindo
--- 3) região do wallhop ampliada para a faixa da perna
--- 4) flick rápido e ultra rápido com aleatoriedade
--- 5) ultra rápido um pouco mais lento que antes
--- 6) wallhop usa a velocidade natural do jogo (sem impulso fixo)
+-- 1) wallhop só acontece se houve pulo antes
+-- 2) cair sem pular não ativa wallhop
+-- 3) faixa do wallhop um pouco mais acima que a original
+-- 4) mantém flicks e double jump
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -53,10 +51,12 @@ local lastDoubleJump = 0
 local DOUBLE_JUMP_COOLDOWN = 3
 local blockDoubleJump = false
 
-local lastHitInstance = nil
 local lastHitPosition = nil
 local MIN_HIT_DISTANCE = 0.9
 local lastFlickAngle = nil
+
+-- só permite wallhop se o player tiver pulado antes
+local jumpArmedWallhop = false
 
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then
@@ -70,13 +70,19 @@ end
 local function setupCharacter(char)
 	local hum = char:WaitForChild("Humanoid")
 
-	hum.StateChanged:Connect(function(_, new)
+	hum.StateChanged:Connect(function(old, new)
 		if new == Enum.HumanoidStateType.Freefall then
 			canDoubleJump = true
 		end
 
 		if new == Enum.HumanoidStateType.Landed then
 			canDoubleJump = false
+			jumpArmedWallhop = false
+			lastHitPosition = nil
+		end
+
+		if new == Enum.HumanoidStateType.Jumping then
+			jumpArmedWallhop = true
 		end
 	end)
 end
@@ -87,13 +93,21 @@ end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
 UserInputService.JumpRequest:Connect(function()
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+	if hum and hrp then
+		local state = hum:GetState()
+		if state ~= Enum.HumanoidStateType.Freefall then
+			jumpArmedWallhop = true
+		end
+	end
+
 	if not isWallHopEnabled or blockDoubleJump then
 		return
 	end
 
-	local char = LocalPlayer.Character
-	local hum = char and char:FindFirstChild("Humanoid")
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hum or not hrp then
 		return
 	end
@@ -136,7 +150,6 @@ local function getFlickProfile()
 	local flickRoll = math.random()
 
 	if flickRoll < 0.10 then
-		-- ultra rápido: ainda rápido, mas menos instantâneo
 		return {
 			steps = math.random(4, 5),
 			delayMin = 0.0048,
@@ -146,7 +159,6 @@ local function getFlickProfile()
 			baseDelay = 0.0105
 		}
 	elseif flickRoll < 0.40 then
-		-- rápido: agora com aleatoriedade também
 		return {
 			steps = math.random(5, 6),
 			delayMin = 0.0055,
@@ -156,7 +168,6 @@ local function getFlickProfile()
 			baseDelay = 0.0105
 		}
 	else
-		-- normal: mais variado
 		return {
 			steps = math.random(7, 10),
 			delayMin = 0.008,
@@ -186,7 +197,6 @@ local function performVideoFlick()
 		return
 	end
 
-	-- sem impulso fixo: usa a velocidade natural do jogo
 	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
 	local baseYaw = hrp.Orientation.Y
@@ -272,7 +282,6 @@ local function isPlayerCharacter(instance)
 end
 
 local function isWallLikeSurface(normal)
-	-- bloqueia chão, telhado, rampas e diagonais mais horizontais
 	return math.abs(normal.Y) < 0.35
 end
 
@@ -318,12 +327,14 @@ local function hasValidHorizontalEdge(rayResult, params)
 end
 
 local function findValidWall(hrp, params, directions)
+	-- base antiga estava boa; aqui só subi um pouco a faixa
 	local offsets = {
+		Vector3.new(0, -2.2, 0),
 		Vector3.new(0, -1.8, 0),
-		Vector3.new(0, -2.15, 0),
-		Vector3.new(0, -2.5, 0),
-		Vector3.new(0, -2.85, 0),
-		Vector3.new(0, -3.2, 0)
+		Vector3.new(0, -1.4, 0),
+		Vector3.new(0, -1.0, 0),
+		Vector3.new(0, -0.6, 0),
+		Vector3.new(0, -0.2, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -382,8 +393,13 @@ RunService.Heartbeat:Connect(function()
 	local state = hum:GetState()
 	local airborne = state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping
 
+	-- se não houve pulo antes, não pode wallhopar
+	if not jumpArmedWallhop then
+		lastHitPosition = nil
+		return
+	end
+
 	if not airborne then
-		lastHitInstance = nil
 		lastHitPosition = nil
 		return
 	end
@@ -396,7 +412,6 @@ RunService.Heartbeat:Connect(function()
 	local horizontal = Vector3.new(look.X, 0, look.Z)
 
 	if horizontal.Magnitude <= 0 then
-		lastHitInstance = nil
 		lastHitPosition = nil
 		return
 	end
@@ -422,19 +437,15 @@ RunService.Heartbeat:Connect(function()
 
 			if hrp.Velocity.Y < -2.2 and tick() - lastFlickTime > WALLHOP_COOLDOWN and farEnough then
 				lastFlickTime = tick()
-				lastHitInstance = result.Instance
 				lastHitPosition = result.Position
 				performVideoFlick()
 			else
-				lastHitInstance = result.Instance
 				lastHitPosition = result.Position
 			end
 		else
-			lastHitInstance = nil
 			lastHitPosition = nil
 		end
 	else
-		lastHitInstance = nil
 		lastHitPosition = nil
 	end
 end)
@@ -444,4 +455,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzzzzwii | Humanoid Wallhop - Loaded Successfully ✅")
