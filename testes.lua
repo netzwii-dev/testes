@@ -209,11 +209,25 @@ local function performVideoFlick()
 		return
 	end
 
+local oldUseJumpPower = hum.UseJumpPower
+local oldJumpPower = hum.JumpPower
+local oldJumpHeight = hum.JumpHeight
+
+if hum.UseJumpPower then
+	hum.JumpPower = hum.JumpPower + 8
+else
+	hum.JumpHeight = hum.JumpHeight + 2
+end
+
 hum:ChangeState(Enum.HumanoidStateType.Jumping)
-hrp.Velocity = Vector3.new(hrp.Velocity.X, 9, hrp.Velocity.Z)
-	
-	local jumpBoost = 2.5
-	hrp.Velocity = Vector3.new(hrp.Velocity.X, hrp.Velocity.Y + jumpBoost, hrp.Velocity.Z)
+
+task.delay(0.08, function()
+	if hum and hum.Parent then
+		hum.UseJumpPower = oldUseJumpPower
+		hum.JumpPower = oldJumpPower
+		hum.JumpHeight = oldJumpHeight
+	end
+end)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick()
