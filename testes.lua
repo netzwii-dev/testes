@@ -51,7 +51,7 @@ local MIN_HIT_DISTANCE = 0.9
 local lastFlickAngle = nil
 
 local lastGroundY = nil
-local MIN_DROP_HEIGHT = 2.25
+local MIN_DROP_HEIGHT = 0
 
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then
@@ -258,11 +258,11 @@ local function isPlayerCharacter(instance)
 	end
 
 	local model = instance:FindFirstAncestorOfClass("Model")
-	return model and model:FindFirstChildOfClass("Humanoid")
+	return model and model:FindFirstChild("Humanoid")
 end
 
 local function isWallLikeSurface(normal)
-	return math.abs(normal.Y) < 0.35
+	return math.abs(normal.Y) < 0.5
 end
 
 local function hasValidHorizontalEdge(rayResult, params)
@@ -309,11 +309,10 @@ end
 local function findValidWall(hrp, params, directions)
 	local offsets = {
 		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -1.8, 0),
-		Vector3.new(0, -1.4, 0),
-		Vector3.new(0, -1.0, 0),
-		Vector3.new(0, -0.6, 0),
-		Vector3.new(0, -0.2, 0)
+		Vector3.new(0, -1.6, 0),
+		Vector3.new(0, -1.2, 0),
+		Vector3.new(0, -0.8, 0),
+		Vector3.new(0, -0.4, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -438,4 +437,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwii | HuUUUUmanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
