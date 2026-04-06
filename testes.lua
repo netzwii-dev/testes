@@ -294,45 +294,34 @@ local function isWallLikeSurface(normal)
 	return math.abs(normal.Y) < 0.35
 end
 
-local function hasValidHorizontalEdge(rayResult, params)
+-- NOVA REGRA:
+-- só é válido se existir superfície acima E abaixo da linha.
+-- pode ser parede normal ou invisível; o que não pode é ser só ar.
+local function hasValidSupportAboveAndBelow(rayResult, params)
 	if not rayResult or not rayResult.Instance then
 		return false
 	end
 
 	local hitPos = rayResult.Position
 	local normal = rayResult.Normal.Unit
-
-	local right = normal:Cross(Vector3.new(0, 1, 0))
-	if right.Magnitude < 0.01 then
-		return false
-	end
-	right = right.Unit
-
 	local surfaceOffset = normal * 0.08
 
-	local verticalChecks = {
-		Vector3.new(0, 0.9, 0),
-		Vector3.new(0, -0.9, 0),
-		Vector3.new(0, 1.25, 0),
-		Vector3.new(0, -1.25, 0),
-	}
+	local function hasSurfaceAtOffsets(offsets)
+		for _, y in ipairs(offsets) do
+			local origin = hitPos + Vector3.new(0, y, 0) + surfaceOffset
+			local probe = workspace:Raycast(origin, -normal * 0.28, params)
 
-	local foundHorizontalEdge = false
-	for _, vOffset in ipairs(verticalChecks) do
-		local origin = hitPos + vOffset + surfaceOffset
-		local probe = workspace:Raycast(origin, -normal * 0.22, params)
-
-		if not probe or not probe.Instance or probe.Instance ~= rayResult.Instance then
-			foundHorizontalEdge = true
-			break
+			if probe and probe.Instance and probe.Instance.CanCollide and not isPlayerCharacter(probe.Instance) then
+				return true
+			end
 		end
-	end
-
-	if not foundHorizontalEdge then
 		return false
 	end
 
-	return true
+	local aboveSolid = hasSurfaceAtOffsets({0.55, 0.9, 1.25, 1.6})
+	local belowSolid = hasSurfaceAtOffsets({-0.55, -0.9, -1.25, -1.6})
+
+	return aboveSolid and belowSolid
 end
 
 local function findValidWall(hrp, params, directions)
@@ -348,7 +337,7 @@ local function findValidWall(hrp, params, directions)
 			local ray = workspace:Raycast(origin, dir, params)
 
 			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-				if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
+				if isWallLikeSurface(ray.Normal) and hasValidSupportAboveAndBelow(ray, params) then
 					return ray
 				end
 			end
@@ -470,4 +459,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwii | HHHumanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
