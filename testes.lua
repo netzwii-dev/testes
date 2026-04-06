@@ -56,8 +56,8 @@ local airborneStartY = nil
 local airborneStartTime = 0
 local jumpedRecently = false
 
-local LEDGE_BLOCK_DISTANCE = 3.5
-local LEDGE_BLOCK_TIME = 0.10
+local LEDGE_BLOCK_DISTANCE = 6.0
+local LEDGE_BLOCK_TIME = 0.20
 
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then
@@ -209,19 +209,8 @@ local function performVideoFlick()
 		return
 	end
 
-	local oldUseJumpPower = hum.UseJumpPower
-local oldJumpHeight = hum.JumpHeight
-
-hum.UseJumpPower = false
-hum.JumpHeight = hum.JumpHeight + 0.02
-hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
-task.delay(0.08, function()
-	if hum and hum.Parent then
-		hum.UseJumpPower = oldUseJumpPower
-		hum.JumpHeight = oldJumpHeight
-	end
-end)
+	-- pulo natural / sem boost artificial
+	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick()
@@ -348,7 +337,7 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-		Vector3.new(0, -3.0, 0),
+		Vector3.new(0, -3.2, 0),
 		Vector3.new(0, -2.2, 0),
 		Vector3.new(0, -1.2, 0)
 	}
@@ -481,4 +470,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwiiiii | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
