@@ -56,8 +56,8 @@ local airborneStartY = nil
 local airborneStartTime = 0
 local jumpedRecently = false
 
-local LEDGE_BLOCK_DISTANCE = 3.5
-local LEDGE_BLOCK_TIME = 0.10
+local LEDGE_BLOCK_DISTANCE = 6.0
+local LEDGE_BLOCK_TIME = 0.20
 
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then
@@ -320,8 +320,9 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -1.2, 0)
+	Vector3.new(0, -2.8, 0),
+	Vector3.new(0, -2.2, 0),
+	Vector3.new(0, -1.2, 0)
 	}
 
 	for _, dir in ipairs(directions) do
