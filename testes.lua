@@ -50,6 +50,15 @@ local lastHitPosition = nil
 local MIN_HIT_DISTANCE = 0.9
 local lastFlickAngle = nil
 
+-- queda: distinguir pulo x queda de borda
+local airborneSource = nil -- "jump" ou "ledge"
+local airborneStartY = nil
+local airborneStartTime = 0
+local jumpedRecently = false
+
+local LEDGE_BLOCK_DISTANCE = 2.2
+local LEDGE_BLOCK_TIME = 0.12
+
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then
 		return false
@@ -61,15 +70,39 @@ end
 
 local function setupCharacter(char)
 	local hum = char:WaitForChild("Humanoid")
+	local hrp = char:WaitForChild("HumanoidRootPart")
 
 	hum.StateChanged:Connect(function(_, new)
+		if new == Enum.HumanoidStateType.Jumping then
+			jumpedRecently = true
+			airborneSource = "jump"
+			airborneStartY = hrp.Position.Y
+			airborneStartTime = tick()
+		end
+
 		if new == Enum.HumanoidStateType.Freefall then
 			canDoubleJump = true
+
+			if airborneSource == nil then
+				if jumpedRecently then
+					airborneSource = "jump"
+				else
+					airborneSource = "ledge"
+				end
+
+				airborneStartY = hrp.Position.Y
+				airborneStartTime = tick()
+			end
 		end
 
 		if new == Enum.HumanoidStateType.Landed then
 			canDoubleJump = false
 			lastHitPosition = nil
+
+			airborneSource = nil
+			airborneStartY = nil
+			airborneStartTime = 0
+			jumpedRecently = false
 		end
 	end)
 end
@@ -257,7 +290,7 @@ local function isPlayerCharacter(instance)
 	end
 
 	local model = instance:FindFirstAncestorOfClass("Model")
-	return model and model:FindFirstChildOfClass("Humanoid")
+	return model and model:FindFirstChild("Humanoid")
 end
 
 local function isWallLikeSurface(normal)
@@ -373,20 +406,25 @@ RunService.Heartbeat:Connect(function()
 		return
 	end
 
-	local params = RaycastParams.new()
-	params.FilterDescendantsInstances = {char}
-	params.FilterType = Enum.RaycastFilterType.Exclude
+	local allowWallhop = true
 
-	local groundRay = workspace:Raycast(
-		hrp.Position,
-		Vector3.new(0, -3.25, 0),
-		params
-	)
+	if airborneSource == "ledge" and airborneStartY then
+		local fallDistance = airborneStartY - hrp.Position.Y
+		local airTime = tick() - airborneStartTime
 
-	if groundRay and groundRay.Instance and groundRay.Instance.CanCollide then
+		if fallDistance < LEDGE_BLOCK_DISTANCE and airTime < LEDGE_BLOCK_TIME then
+			allowWallhop = false
+		end
+	end
+
+	if not allowWallhop then
 		lastHitPosition = nil
 		return
 	end
+
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {char}
+	params.FilterType = Enum.RaycastFilterType.Exclude
 
 	local look = Camera.CFrame.LookVector
 	local horizontal = Vector3.new(look.X, 0, look.Z)
@@ -435,4 +473,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwii | HHHHHumanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwiiiiii | Humanoid Wallhop - Loaded Successfully ✅")
