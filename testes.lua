@@ -209,8 +209,7 @@ local function performVideoFlick()
 		return
 	end
 
-local jumpBoost = 7
-local newY = math.max(hrp.Velocity.Y + jumpBoost, 3.5)
+hrp.Velocity = Vector3.new(hrp.Velocity.X, 8, hrp.Velocity.Z)
 	
 	local jumpBoost = 2.5
 	hrp.Velocity = Vector3.new(hrp.Velocity.X, hrp.Velocity.Y + jumpBoost, hrp.Velocity.Z)
