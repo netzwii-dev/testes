@@ -56,8 +56,8 @@ local airborneStartY = nil
 local airborneStartTime = 0
 local jumpedRecently = false
 
-local LEDGE_BLOCK_DISTANCE = 3.0
-local LEDGE_BLOCK_TIME = 0.08
+local LEDGE_BLOCK_DISTANCE = 3.5
+local LEDGE_BLOCK_TIME = 0.10
 
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then
