@@ -210,7 +210,7 @@ local function performVideoFlick()
 	end
 
 hum:ChangeState(Enum.HumanoidStateType.Jumping)
-hrp.Velocity = Vector3.new(hrp.Velocity.X, 12, hrp.Velocity.Z)
+hrp.Velocity = Vector3.new(hrp.Velocity.X, 9, hrp.Velocity.Z)
 	
 	local jumpBoost = 2.5
 	hrp.Velocity = Vector3.new(hrp.Velocity.X, hrp.Velocity.Y + jumpBoost, hrp.Velocity.Z)
