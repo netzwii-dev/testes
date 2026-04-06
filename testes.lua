@@ -209,8 +209,6 @@ local function performVideoFlick()
 		return
 	end
 
-	hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick()
 
@@ -269,10 +267,6 @@ local function performVideoFlick()
 
 	hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
 
-	if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
-		hum:ChangeState(Enum.HumanoidStateType.Freefall)
-	end
-
 	task.delay(0.05, function()
 		blockDoubleJump = false
 	end)
@@ -320,9 +314,9 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-	Vector3.new(0, -3.0, 0),
-	Vector3.new(0, -2.2, 0),
-	Vector3.new(0, -1.2, 0)
+		Vector3.new(0, -3.0, 0),
+		Vector3.new(0, -2.2, 0),
+		Vector3.new(0, -1.2, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -453,4 +447,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made byyyy netzwii | Humanoid Wallhop - Loaded Successfully ✅")
