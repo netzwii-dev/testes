@@ -1,10 +1,5 @@
 -- (Wallhop Humanoid Type - Made by NT)
 -- Simple button version
--- Ajustes:
--- 1) wallhop só acontece se houve pulo antes
--- 2) cair sem pular não ativa wallhop
--- 3) faixa do wallhop um pouco mais acima que a original
--- 4) mantém flicks e double jump
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -55,8 +50,10 @@ local lastHitPosition = nil
 local MIN_HIT_DISTANCE = 0.9
 local lastFlickAngle = nil
 
--- só permite wallhop se o player tiver pulado antes
-local jumpArmedWallhop = false
+local airborneStartY = nil
+local airborneStartTime = 0
+local MIN_FALL_DISTANCE = 3.8
+local MIN_AIR_TIME = 0.16
 
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then
@@ -69,20 +66,23 @@ end
 
 local function setupCharacter(char)
 	local hum = char:WaitForChild("Humanoid")
+	local hrp = char:WaitForChild("HumanoidRootPart")
 
-	hum.StateChanged:Connect(function(old, new)
+	hum.StateChanged:Connect(function(_, new)
 		if new == Enum.HumanoidStateType.Freefall then
 			canDoubleJump = true
+
+			if airborneStartY == nil then
+				airborneStartY = hrp.Position.Y
+				airborneStartTime = tick()
+			end
 		end
 
 		if new == Enum.HumanoidStateType.Landed then
 			canDoubleJump = false
-			jumpArmedWallhop = false
+			airborneStartY = nil
+			airborneStartTime = 0
 			lastHitPosition = nil
-		end
-
-		if new == Enum.HumanoidStateType.Jumping then
-			jumpArmedWallhop = true
 		end
 	end)
 end
@@ -93,21 +93,13 @@ end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
 UserInputService.JumpRequest:Connect(function()
-	local char = LocalPlayer.Character
-	local hum = char and char:FindFirstChild("Humanoid")
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-
-	if hum and hrp then
-		local state = hum:GetState()
-		if state ~= Enum.HumanoidStateType.Freefall then
-			jumpArmedWallhop = true
-		end
-	end
-
 	if not isWallHopEnabled or blockDoubleJump then
 		return
 	end
 
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hum or not hrp then
 		return
 	end
@@ -197,8 +189,6 @@ local function performVideoFlick()
 		return
 	end
 
-	hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick()
 
@@ -256,10 +246,6 @@ local function performVideoFlick()
 	end
 
 	hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
-
-	if hum:GetState() ~= Enum.HumanoidStateType.Freefall then
-		hum:ChangeState(Enum.HumanoidStateType.Freefall)
-	end
 
 	task.delay(0.05, function()
 		blockDoubleJump = false
@@ -327,7 +313,6 @@ local function hasValidHorizontalEdge(rayResult, params)
 end
 
 local function findValidWall(hrp, params, directions)
-	-- base antiga estava boa; aqui só subi um pouco a faixa
 	local offsets = {
 		Vector3.new(0, -2.2, 0),
 		Vector3.new(0, -1.8, 0),
@@ -354,7 +339,7 @@ local function findValidWall(hrp, params, directions)
 end
 
 local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
-	local look = Vector3.new(cameraLook.X, 0, cameraLook.Z)
+	local look = Vector3.new(cameraLook.X, 0, look.Z)
 	local normal = Vector3.new(wallNormal.X, 0, wallNormal.Z)
 
 	if look.Magnitude <= 0 or normal.Magnitude <= 0 then
@@ -393,13 +378,20 @@ RunService.Heartbeat:Connect(function()
 	local state = hum:GetState()
 	local airborne = state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping
 
-	-- se não houve pulo antes, não pode wallhopar
-	if not jumpArmedWallhop then
+	if not airborne then
 		lastHitPosition = nil
 		return
 	end
 
-	if not airborne then
+	local fallDistance = 0
+	if airborneStartY then
+		fallDistance = airborneStartY - hrp.Position.Y
+	end
+
+	local airTime = tick() - airborneStartTime
+	local validFall = fallDistance >= MIN_FALL_DISTANCE or airTime >= MIN_AIR_TIME
+
+	if not validFall then
 		lastHitPosition = nil
 		return
 	end
@@ -455,4 +447,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzzzzwii | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwwwwwii | Humanoid Wallhop - Loaded Successfully ✅")
