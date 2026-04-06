@@ -460,4 +460,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwii | Humanoid WWWallhop - Loaded Successfully ✅")
+print("Made by netzwii | HHumanoid Wallhop - Loaded Successfully ✅")
