@@ -213,7 +213,7 @@ local function performVideoFlick()
 local oldJumpHeight = hum.JumpHeight
 
 hum.UseJumpPower = false
-hum.JumpHeight = hum.JumpHeight + 1
+hum.JumpHeight = hum.JumpHeight + 0.2
 hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
 task.delay(0.08, function()
@@ -481,4 +481,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwiiiii | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
