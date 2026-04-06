@@ -3,9 +3,10 @@
 -- Ajustes:
 -- 1) evita wallhop em telhado/chão inclinado
 -- 2) exige estar no ar e caindo
--- 3) flick rápido e ultra rápido com aleatoriedade
--- 4) ultra rápido um pouco mais lento que antes
--- 5) wallhop não depende mais de trocar de peça para continuar
+-- 3) região do wallhop ampliada para a faixa da perna
+-- 4) flick rápido e ultra rápido com aleatoriedade
+-- 5) ultra rápido um pouco mais lento que antes
+-- 6) wallhop usa a velocidade natural do jogo (sem impulso fixo)
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -185,7 +186,7 @@ local function performVideoFlick()
 		return
 	end
 
-	hrp.Velocity = Vector3.new(hrp.Velocity.X, 44.8, hrp.Velocity.Z)
+	-- sem impulso fixo: usa a velocidade natural do jogo
 	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
 	local baseYaw = hrp.Orientation.Y
@@ -318,9 +319,11 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -1.2, 0),
-		Vector3.new(0, -0.4, 0)
+		Vector3.new(0, -1.8, 0),
+		Vector3.new(0, -2.15, 0),
+		Vector3.new(0, -2.5, 0),
+		Vector3.new(0, -2.85, 0),
+		Vector3.new(0, -3.2, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -441,4 +444,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwii | Humanoid Wallllllhop - Loaded Successfully ✅")
+print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
