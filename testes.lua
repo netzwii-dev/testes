@@ -11,7 +11,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
 -- kill previous gui / previous session
-local SCRIPT_VERSION = "external-slow-v3-fix-highwalls-supportfix2"
+local SCRIPT_VERSION = "external-slow-v3-fix-highwalls-supportfix3"
 
 _G.__NWT_WALLHOP_SESSION = (_G.__NWT_WALLHOP_SESSION or 0) + 1
 local THIS_SESSION = _G.__NWT_WALLHOP_SESSION
@@ -506,7 +506,7 @@ local function hasSupportBelowEdge(rayResult, params)
 	return totalHits >= 4 and deepHits >= 2 and centerDeepHits >= 1
 end
 
-local function hasSupportAboveEdge(rayResult, params)
+local function hasAnythingAboveEdge(rayResult, params)
 	if not rayResult or not rayResult.Instance then
 		return false
 	end
@@ -522,30 +522,20 @@ local function hasSupportAboveEdge(rayResult, params)
 		tangent = tangent.Unit
 	end
 
-	local totalHits = 0
-	local highHits = 0
-	local centerHighHits = 0
+	local hits = 0
 
 	for _, sx in ipairs({-0.22, 0, 0.22}) do
-		for _, y in ipairs({0.20, 0.42, 0.68, 0.94}) do
+		for _, y in ipairs({0.18, 0.34, 0.52}) do
 			local origin = hitPos + tangent * sx + Vector3.new(0, y, 0) + normal * 0.38
 			local probe = workspace:Raycast(origin, -normal * 1.0, params)
 
 			if probe and probe.Instance == wall then
-				totalHits += 1
-
-				if y >= 0.42 then
-					highHits += 1
-				end
-
-				if math.abs(sx) <= 0.05 and y >= 0.68 then
-					centerHighHits += 1
-				end
+				hits += 1
 			end
 		end
 	end
 
-	return totalHits >= 4 and highHits >= 2 and centerHighHits >= 1
+	return hits >= 1
 end
 
 local function hasValidHorizontalEdge(rayResult, params)
@@ -596,7 +586,7 @@ local function hasValidHorizontalEdge(rayResult, params)
 		return false
 	end
 
-	if not hasSupportAboveEdge(rayResult, params) then
+	if not hasAnythingAboveEdge(rayResult, params) then
 		return false
 	end
 
@@ -774,4 +764,4 @@ SlowButton.MouseButton1Click:Connect(function()
 	end
 end)
 
-print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅ | "..SCRIPT_VERSION)
+print("Made by netzwi | Humanoid Wallhop - Loaded Successfully ✅ | "..SCRIPT_VERSION)
