@@ -11,7 +11,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
 -- kill previous gui / previous session
-local SCRIPT_VERSION = "external-slow-v3-fix-highwalls-supportfix3"
+local SCRIPT_VERSION = "external-slow-v3-fix-highwalls-supportfix1"
 
 _G.__NWT_WALLHOP_SESSION = (_G.__NWT_WALLHOP_SESSION or 0) + 1
 local THIS_SESSION = _G.__NWT_WALLHOP_SESSION
@@ -506,38 +506,6 @@ local function hasSupportBelowEdge(rayResult, params)
 	return totalHits >= 4 and deepHits >= 2 and centerDeepHits >= 1
 end
 
-local function hasAnythingAboveEdge(rayResult, params)
-	if not rayResult or not rayResult.Instance then
-		return false
-	end
-
-	local hitPos = rayResult.Position
-	local normal = rayResult.Normal.Unit
-	local wall = rayResult.Instance
-
-	local tangent = normal:Cross(Vector3.new(0, 1, 0))
-	if tangent.Magnitude < 0.001 then
-		tangent = Vector3.new(1, 0, 0)
-	else
-		tangent = tangent.Unit
-	end
-
-	local hits = 0
-
-	for _, sx in ipairs({-0.22, 0, 0.22}) do
-		for _, y in ipairs({0.18, 0.34, 0.52}) do
-			local origin = hitPos + tangent * sx + Vector3.new(0, y, 0) + normal * 0.38
-			local probe = workspace:Raycast(origin, -normal * 1.0, params)
-
-			if probe and probe.Instance == wall then
-				hits += 1
-			end
-		end
-	end
-
-	return hits >= 1
-end
-
 local function hasValidHorizontalEdge(rayResult, params)
 	if not rayResult or not rayResult.Instance then
 		return false
@@ -571,7 +539,7 @@ local function hasValidHorizontalEdge(rayResult, params)
 	local belowNear = faceExistsAt(-0.18)
 	local belowFar = faceExistsAt(-0.42)
 
-	local hasAbove = (aboveNear + aboveFar) >= 1
+	local hasAbove = (aboveNear + aboveFar) >= 2
 	local hasBelow = (belowNear + belowFar) >= 1
 
 	if not hasAbove or not hasBelow then
@@ -583,10 +551,6 @@ local function hasValidHorizontalEdge(rayResult, params)
 	end
 
 	if not hasSupportBelowEdge(rayResult, params) then
-		return false
-	end
-
-	if not hasAnythingAboveEdge(rayResult, params) then
 		return false
 	end
 
@@ -764,4 +728,4 @@ SlowButton.MouseButton1Click:Connect(function()
 	end
 end)
 
-print("Made by netzwi | Humanoid Wallhop - Loaded Successfully ✅ | "..SCRIPT_VERSION)
+print("Made by netzwiiiiii | Humanoid Wallhop - Loaded Successfully ✅ | "..SCRIPT_VERSION)
