@@ -145,28 +145,6 @@ local function addTrueRoundedShadow(parent, cornerRadius, strength, shadowColor)
 	end
 end
 
-local function setGroupTransparency(root, bgT, textT)
-	for _, obj in ipairs(root:GetDescendants()) do
-		if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
-			pcall(function()
-				obj.BackgroundTransparency = bgT
-			end)
-		end
-
-		if obj:IsA("TextButton") or obj:IsA("TextLabel") then
-			pcall(function()
-				obj.TextTransparency = textT
-			end)
-		end
-
-		if obj:IsA("UIStroke") then
-			pcall(function()
-				obj.Transparency = math.clamp(bgT, 0, 1)
-			end)
-		end
-	end
-end
-
 local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
 	if not root then return end
 
@@ -240,37 +218,62 @@ local function elegantHide(root, onDone)
 	end
 
 	local currentSize = root.Size
+	local currentPos = root.Position
+
 	local shrinkSize = UDim2.new(
-		currentSize.X.Scale * 0.76, math.floor(currentSize.X.Offset * 0.76),
-		currentSize.Y.Scale * 0.76, math.floor(currentSize.Y.Offset * 0.76)
+		currentSize.X.Scale * 0.965, math.floor(currentSize.X.Offset * 0.965),
+		currentSize.Y.Scale * 0.965, math.floor(currentSize.Y.Offset * 0.965)
+	)
+
+	local liftPos = UDim2.new(
+		currentPos.X.Scale, currentPos.X.Offset,
+		currentPos.Y.Scale, currentPos.Y.Offset + 4
 	)
 
 	for _, obj in ipairs(root:GetDescendants()) do
 		if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
 			local goal = {}
+
 			if obj:IsA("Frame") or obj:IsA("TextButton") then
 				goal.BackgroundTransparency = 1
 			end
+
 			if obj:IsA("TextButton") or obj:IsA("TextLabel") then
 				goal.TextTransparency = 1
 			end
-			TweenService:Create(obj, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), goal):Play()
+
+			TweenService:Create(
+				obj,
+				TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+				goal
+			):Play()
 		elseif obj:IsA("UIStroke") then
-			TweenService:Create(obj, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-				Transparency = 1
-			}):Play()
+			TweenService:Create(
+				obj,
+				TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+				{ Transparency = 1 }
+			):Play()
 		end
 	end
 
 	setHostShadowVisible(root, false)
 
-	local tween = TweenService:Create(root, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-		Size = shrinkSize,
-		BackgroundTransparency = 1
-	})
+	local tween = TweenService:Create(
+		root,
+		TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+		{
+			Size = shrinkSize,
+			Position = liftPos,
+			BackgroundTransparency = 1
+		}
+	)
+
 	tween:Play()
 	tween.Completed:Connect(function()
 		root.Visible = false
+		root.Size = currentSize
+		root.Position = currentPos
+
 		if onDone then onDone() end
 	end)
 end
@@ -693,6 +696,10 @@ local function buildMobileGui()
 			if not MobilePanel:GetAttribute("CustomMoved") then
 				placePanelToRightOfWallhop()
 			end
+
+			MobilePanel.BackgroundTransparency = 1
+			MobilePanel.Size = UDim2.new(0, 164, 0, 90)
+
 			elegantShow(MobilePanel, UDim2.new(0, 170, 0, 94), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
@@ -721,21 +728,62 @@ local function setMinimized(state)
 
 	if state then
 		if MainFrame and MiniButton then
-			MiniButton.Position = MainFrame.Position
+			local savedPos = MainFrame.Position
+
 			elegantHide(MainFrame, function()
 				MainFrame.Visible = false
+
+				MiniButton.Position = savedPos
 				MiniButton.Visible = true
 				setHostShadowVisible(MiniButton, true)
+
+				MiniButton.BackgroundTransparency = 1
+				MiniButton.TextTransparency = 1
+				MiniButton.Size = UDim2.new(0, 138, 0, 38)
+
+				local finalMiniSize = UDim2.new(0, 150, 0, 42)
+				local finalMiniPos = savedPos
+
+				TweenService:Create(
+					MiniButton,
+					TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+					{
+						Size = finalMiniSize,
+						Position = finalMiniPos,
+						BackgroundTransparency = 0,
+						TextTransparency = 0
+					}
+				):Play()
 			end)
 		end
+
 		showNotice("GUI minimized")
 	else
 		if MainFrame and MiniButton then
-			MainFrame.Position = MiniButton.Position
-			MiniButton.Visible = false
-			setHostShadowVisible(MiniButton, false)
-			elegantShow(MainFrame, UDim2.new(0, 315, 0, 190), MainFrame.Position, 0)
+			local restorePos = MiniButton.Position
+
+			local miniTween = TweenService:Create(
+				MiniButton,
+				TweenInfo.new(0.16, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+				{
+					BackgroundTransparency = 1,
+					TextTransparency = 1,
+					Size = UDim2.new(0, 140, 0, 39)
+				}
+			)
+
+			miniTween:Play()
+			miniTween.Completed:Connect(function()
+				MiniButton.Visible = false
+				setHostShadowVisible(MiniButton, false)
+
+				MainFrame.Position = restorePos
+				MainFrame.Size = UDim2.new(0, 315, 0, 190)
+
+				elegantShow(MainFrame, UDim2.new(0, 315, 0, 190), restorePos, 0)
+			end)
 		end
+
 		showNotice("GUI restored")
 	end
 end
