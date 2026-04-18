@@ -1,7 +1,5 @@
 -- (Wallhop Humanoid Type - Made by NT)
 -- Simple button version
--- Refino: edge válida = precisa ter parede ACIMA e EMBAIXO da borda
--- Refino: detecção de beast mais profunda
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -61,11 +59,6 @@ local jumpedRecently = false
 local LEDGE_BLOCK_DISTANCE = 6.0
 local LEDGE_BLOCK_TIME = 0.20
 
--- cache de beast
-local beastCache = false
-local lastBeastCheck = 0
-local BEAST_CACHE_TIME = 0.6
-
 local function isCrouching(hum, hrp)
 	if not hum or not hrp then
 		return false
@@ -73,106 +66,6 @@ local function isCrouching(hum, hrp)
 
 	local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
 	return hum.WalkSpeed <= 9 and horizontalSpeed < 8
-end
-
-local function textLooksBeast(text)
-	if typeof(text) ~= "string" then
-		return false
-	end
-
-	text = string.lower(text)
-
-	return string.find(text, "beast", 1, true)
-		or string.find(text, "killer", 1, true)
-		or string.find(text, "monster", 1, true)
-		or string.find(text, "hammer", 1, true)
-end
-
-local function scoreBeastFromContainer(container)
-	if not container then
-		return 0
-	end
-
-	local score = 0
-
-	for _, obj in ipairs(container:GetDescendants()) do
-		if obj:IsA("Tool") then
-			local n = string.lower(obj.Name)
-			if string.find(n, "hammer", 1, true) then
-				score += 4
-			elseif textLooksBeast(n) then
-				score += 3
-			end
-		elseif obj:IsA("StringValue") then
-			local n = string.lower(obj.Name)
-			local v = string.lower(tostring(obj.Value))
-
-			if textLooksBeast(n) then
-				score += 2
-			end
-			if textLooksBeast(v) then
-				score += 3
-			end
-		elseif obj:IsA("BoolValue") then
-			local n = string.lower(obj.Name)
-			if obj.Value and (
-				textLooksBeast(n)
-				or string.find(n, "isbeast", 1, true)
-				or string.find(n, "beastmode", 1, true)
-			) then
-				score += 4
-			end
-		elseif obj:IsA("IntValue") or obj:IsA("NumberValue") then
-			local n = string.lower(obj.Name)
-			if textLooksBeast(n) then
-				score += 1
-			end
-		end
-	end
-
-	return score
-end
-
-local function isLikelyBeast(player, char)
-	local now = tick()
-	if now - lastBeastCheck <= BEAST_CACHE_TIME then
-		return beastCache
-	end
-
-	local score = 0
-
-	if player.Team and textLooksBeast(player.Team.Name) then
-		score += 5
-	end
-
-	local backpack = player:FindFirstChildOfClass("Backpack")
-	if backpack then
-		score += scoreBeastFromContainer(backpack)
-	end
-
-	if char then
-		score += scoreBeastFromContainer(char)
-
-		local equippedTool = char:FindFirstChildOfClass("Tool")
-		if equippedTool then
-			local toolName = string.lower(equippedTool.Name)
-			if string.find(toolName, "hammer", 1, true) then
-				score += 5
-			elseif textLooksBeast(toolName) then
-				score += 3
-			end
-		end
-	end
-
-	local stats = player:FindFirstChild("leaderstats")
-	if stats then
-		score += scoreBeastFromContainer(stats)
-	end
-
-	beastCache = score >= 5
-	lastBeastCheck = now
-
-	return beastCache
 end
 
 local function setupCharacter(char)
@@ -228,11 +121,6 @@ UserInputService.JumpRequest:Connect(function()
 	local hum = char and char:FindFirstChild("Humanoid")
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	if not hum or not hrp then
-		return
-	end
-
-	-- beast: não usa o double jump do script
-	if isLikelyBeast(LocalPlayer, char) then
 		return
 	end
 
@@ -321,6 +209,7 @@ local function performVideoFlick()
 		return
 	end
 
+	-- pulo natural / sem boost artificial
 	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
 	local baseYaw = hrp.Orientation.Y
@@ -405,44 +294,6 @@ local function isWallLikeSurface(normal)
 	return math.abs(normal.Y) < 0.35
 end
 
-local function probeIntoSameWall(hitPos, normal, yOffset, params, originalInstance)
-	local origin = hitPos + Vector3.new(0, yOffset, 0) + (normal * 0.08)
-	local probe = workspace:Raycast(origin, -normal * 0.32, params)
-
-	if not probe or not probe.Instance then
-		return false
-	end
-
-	if probe.Instance ~= originalInstance then
-		return false
-	end
-
-	if not probe.Instance.CanCollide then
-		return false
-	end
-
-	if not isWallLikeSurface(probe.Normal) then
-		return false
-	end
-
-	return true
-end
-
-local function hasOpenCenterEdge(hitPos, normal, params, originalInstance)
-	local origin = hitPos + (normal * 0.08)
-	local probe = workspace:Raycast(origin, -normal * 0.32, params)
-
-	if not probe or not probe.Instance then
-		return true
-	end
-
-	if probe.Instance ~= originalInstance then
-		return true
-	end
-
-	return false
-end
-
 local function hasValidHorizontalEdge(rayResult, params)
 	if not rayResult or not rayResult.Instance then
 		return false
@@ -451,30 +302,23 @@ local function hasValidHorizontalEdge(rayResult, params)
 	local hitPos = rayResult.Position
 	local normal = rayResult.Normal.Unit
 	local wallInstance = rayResult.Instance
+	local surfaceOffset = normal * 0.08
 
-	-- precisa existir parede ACIMA e EMBAIXO da borda
-	-- isso elimina:
-	-- vermelho = só acima
-	-- laranja = só abaixo
-	local hasAboveNear = probeIntoSameWall(hitPos, normal, 0.75, params, wallInstance)
-	local hasBelowNear = probeIntoSameWall(hitPos, normal, -0.75, params, wallInstance)
+	local function touchesSameWall(yOffset)
+		local origin = hitPos + Vector3.new(0, yOffset, 0) + surfaceOffset
+		local probe = workspace:Raycast(origin, -normal * 0.22, params)
 
-	if not (hasAboveNear and hasBelowNear) then
-		return false
+		return probe
+			and probe.Instance
+			and probe.Instance == wallInstance
+			and probe.Instance.CanCollide
 	end
 
-	-- reforço extra para não aceitar falso positivo em transição ruim
-	local hasAboveFar = probeIntoSameWall(hitPos, normal, 1.15, params, wallInstance)
-	local hasBelowFar = probeIntoSameWall(hitPos, normal, -1.15, params, wallInstance)
+	-- mantém detecção de borda, mas invalida se não houver parede acima ou abaixo
+	local hasAbove = touchesSameWall(0.9) or touchesSameWall(1.25)
+	local hasBelow = touchesSameWall(-0.9) or touchesSameWall(-1.25)
 
-	if not ((hasAboveNear or hasAboveFar) and (hasBelowNear or hasBelowFar)) then
-		return false
-	end
-
-	-- no centro da borda precisa existir descontinuidade local,
-	-- senão é só face lisa comum
-	local centerOpen = hasOpenCenterEdge(hitPos, normal, params, wallInstance)
-	if not centerOpen then
+	if not hasAbove or not hasBelow then
 		return false
 	end
 
@@ -537,8 +381,6 @@ RunService.Heartbeat:Connect(function()
 		return
 	end
 
-	local localIsBeast = isLikelyBeast(LocalPlayer, char)
-
 	if isCrouching(hum, hrp) then
 		return
 	end
@@ -590,8 +432,7 @@ RunService.Heartbeat:Connect(function()
 	})
 
 	if result and result.Instance then
-		local angleLimit = localIsBeast and 22 or 25
-		local validAngle = isWithinWallhopAngle(Camera.CFrame.LookVector, result.Normal, angleLimit)
+		local validAngle = isWithinWallhopAngle(Camera.CFrame.LookVector, result.Normal, 25)
 
 		if validAngle then
 			local farEnough = true
@@ -599,9 +440,7 @@ RunService.Heartbeat:Connect(function()
 				farEnough = (result.Position - lastHitPosition).Magnitude >= MIN_HIT_DISTANCE
 			end
 
-			local minFallVelocity = localIsBeast and -1.15 or -0.8
-
-			if hrp.Velocity.Y < minFallVelocity and tick() - lastFlickTime > WALLHOP_COOLDOWN and farEnough then
+			if hrp.Velocity.Y < -0.8 and tick() - lastFlickTime > WALLHOP_COOLDOWN and farEnough then
 				lastFlickTime = tick()
 				lastHitPosition = result.Position
 				performVideoFlick()
@@ -621,4 +460,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwi | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwiiiiii | Humanoid Wallhop - Loaded Successfully ✅")
