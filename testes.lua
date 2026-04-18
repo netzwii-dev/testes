@@ -1579,4 +1579,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Made by nyyyyhiiito | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made by nyhito | Humanoiiiid Wallhop - Loaded Successfully ✅")
