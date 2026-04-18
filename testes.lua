@@ -11,7 +11,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
 -- kill previous gui / previous session
-local SCRIPT_VERSION = "external-slow-v4-highwalls"
+local SCRIPT_VERSION = "external-slow-v3-fix-highwalls"
 
 _G.__NWT_WALLHOP_SESSION = (_G.__NWT_WALLHOP_SESSION or 0) + 1
 local THIS_SESSION = _G.__NWT_WALLHOP_SESSION
@@ -480,24 +480,34 @@ local function hasSupportBelowEdge(rayResult, params)
 		tangent = tangent.Unit
 	end
 
-	local hits = 0
-	local deepHits = 0
+	local checkCenter = hitPos - Vector3.new(0, 0.65, 0) - normal * 0.18
+	local checkSize = Vector3.new(0.8, 0.9, 0.7)
+
+	local overlapParams = OverlapParams.new()
+	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
+	overlapParams.FilterDescendantsInstances = {LocalPlayer.Character}
+
+	local parts = workspace:GetPartBoundsInBox(CFrame.new(checkCenter), checkSize, overlapParams)
+
+	for _, part in ipairs(parts) do
+		if part and part.CanCollide and part ~= wall and not isPlayerCharacter(part) and part.Transparency < 1 then
+			return true
+		end
+	end
+
+	local sameWallHits = 0
 
 	for _, sx in ipairs({-0.22, 0, 0.22}) do
-		for _, y in ipairs({-0.24, -0.52, -0.88}) do
-			local origin = hitPos + tangent * sx + Vector3.new(0, y, 0) + normal * 0.42
-			local probe = workspace:Raycast(origin, -normal * 1.05, params)
-
+		for _, y in ipairs({-0.28, -0.48, -0.72}) do
+			local origin = hitPos + tangent * sx + Vector3.new(0, y, 0) + normal * 0.38
+			local probe = workspace:Raycast(origin, -normal * 1.0, params)
 			if probe and probe.Instance == wall then
-				hits += 1
-				if y <= -0.52 then
-					deepHits += 1
-				end
+				sameWallHits += 1
 			end
 		end
 	end
 
-	return hits >= 3 and deepHits >= 1
+	return sameWallHits >= 2
 end
 
 local function hasValidHorizontalEdge(rayResult, params)
@@ -519,7 +529,7 @@ local function hasValidHorizontalEdge(rayResult, params)
 	local function faceExistsAt(y)
 		local hits = 0
 		for _, sx in ipairs({-0.2, 0, 0.2}) do
-			local origin = hitPos + Vector3.new(0, y, 0) + tangent * sx + normal * 0.42
+			local origin = hitPos + Vector3.new(0, y, 0) + tangent * sx + normal * 0.4
 			local probe = workspace:Raycast(origin, -normal * 1.0, params)
 			if probe and probe.Instance == wall then
 				hits += 1
@@ -534,20 +544,13 @@ local function hasValidHorizontalEdge(rayResult, params)
 	local belowFar = faceExistsAt(-0.42)
 
 	local hasAbove = (aboveNear + aboveFar) >= 2
-	local hasBelow = (belowNear + belowFar) >= 2
+	local hasBelow = (belowNear + belowFar) >= 1
 
 	if not hasAbove or not hasBelow then
 		return false
 	end
 
-	local nearBalanced = math.abs(aboveNear - belowNear) <= 1
-	local farDifferent = math.abs(aboveFar - belowFar) >= 1
-
-	if nearBalanced then
-		return false
-	end
-
-	if not farDifferent then
+	if aboveNear == belowNear and aboveFar == belowFar then
 		return false
 	end
 
@@ -560,11 +563,14 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-		Vector3.new(0, -2.35, 0),
-		Vector3.new(0, -2.2, 0),
+		Vector3.new(0, -2.45, 0),
+		Vector3.new(0, -2.3, 0),
+		Vector3.new(0, -2.15, 0),
 		Vector3.new(0, -2.0, 0),
-		Vector3.new(0, -1.7, 0),
-		Vector3.new(0, -1.35, 0)
+		Vector3.new(0, -1.8, 0),
+		Vector3.new(0, -1.55, 0),
+		Vector3.new(0, -1.3, 0),
+		Vector3.new(0, -1.05, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -684,7 +690,7 @@ RunService.Heartbeat:Connect(function()
 				farEnough = (result.Position - lastHitPosition).Magnitude >= MIN_HIT_DISTANCE
 			end
 
-			if hrp.Velocity.Y < -0.5 and tick() - lastFlickTime > WALLHOP_COOLDOWN and farEnough then
+			if hrp.Velocity.Y < -0.15 and tick() - lastFlickTime > WALLHOP_COOLDOWN and farEnough then
 				if isExternalSlow(hum, hrp) then
 					lastHitPosition = nil
 					return
@@ -726,4 +732,4 @@ SlowButton.MouseButton1Click:Connect(function()
 	end
 end)
 
-print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅ | "..SCRIPT_VERSION)
+print("Made by netzwiiiiiiii | Humanoid Wallhop - Loaded Successfully ✅ | "..SCRIPT_VERSION)
