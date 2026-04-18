@@ -86,12 +86,6 @@ local function isCrouching(hum, hrp)
 	return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
 
-local function queueLandingSlow()
-	if isSlowEnabled then
-		pendingSlowOnLanding = true
-	end
-end
-
 local function applyManualSlow(hum)
 	if not hum or not hum.Parent or not isSlowEnabled then
 		return
@@ -114,6 +108,12 @@ local function applyManualSlow(hum)
 
 		hum.WalkSpeed = oldWalkSpeed
 	end)
+end
+
+local function queueLandingSlow()
+	if isSlowEnabled then
+		pendingSlowOnLanding = true
+	end
 end
 
 local function setupCharacter(char)
@@ -270,7 +270,6 @@ local function performVideoFlick()
 	end
 
 	hum:ChangeState(Enum.HumanoidStateType.Jumping)
-	queueLandingSlow()
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick()
@@ -337,6 +336,15 @@ local function performVideoFlick()
 	task.delay(0.15, function()
 		isWallHopping = false
 	end)
+
+	-- wallhop conta como landed pro slow
+	if isSlowEnabled then
+		task.delay(0.02, function()
+			if hum and hum.Parent then
+				applyManualSlow(hum)
+			end
+		end)
+	end
 
 	isFlicking = false
 end
@@ -597,4 +605,4 @@ SlowButton.MouseButton1Click:Connect(function()
 	SlowButton.Text = isSlowEnabled and "Slow On" or "Slow Off"
 end)
 
-print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made by nettttzwiiiiii | Humanoid Wallhop - Loaded Successfully ✅")
