@@ -1,19 +1,21 @@
--- UI VISUAL TEST ONLY - PC/Mobile GUI
+-- FtF Wallhop UI Only
+-- Made by nyhito
 -- Parte 1/3
 
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local RunService = game:GetService("RunService")
 
-local selectedMode = nil
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 local DEFAULT_HIDE_GUI_KEY = Enum.KeyCode.RightShift
 local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Q
 local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.E
+
+local selectedMode = nil
 
 local hideGuiKey = DEFAULT_HIDE_GUI_KEY
 local toggleScriptKey = DEFAULT_TOGGLE_SCRIPT_KEY
@@ -45,8 +47,6 @@ local ToggleBindButton
 local BeastSlowBindButton
 local Notice
 local NoticeStroke
-local MoveGuiButton
-local ResizeGuiButton
 
 local mobileBeastSlowSwitch
 local mobileBeastSlowKnob
@@ -240,25 +240,88 @@ local function showNotice(text)
 	end
 
 	activeNoticeId += 1
-	local noticeId = activeNoticeId
+	local myId = activeNoticeId
 
 	Notice.Text = text
 	Notice.Visible = true
-	Notice.AnchorPoint = Vector2.new(1, 0)
-	Notice.Position = UDim2.new(1, -14, 0, 14)
-	Notice.Size = UDim2.new(0, 200, 0, 26)
 	Notice.BackgroundTransparency = 0.08
 	Notice.TextTransparency = 0
 	NoticeStroke.Transparency = 0.9
 
-	task.spawn(function()
-		task.wait(1)
-		if noticeId ~= activeNoticeId then
+	task.delay(1, function()
+		if myId ~= activeNoticeId then
 			return
 		end
-
 		Notice.Visible = false
 	end)
+end
+
+local function createIconLine(parent, size, position, rotation)
+	local line = Instance.new("Frame")
+	line.AnchorPoint = Vector2.new(0.5, 0.5)
+	line.Size = size
+	line.Position = position
+	line.BackgroundColor3 = Color3.fromRGB(205, 205, 205)
+	line.BorderSizePixel = 0
+	line.Rotation = rotation or 0
+	line.Parent = parent
+	Instance.new("UICorner", line).CornerRadius = UDim.new(1, 0)
+	return line
+end
+
+local function buildMoveIcon(button)
+	local holder = Instance.new("Frame")
+	holder.Name = "IconHolder"
+	holder.AnchorPoint = Vector2.new(0.5, 0.5)
+	holder.Position = UDim2.new(0.5, 0, 0.5, 0)
+	holder.Size = UDim2.new(1, 0, 1, 0)
+	holder.BackgroundTransparency = 1
+	holder.Parent = button
+
+	createIconLine(holder, UDim2.new(0, 12, 0, 2), UDim2.new(0.5, 0, 0.5, 0), 0)
+	createIconLine(holder, UDim2.new(0, 2, 0, 12), UDim2.new(0.5, 0, 0.5, 0), 0)
+
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.5, 0, 0.22, 0), 45)
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.5, 0, 0.22, 0), -45)
+
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.5, 0, 0.78, 0), 45)
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.5, 0, 0.78, 0), -45)
+
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.22, 0, 0.5, 0), 45)
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.22, 0, 0.5, 0), -45)
+
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.78, 0, 0.5, 0), 45)
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.78, 0, 0.5, 0), -45)
+end
+
+local function buildResizeIcon(button)
+	local holder = Instance.new("Frame")
+	holder.Name = "IconHolder"
+	holder.AnchorPoint = Vector2.new(0.5, 0.5)
+	holder.Position = UDim2.new(0.5, 0, 0.5, 0)
+	holder.Size = UDim2.new(1, 0, 1, 0)
+	holder.BackgroundTransparency = 1
+	holder.Parent = button
+
+	createIconLine(holder, UDim2.new(0, 12, 0, 2), UDim2.new(0.5, 0, 0.5, 0), 45)
+
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.24, 0, 0.24, 0), 0)
+	createIconLine(holder, UDim2.new(0, 2, 0, 6), UDim2.new(0.24, 0, 0.24, 0), 0)
+
+	createIconLine(holder, UDim2.new(0, 6, 0, 2), UDim2.new(0.76, 0, 0.76, 0), 0)
+	createIconLine(holder, UDim2.new(0, 2, 0, 6), UDim2.new(0.76, 0, 0.76, 0), 0)
+end
+
+local function createMiniActionButton(parent, position)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0, 28, 0, 28)
+	button.Position = position
+	button.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+	button.Text = ""
+	button.AutoButtonColor = false
+	button.Parent = parent
+	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+	return button
 end
 
 local function updateSwitchVisual(switchFrame, knob, enabled)
@@ -279,31 +342,31 @@ end
 
 local function createSwitchRow(parent, yOffset, labelText)
 	local row = Instance.new("TextButton")
-	row.Size = UDim2.new(1, -14, 0, 40)
-	row.Position = UDim2.new(0, 7, 0, yOffset)
+	row.Size = UDim2.new(1, -18, 0, 48)
+	row.Position = UDim2.new(0, 9, 0, yOffset)
 	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	row.AutoButtonColor = false
 	row.Text = ""
 	row.BorderSizePixel = 0
 	row.Parent = parent
-	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 14)
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
-	label.Size = UDim2.new(0, 88, 1, 0)
-	label.Position = UDim2.new(0, 12, 0, 0)
+	label.Size = UDim2.new(0, 110, 1, 0)
+	label.Position = UDim2.new(0, 14, 0, 0)
 	label.BackgroundTransparency = 1
 	label.Text = labelText
 	label.TextColor3 = Color3.fromRGB(255,255,255)
 	label.Font = Enum.Font.GothamBold
-	label.TextSize = 13
+	label.TextSize = 14
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = row
 	noTextStroke(label)
 
 	local switch = Instance.new("Frame")
 	switch.Size = UDim2.new(0, 54, 0, 28)
-	switch.Position = UDim2.new(1, -66, 0.5, -14)
+	switch.Position = UDim2.new(1, -68, 0.5, -14)
 	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
@@ -327,10 +390,10 @@ local function updateToggleButton()
 		MobileButton.Text = fakeWallhopEnabled and "Wallhop On" or "Wallhop Off"
 	end
 end
+-- Parte 2/3
 
 local function setMobileWallhopVisualHidden(hidden)
 	if not MobileButton then return end
-
 	MobileButton.BackgroundTransparency = hidden and 1 or 0
 	MobileButton.TextTransparency = hidden and 1 or 0
 	setHostShadowVisible(MobileButton, not hidden)
@@ -395,7 +458,6 @@ local function setGuiVisible(state)
 	applyVisibility()
 	showNotice(state and "GUI shown" or "GUI hidden")
 end
--- Parte 2/3
 
 local function createModeSelector(onPick)
 	local selectorGui = Instance.new("ScreenGui")
@@ -429,7 +491,7 @@ local function createModeSelector(onPick)
 	sub.Size = UDim2.new(1, -20, 0, 16)
 	sub.Position = UDim2.new(0, 10, 0, 34)
 	sub.BackgroundTransparency = 1
-	sub.Text = "FtF Wallhop • visual test"
+	sub.Text = "FtF Wallhop • made by nyhito"
 	sub.TextColor3 = Color3.fromRGB(95,95,95)
 	sub.Font = Enum.Font.Gotham
 	sub.TextSize = 12
@@ -486,12 +548,12 @@ local function clearOldDragConnections()
 	table.clear(dragConnections)
 end
 
-local function bindFreeTouchDrag(dragObject, target, onMove)
+local function bindFreeDrag(handle, target, onMove)
 	local activeInput = nil
 	local dragStart = nil
 	local startPos = nil
 
-	table.insert(dragConnections, dragObject.InputBegan:Connect(function(input)
+	table.insert(dragConnections, handle.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 			activeInput = input
 			dragStart = input.Position
@@ -508,9 +570,8 @@ local function bindFreeTouchDrag(dragObject, target, onMove)
 				startPos.Y.Scale,
 				startPos.Y.Offset + delta.Y
 			)
-
 			if onMove then
-				onMove()
+				onMove(delta)
 			end
 		end
 	end))
@@ -520,6 +581,38 @@ local function bindFreeTouchDrag(dragObject, target, onMove)
 			activeInput = nil
 			dragStart = nil
 			startPos = nil
+		end
+	end))
+end
+
+local function bindResizeDrag(handle, target, getMinSize)
+	local activeInput = nil
+	local dragStart = nil
+	local startSize = nil
+
+	table.insert(dragConnections, handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			activeInput = input
+			dragStart = input.Position
+			startSize = target.Size
+		end
+	end))
+
+	table.insert(dragConnections, UserInputService.InputChanged:Connect(function(input)
+		if input == activeInput and dragStart and startSize then
+			local minW, minH = getMinSize()
+			local delta = input.Position - dragStart
+			local newW = math.max(minW, startSize.X.Offset + delta.X)
+			local newH = math.max(minH, startSize.Y.Offset + delta.Y)
+			target.Size = UDim2.new(0, newW, 0, newH)
+		end
+	end))
+
+	table.insert(dragConnections, UserInputService.InputEnded:Connect(function(input)
+		if input == activeInput then
+			activeInput = nil
+			dragStart = nil
+			startSize = nil
 		end
 	end))
 end
@@ -559,16 +652,23 @@ local function buildMobileGui()
 	addTrueRoundedShadow(MobileMenuButton, 999, 1, Color3.fromRGB(0, 0, 0))
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 170, 0, 94)
+	MobilePanel.Size = UDim2.new(0, 170, 0, 128)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
 	MobilePanel.Parent = ScreenGui
-	Instance.new("UICorner", MobilePanel).CornerRadius = UDim.new(0, 14)
-	addTrueRoundedShadow(MobilePanel, 14, 1, Color3.fromRGB(0, 0, 0))
+	Instance.new("UICorner", MobilePanel).CornerRadius = UDim.new(0, 16)
+	addTrueRoundedShadow(MobilePanel, 16, 1, Color3.fromRGB(0, 0, 0))
 
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobilePanel, 7, "Beast Slow")
-	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobilePanel, 47, "Hide GUI")
+	local moveButton = createMiniActionButton(MobilePanel, UDim2.new(1, -64, 0, 8))
+	buildMoveIcon(moveButton)
+
+	local resizeButton = createMiniActionButton(MobilePanel, UDim2.new(1, -32, 1, -36))
+	buildResizeIcon(resizeButton)
+
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobilePanel, 36, "Beast Slow")
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobilePanel, 86, "Hide GUI")
+	-- Parte 3/3
 
 	local function placeMobileButtonDefault()
 		local inset = GuiService:GetGuiInset()
@@ -578,8 +678,8 @@ local function buildMobileGui()
 	end
 
 	local function placePanelToRightOfWallhop()
-		local xOffset = MobileButton.Position.X.Offset + MobileButton.Size.X.Offset + 26
-		local yOffset = MobileButton.Position.Y.Offset
+		local xOffset = MobileButton.Position.X.Offset + MobileButton.Size.X.Offset + 28
+		local yOffset = MobileButton.Position.Y.Offset + 6
 		MobilePanel.Position = UDim2.new(0, xOffset, 0, yOffset)
 	end
 
@@ -595,16 +695,20 @@ local function buildMobileGui()
 	placeMobileButtonDefault()
 	placePanelToRightOfWallhop()
 
-	bindFreeTouchDrag(MobileButton, MobileButton, function()
+	bindFreeDrag(MobileButton, MobileButton, function()
 		MobileButton:SetAttribute("CustomMoved", true)
 		if not MobilePanel:GetAttribute("CustomMoved") then
 			placePanelToRightOfWallhop()
 		end
 	end)
 
-	bindFreeTouchDrag(MobileMenuButton, MobileMenuButton)
-	bindFreeTouchDrag(MobilePanel, MobilePanel, function()
+	bindFreeDrag(MobileMenuButton, MobileMenuButton)
+	bindFreeDrag(moveButton, MobilePanel, function()
 		MobilePanel:SetAttribute("CustomMoved", true)
+	end)
+
+	bindResizeDrag(resizeButton, MobilePanel, function()
+		return 170, 128
 	end)
 
 	MobileButton.MouseButton1Click:Connect(function()
@@ -619,7 +723,7 @@ local function buildMobileGui()
 			if not MobilePanel:GetAttribute("CustomMoved") then
 				placePanelToRightOfWallhop()
 			end
-			elegantShow(MobilePanel, UDim2.new(0, 170, 0, 94), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, MobilePanel.Size, MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -637,7 +741,6 @@ local function buildMobileGui()
 
 	updateMobilePanelButtons()
 end
--- Parte 3/3
 
 local function setMinimized(state)
 	if selectedMode ~= "PC" then
@@ -653,14 +756,6 @@ local function setMinimized(state)
 				MainFrame.Visible = false
 				MiniButton.Visible = true
 				setHostShadowVisible(MiniButton, true)
-
-				MiniButton.BackgroundTransparency = 1
-				MiniButton.TextTransparency = 1
-
-				TweenService:Create(MiniButton, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					BackgroundTransparency = 0,
-					TextTransparency = 0
-				}):Play()
 			end)
 		end
 		showNotice("GUI minimized")
@@ -669,9 +764,7 @@ local function setMinimized(state)
 			MainFrame.Position = MiniButton.Position
 			MiniButton.Visible = false
 			setHostShadowVisible(MiniButton, false)
-
-			MainFrame.Visible = true
-			elegantShow(MainFrame, MainFrame.Size, MainFrame.Position, 0)
+			elegantShow(MainFrame, UDim2.new(0, 340, 0, 230), MainFrame.Position, 0)
 		end
 		showNotice("GUI restored")
 	end
@@ -687,128 +780,126 @@ local function buildPCGui()
 	ScreenGui.Parent = PlayerGui
 
 	MainFrame = Instance.new("Frame")
-	MainFrame.Size = UDim2.new(0, 265, 0, 196)
-	MainFrame.Position = UDim2.new(0.5, -132, 0.5, -98)
+	MainFrame.Size = UDim2.new(0, 340, 0, 230)
+	MainFrame.Position = UDim2.new(0.5, -170, 0.5, -115)
 	MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MainFrame.BorderSizePixel = 0
 	MainFrame.Parent = ScreenGui
-	MainFrame.Visible = true
-	Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
-	addTrueRoundedShadow(MainFrame, 16, 1.25, Color3.fromRGB(0, 0, 0))
+	Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 22)
+	addTrueRoundedShadow(MainFrame, 22, 1.2, Color3.fromRGB(0, 0, 0))
 
-	local TopBar = Instance.new("Frame")
-	TopBar.Size = UDim2.new(1, 0, 0, 34)
-	TopBar.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	TopBar.BorderSizePixel = 0
-	TopBar.Parent = MainFrame
-	Instance.new("UICorner", TopBar).CornerRadius = UDim.new(0, 16)
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -60, 0, 42)
+	title.Position = UDim2.new(0, 18, 0, 14)
+	title.BackgroundTransparency = 1
+	title.Text = "FtF Wallhop"
+	title.TextColor3 = Color3.fromRGB(255,255,255)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 34
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = MainFrame
+	noTextStroke(title)
 
-	local Title = Instance.new("TextLabel")
-	Title.Size = UDim2.new(1, -90, 1, 0)
-	Title.Position = UDim2.new(0, 12, 0, 0)
-	Title.BackgroundTransparency = 1
-	Title.Text = "Wallhop PC"
-	Title.TextColor3 = Color3.fromRGB(255,255,255)
-	Title.Font = Enum.Font.GothamBold
-	Title.TextSize = 16
-	Title.TextXAlignment = Enum.TextXAlignment.Left
-	Title.Parent = TopBar
-	noTextStroke(Title)
+	local sub = Instance.new("TextLabel")
+	sub.Size = UDim2.new(1, -60, 0, 20)
+	sub.Position = UDim2.new(0, 18, 0, 48)
+	sub.BackgroundTransparency = 1
+	sub.Text = "PC Version"
+	sub.TextColor3 = Color3.fromRGB(95,95,95)
+	sub.Font = Enum.Font.Gotham
+	sub.TextSize = 16
+	sub.TextXAlignment = Enum.TextXAlignment.Left
+	sub.Parent = MainFrame
+	noTextStroke(sub)
 
 	local MinimizeButton = Instance.new("TextButton")
-	MinimizeButton.Size = UDim2.new(0, 24, 0, 24)
-	MinimizeButton.Position = UDim2.new(1, -30, 0.5, -12)
-	MinimizeButton.BackgroundColor3 = Color3.fromRGB(8,8,8)
+	MinimizeButton.Size = UDim2.new(0, 28, 0, 28)
+	MinimizeButton.Position = UDim2.new(1, -44, 0, 18)
+	MinimizeButton.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
 	MinimizeButton.Text = "—"
 	MinimizeButton.TextColor3 = Color3.fromRGB(255,255,255)
 	MinimizeButton.Font = Enum.Font.GothamBold
-	MinimizeButton.TextSize = 18
-	MinimizeButton.Parent = TopBar
+	MinimizeButton.TextSize = 20
+	MinimizeButton.AutoButtonColor = false
+	MinimizeButton.Parent = MainFrame
 	Instance.new("UICorner", MinimizeButton).CornerRadius = UDim.new(1, 0)
 	noTextStroke(MinimizeButton)
 
-	MoveGuiButton = Instance.new("TextButton")
-	MoveGuiButton.Size = UDim2.new(0, 26, 0, 26)
-	MoveGuiButton.Position = UDim2.new(1, -60, 0.5, -13)
-	MoveGuiButton.BackgroundColor3 = Color3.fromRGB(8,8,8)
-	MoveGuiButton.Text = "✥"
-	MoveGuiButton.TextColor3 = Color3.fromRGB(180,180,180)
-	MoveGuiButton.Font = Enum.Font.GothamBold
-	MoveGuiButton.TextSize = 16
-	MoveGuiButton.Parent = TopBar
-	Instance.new("UICorner", MoveGuiButton).CornerRadius = UDim.new(0, 8)
-	noTextStroke(MoveGuiButton)
-
 	ToggleButton = Instance.new("TextButton")
-	ToggleButton.Size = UDim2.new(1, -16, 0, 40)
-	ToggleButton.Position = UDim2.new(0, 8, 0, 44)
-	ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	ToggleButton.Size = UDim2.new(1, -36, 0, 44)
+	ToggleButton.Position = UDim2.new(0, 18, 0, 78)
+	ToggleButton.BackgroundTransparency = 1
 	ToggleButton.Text = "Wall Hop Off"
 	ToggleButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleButton.Font = Enum.Font.GothamBold
-	ToggleButton.TextSize = 15
+	ToggleButton.TextSize = 32
+	ToggleButton.TextXAlignment = Enum.TextXAlignment.Left
+	ToggleButton.AutoButtonColor = false
 	ToggleButton.Parent = MainFrame
-	Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 12)
 	noTextStroke(ToggleButton)
 
 	HideGuiBindButton = Instance.new("TextButton")
-	HideGuiBindButton.Size = UDim2.new(1, -16, 0, 30)
-	HideGuiBindButton.Position = UDim2.new(0, 8, 0, 92)
-	HideGuiBindButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	HideGuiBindButton.TextColor3 = Color3.fromRGB(255,255,255)
-	HideGuiBindButton.Font = Enum.Font.GothamBold
-	HideGuiBindButton.TextSize = 13
+	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 30)
+	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 134)
+	HideGuiBindButton.BackgroundTransparency = 1
+	HideGuiBindButton.TextColor3 = Color3.fromRGB(215,215,215)
+	HideGuiBindButton.Font = Enum.Font.Gotham
+	HideGuiBindButton.TextSize = 18
+	HideGuiBindButton.TextXAlignment = Enum.TextXAlignment.Left
+	HideGuiBindButton.AutoButtonColor = false
 	HideGuiBindButton.Parent = MainFrame
-	Instance.new("UICorner", HideGuiBindButton).CornerRadius = UDim.new(0, 10)
 	noTextStroke(HideGuiBindButton)
 
 	ToggleBindButton = Instance.new("TextButton")
-	ToggleBindButton.Size = UDim2.new(1, -16, 0, 30)
-	ToggleBindButton.Position = UDim2.new(0, 8, 0, 127)
-	ToggleBindButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	ToggleBindButton.TextColor3 = Color3.fromRGB(255,255,255)
-	ToggleBindButton.Font = Enum.Font.GothamBold
-	ToggleBindButton.TextSize = 13
+	ToggleBindButton.Size = UDim2.new(1, -36, 0, 30)
+	ToggleBindButton.Position = UDim2.new(0, 18, 0, 176)
+	ToggleBindButton.BackgroundTransparency = 1
+	ToggleBindButton.TextColor3 = Color3.fromRGB(215,215,215)
+	ToggleBindButton.Font = Enum.Font.Gotham
+	ToggleBindButton.TextSize = 18
+	ToggleBindButton.TextXAlignment = Enum.TextXAlignment.Left
+	ToggleBindButton.AutoButtonColor = false
 	ToggleBindButton.Parent = MainFrame
-	Instance.new("UICorner", ToggleBindButton).CornerRadius = UDim.new(0, 10)
 	noTextStroke(ToggleBindButton)
 
 	BeastSlowBindButton = Instance.new("TextButton")
-	BeastSlowBindButton.Size = UDim2.new(1, -16, 0, 30)
-	BeastSlowBindButton.Position = UDim2.new(0, 8, 0, 162)
-	BeastSlowBindButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	BeastSlowBindButton.TextColor3 = Color3.fromRGB(255,255,255)
-	BeastSlowBindButton.Font = Enum.Font.GothamBold
-	BeastSlowBindButton.TextSize = 13
+	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 30)
+	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 206)
+	BeastSlowBindButton.BackgroundTransparency = 1
+	BeastSlowBindButton.TextColor3 = Color3.fromRGB(215,215,215)
+	BeastSlowBindButton.Font = Enum.Font.Gotham
+	BeastSlowBindButton.TextSize = 18
+	BeastSlowBindButton.TextXAlignment = Enum.TextXAlignment.Left
+	BeastSlowBindButton.AutoButtonColor = false
 	BeastSlowBindButton.Parent = MainFrame
-	Instance.new("UICorner", BeastSlowBindButton).CornerRadius = UDim.new(0, 10)
 	noTextStroke(BeastSlowBindButton)
 
-	ResizeGuiButton = Instance.new("TextButton")
-	ResizeGuiButton.Size = UDim2.new(0, 24, 0, 24)
-	ResizeGuiButton.Position = UDim2.new(1, -28, 1, -28)
-	ResizeGuiButton.BackgroundColor3 = Color3.fromRGB(8,8,8)
-	ResizeGuiButton.Text = "⤡"
-	ResizeGuiButton.TextColor3 = Color3.fromRGB(180,180,180)
-	ResizeGuiButton.Font = Enum.Font.GothamBold
-	ResizeGuiButton.TextSize = 16
-	ResizeGuiButton.Parent = MainFrame
-	Instance.new("UICorner", ResizeGuiButton).CornerRadius = UDim.new(0, 8)
-	noTextStroke(ResizeGuiButton)
+	local footer = Instance.new("TextLabel")
+	footer.Size = UDim2.new(1, -36, 0, 24)
+	footer.Position = UDim2.new(0, 18, 1, -30)
+	footer.BackgroundTransparency = 1
+	footer.Text = "the best ftf wallhop ever - nyhito panel"
+	footer.TextColor3 = Color3.fromRGB(95,95,95)
+	footer.Font = Enum.Font.Gotham
+	footer.TextSize = 14
+	footer.TextXAlignment = Enum.TextXAlignment.Left
+	footer.Parent = MainFrame
+	noTextStroke(footer)
 
 	MiniButton = Instance.new("TextButton")
-	MiniButton.Size = UDim2.new(0, 58, 0, 34)
+	MiniButton.Size = UDim2.new(0, 250, 0, 54)
 	MiniButton.Position = MainFrame.Position
 	MiniButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	MiniButton.Text = "GUI"
-	MiniButton.TextColor3 = Color3.fromRGB(255,255,255)
+	MiniButton.Text = "FtF Wallhop"
+	MiniButton.TextColor3 = Color3.fromRGB(220,220,220)
 	MiniButton.Font = Enum.Font.GothamBold
-	MiniButton.TextSize = 14
+	MiniButton.TextSize = 30
 	MiniButton.Visible = false
+	MiniButton.AutoButtonColor = false
 	MiniButton.Parent = ScreenGui
-	Instance.new("UICorner", MiniButton).CornerRadius = UDim.new(0, 12)
+	Instance.new("UICorner", MiniButton).CornerRadius = UDim.new(1, 0)
 	noTextStroke(MiniButton)
-	addTrueRoundedShadow(MiniButton, 12, 1, Color3.fromRGB(0, 0, 0))
+	addTrueRoundedShadow(MiniButton, 999, 1.1, Color3.fromRGB(0, 0, 0))
 
 	Notice = Instance.new("TextLabel")
 	Notice.Size = UDim2.new(0, 200, 0, 26)
@@ -830,63 +921,6 @@ local function buildPCGui()
 	NoticeStroke.Thickness = 1
 	NoticeStroke.Transparency = 0.9
 	NoticeStroke.Parent = Notice
-
-	local moveInput = nil
-	local moveStart = nil
-	local moveFrameStart = nil
-
-	local resizeInput = nil
-	local resizeStart = nil
-	local resizeSizeStart = nil
-
-	table.insert(dragConnections, MoveGuiButton.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			moveInput = input
-			moveStart = input.Position
-			moveFrameStart = MainFrame.Position
-		end
-	end))
-
-	table.insert(dragConnections, ResizeGuiButton.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			resizeInput = input
-			resizeStart = input.Position
-			resizeSizeStart = MainFrame.Size
-		end
-	end))
-
-	table.insert(dragConnections, UserInputService.InputChanged:Connect(function(input)
-		if input == moveInput and moveStart and moveFrameStart then
-			local delta = input.Position - moveStart
-			MainFrame.Position = UDim2.new(
-				moveFrameStart.X.Scale,
-				moveFrameStart.X.Offset + delta.X,
-				moveFrameStart.Y.Scale,
-				moveFrameStart.Y.Offset + delta.Y
-			)
-		end
-
-		if input == resizeInput and resizeStart and resizeSizeStart then
-			local delta = input.Position - resizeStart
-			local newW = math.max(235, resizeSizeStart.X.Offset + delta.X)
-			local newH = math.max(180, resizeSizeStart.Y.Offset + delta.Y)
-			MainFrame.Size = UDim2.new(0, newW, 0, newH)
-		end
-	end))
-
-	table.insert(dragConnections, UserInputService.InputEnded:Connect(function(input)
-		if input == moveInput then
-			moveInput = nil
-			moveStart = nil
-			moveFrameStart = nil
-		end
-
-		if input == resizeInput then
-			resizeInput = nil
-			resizeStart = nil
-			resizeSizeStart = nil
-		end
-	end))
 
 	MinimizeButton.MouseButton1Click:Connect(function()
 		setMinimized(true)
@@ -926,16 +960,8 @@ local function buildPCGui()
 		showNotice(fakeWallhopEnabled and "Wallhop enabled" or "Wallhop disabled")
 	end)
 
-	RunService.RenderStepped:Connect(function()
-		if selectedMode ~= "PC" then return end
-		local inset = GuiService:GetGuiInset()
-		if guiVisible and not guiMinimized and MainFrame.Position == UDim2.new(0.5, -132, 0.5, -98) then
-			MainFrame.Position = UDim2.new(0.5, -132, 0.5, -98 + inset.Y / 2)
-		end
-	end)
-
 	updateBindButtons()
-	elegantShow(MainFrame, UDim2.new(0, 265, 0, 196), MainFrame.Position, 0)
+	elegantShow(MainFrame, UDim2.new(0, 340, 0, 230), MainFrame.Position, 0)
 	showNotice("PC version loaded")
 end
 
@@ -1016,4 +1042,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("UI visual test loaded successfully")
+print("FtF Wallhop UI loaded successfully")
