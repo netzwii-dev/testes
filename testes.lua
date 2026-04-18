@@ -90,14 +90,39 @@ local function setHostShadowVisible(host, visible)
 	end
 end
 
+local function setTargetTransparency(obj, bg, text)
+	if bg ~= nil then
+		obj:SetAttribute("TargetBGTransparency", bg)
+	end
+	if text ~= nil then
+		obj:SetAttribute("TargetTextTransparency", text)
+	end
+end
+
+local function getTargetBG(obj)
+	local v = obj:GetAttribute("TargetBGTransparency")
+	if typeof(v) == "number" then
+		return v
+	end
+	return obj.BackgroundTransparency
+end
+
+local function getTargetText(obj)
+	local v = obj:GetAttribute("TargetTextTransparency")
+	if typeof(v) == "number" then
+		return v
+	end
+	return obj.TextTransparency
+end
+
 local function addTrueRoundedShadow(parent, cornerRadius, strength, shadowColor)
 	strength = strength or 1
 	shadowColor = shadowColor or Color3.fromRGB(0, 0, 0)
 
 	local layers = {
-		{grow = math.floor(6 * strength), transparency = 0.84, y = 1},
-		{grow = math.floor(12 * strength), transparency = 0.90, y = 2},
-		{grow = math.floor(18 * strength), transparency = 0.95, y = 3},
+		{grow = math.floor(8 * strength), transparency = 0.82, y = 2},
+		{grow = math.floor(16 * strength), transparency = 0.90, y = 4},
+		{grow = math.floor(24 * strength), transparency = 0.95, y = 6},
 	}
 
 	for _, cfg in ipairs(layers) do
@@ -114,7 +139,7 @@ local function addTrueRoundedShadow(parent, cornerRadius, strength, shadowColor)
 		shadow:SetAttribute("BaseTransparency", cfg.transparency)
 
 		Instance.new("UICorner", shadow).CornerRadius =
-			UDim.new(0, cornerRadius + math.floor(cfg.grow / 2.2))
+			UDim.new(0, cornerRadius + math.floor(cfg.grow / 2.1))
 
 		registerShadow(parent, shadow)
 	end
@@ -151,7 +176,7 @@ local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
 	local targetPos = finalPosition or root.Position
 	local targetBg = finalBgTransparency
 	if targetBg == nil then
-		targetBg = root.BackgroundTransparency
+		targetBg = getTargetBG(root)
 	end
 
 	root.Size = UDim2.new(
@@ -160,8 +185,25 @@ local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
 	)
 	root.Position = targetPos
 	root.BackgroundTransparency = 1
-	setGroupTransparency(root, 1, 1)
 	setHostShadowVisible(root, false)
+
+	for _, obj in ipairs(root:GetDescendants()) do
+		if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
+			pcall(function()
+				obj.BackgroundTransparency = 1
+			end)
+		end
+		if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+			pcall(function()
+				obj.TextTransparency = 1
+			end)
+		end
+		if obj:IsA("UIStroke") then
+			pcall(function()
+				obj.Transparency = 1
+			end)
+		end
+	end
 
 	TweenService:Create(root, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		Size = targetSize,
@@ -176,10 +218,10 @@ local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
 			if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
 				local goal = {}
 				if obj:IsA("Frame") or obj:IsA("TextButton") then
-					goal.BackgroundTransparency = 0
+					goal.BackgroundTransparency = getTargetBG(obj)
 				end
 				if obj:IsA("TextButton") or obj:IsA("TextLabel") then
-					goal.TextTransparency = 0
+					goal.TextTransparency = getTargetText(obj)
 				end
 				TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal):Play()
 			elseif obj:IsA("UIStroke") then
@@ -308,6 +350,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	row.BorderSizePixel = 0
 	row.Parent = parent
 	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+	setTargetTransparency(row, 0, 1)
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
@@ -321,6 +364,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = row
 	noTextStroke(label)
+	setTargetTransparency(label, 1, 0)
 
 	local switch = Instance.new("Frame")
 	switch.Size = UDim2.new(0, 54, 0, 28)
@@ -329,6 +373,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
 	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
+	setTargetTransparency(switch, 0, nil)
 
 	local knob = Instance.new("Frame")
 	knob.Size = UDim2.new(0, 26, 0, 26)
@@ -337,6 +382,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	knob.BorderSizePixel = 0
 	knob.Parent = switch
 	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+	setTargetTransparency(knob, 0, nil)
 
 	return row, switch, knob
 end
@@ -433,6 +479,7 @@ local function createModeSelector(onPick)
 	frame.Parent = selectorGui
 	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 16)
 	addTrueRoundedShadow(frame, 16, 1.45, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(frame, 0, nil)
 
 	local title = Instance.new("TextLabel")
 	title.Size = UDim2.new(1, -20, 0, 28)
@@ -444,6 +491,7 @@ local function createModeSelector(onPick)
 	title.TextSize = 22
 	title.Parent = frame
 	noTextStroke(title)
+	setTargetTransparency(title, 1, 0)
 
 	local sub = Instance.new("TextLabel")
 	sub.Size = UDim2.new(1, -20, 0, 16)
@@ -455,6 +503,7 @@ local function createModeSelector(onPick)
 	sub.TextSize = 12
 	sub.Parent = frame
 	noTextStroke(sub)
+	setTargetTransparency(sub, 1, 0)
 
 	local pcButton = Instance.new("TextButton")
 	pcButton.Size = UDim2.new(1, -20, 0, 42)
@@ -467,6 +516,7 @@ local function createModeSelector(onPick)
 	pcButton.Parent = frame
 	Instance.new("UICorner", pcButton).CornerRadius = UDim.new(0, 12)
 	noTextStroke(pcButton)
+	setTargetTransparency(pcButton, 0, 0)
 
 	local mobileButton = Instance.new("TextButton")
 	mobileButton.Size = UDim2.new(1, -20, 0, 42)
@@ -479,6 +529,7 @@ local function createModeSelector(onPick)
 	mobileButton.Parent = frame
 	Instance.new("UICorner", mobileButton).CornerRadius = UDim.new(0, 12)
 	noTextStroke(mobileButton)
+	setTargetTransparency(mobileButton, 0, 0)
 
 	elegantShow(frame, UDim2.new(0, 280, 0, 170), UDim2.new(0.5, 0, 0.5, 0), 0)
 
@@ -562,7 +613,8 @@ local function buildMobileGui()
 	MobileButton.Parent = ScreenGui
 	Instance.new("UICorner", MobileButton).CornerRadius = UDim.new(0, 12)
 	noTextStroke(MobileButton)
-	addTrueRoundedShadow(MobileButton, 14, 1, Color3.fromRGB(0, 0, 0))
+	addTrueRoundedShadow(MobileButton, 14, 1.15, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobileButton, 0, 0)
 
 	MobileMenuButton = Instance.new("TextButton")
 	MobileMenuButton.Size = UDim2.new(0, 54, 0, 54)
@@ -575,7 +627,8 @@ local function buildMobileGui()
 	MobileMenuButton.Parent = ScreenGui
 	Instance.new("UICorner", MobileMenuButton).CornerRadius = UDim.new(1, 0)
 	noTextStroke(MobileMenuButton)
-	addTrueRoundedShadow(MobileMenuButton, 999, 1, Color3.fromRGB(0, 0, 0))
+	addTrueRoundedShadow(MobileMenuButton, 999, 1.05, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
 	MobilePanel.Size = UDim2.new(0, 170, 0, 94)
@@ -584,7 +637,8 @@ local function buildMobileGui()
 	MobilePanel.Visible = false
 	MobilePanel.Parent = ScreenGui
 	Instance.new("UICorner", MobilePanel).CornerRadius = UDim.new(0, 14)
-	addTrueRoundedShadow(MobilePanel, 14, 1, Color3.fromRGB(0, 0, 0))
+	addTrueRoundedShadow(MobilePanel, 14, 1.15, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobilePanel, 0, nil)
 
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobilePanel, 7, "Beast Slow")
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobilePanel, 47, "Hide GUI")
@@ -702,11 +756,12 @@ local function buildPCGui()
 	MainFrame.BorderSizePixel = 0
 	MainFrame.Parent = ScreenGui
 	Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 22)
-	addTrueRoundedShadow(MainFrame, 22, 1.15, Color3.fromRGB(0, 0, 0))
+	addTrueRoundedShadow(MainFrame, 22, 1.25, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MainFrame, 0, nil)
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, -60, 0, 34)
-	title.Position = UDim2.new(0, 18, 0, 12)
+	title.Size = UDim2.new(1, -60, 0, 30)
+	title.Position = UDim2.new(0, 18, 0, 8)
 	title.BackgroundTransparency = 1
 	title.Text = "FtF Wallhop"
 	title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -715,10 +770,11 @@ local function buildPCGui()
 	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Parent = MainFrame
 	noTextStroke(title)
+	setTargetTransparency(title, 1, 0)
 
 	local sub = Instance.new("TextLabel")
 	sub.Size = UDim2.new(1, -60, 0, 16)
-	sub.Position = UDim2.new(0, 18, 0, 40)
+	sub.Position = UDim2.new(0, 18, 0, 34)
 	sub.BackgroundTransparency = 1
 	sub.Text = "PC Version"
 	sub.TextColor3 = Color3.fromRGB(95,95,95)
@@ -727,10 +783,11 @@ local function buildPCGui()
 	sub.TextXAlignment = Enum.TextXAlignment.Left
 	sub.Parent = MainFrame
 	noTextStroke(sub)
+	setTargetTransparency(sub, 1, 0)
 
 	local MinimizeButton = Instance.new("TextButton")
 	MinimizeButton.Size = UDim2.new(0, 28, 0, 28)
-	MinimizeButton.Position = UDim2.new(1, -44, 0, 16)
+	MinimizeButton.Position = UDim2.new(1, -44, 0, 12)
 	MinimizeButton.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
 	MinimizeButton.Text = "—"
 	MinimizeButton.TextColor3 = Color3.fromRGB(255,255,255)
@@ -740,67 +797,73 @@ local function buildPCGui()
 	MinimizeButton.Parent = MainFrame
 	Instance.new("UICorner", MinimizeButton).CornerRadius = UDim.new(1, 0)
 	noTextStroke(MinimizeButton)
+	setTargetTransparency(MinimizeButton, 0, 0)
 
 	ToggleButton = Instance.new("TextButton")
-	ToggleButton.Size = UDim2.new(1, -36, 0, 34)
-	ToggleButton.Position = UDim2.new(0, 18, 0, 64)
+	ToggleButton.Size = UDim2.new(1, -36, 0, 28)
+	ToggleButton.Position = UDim2.new(0, 18, 0, 58)
 	ToggleButton.BackgroundTransparency = 1
 	ToggleButton.Text = "Wall Hop Off"
 	ToggleButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleButton.Font = Enum.Font.GothamBold
-	ToggleButton.TextSize = 24
+	ToggleButton.TextSize = 22
 	ToggleButton.TextXAlignment = Enum.TextXAlignment.Left
 	ToggleButton.AutoButtonColor = false
 	ToggleButton.Parent = MainFrame
 	noTextStroke(ToggleButton)
+	setTargetTransparency(ToggleButton, 1, 0)
 
 	HideGuiBindButton = Instance.new("TextButton")
-	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 22)
-	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 108)
+	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 18)
+	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 98)
 	HideGuiBindButton.BackgroundTransparency = 1
 	HideGuiBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	HideGuiBindButton.Font = Enum.Font.Gotham
-	HideGuiBindButton.TextSize = 15
+	HideGuiBindButton.TextSize = 13
 	HideGuiBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	HideGuiBindButton.AutoButtonColor = false
 	HideGuiBindButton.Parent = MainFrame
 	noTextStroke(HideGuiBindButton)
+	setTargetTransparency(HideGuiBindButton, 1, 0)
 
 	ToggleBindButton = Instance.new("TextButton")
-	ToggleBindButton.Size = UDim2.new(1, -36, 0, 22)
-	ToggleBindButton.Position = UDim2.new(0, 18, 0, 132)
+	ToggleBindButton.Size = UDim2.new(1, -36, 0, 18)
+	ToggleBindButton.Position = UDim2.new(0, 18, 0, 120)
 	ToggleBindButton.BackgroundTransparency = 1
 	ToggleBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleBindButton.Font = Enum.Font.Gotham
-	ToggleBindButton.TextSize = 15
+	ToggleBindButton.TextSize = 13
 	ToggleBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	ToggleBindButton.AutoButtonColor = false
 	ToggleBindButton.Parent = MainFrame
 	noTextStroke(ToggleBindButton)
+	setTargetTransparency(ToggleBindButton, 1, 0)
 
 	BeastSlowBindButton = Instance.new("TextButton")
-	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 22)
-	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 156)
+	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 18)
+	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 142)
 	BeastSlowBindButton.BackgroundTransparency = 1
 	BeastSlowBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	BeastSlowBindButton.Font = Enum.Font.Gotham
-	BeastSlowBindButton.TextSize = 15
+	BeastSlowBindButton.TextSize = 13
 	BeastSlowBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	BeastSlowBindButton.AutoButtonColor = false
 	BeastSlowBindButton.Parent = MainFrame
 	noTextStroke(BeastSlowBindButton)
+	setTargetTransparency(BeastSlowBindButton, 1, 0)
 
 	local footer = Instance.new("TextLabel")
-	footer.Size = UDim2.new(1, -36, 0, 16)
-	footer.Position = UDim2.new(0, 18, 1, -20)
+	footer.Size = UDim2.new(1, -36, 0, 14)
+	footer.Position = UDim2.new(0, 18, 1, -16)
 	footer.BackgroundTransparency = 1
 	footer.Text = "the best ftf wallhop ever - nyhito panel"
 	footer.TextColor3 = Color3.fromRGB(95,95,95)
 	footer.Font = Enum.Font.Gotham
-	footer.TextSize = 11
+	footer.TextSize = 10
 	footer.TextXAlignment = Enum.TextXAlignment.Left
 	footer.Parent = MainFrame
 	noTextStroke(footer)
+	setTargetTransparency(footer, 1, 0)
 
 	MiniButton = Instance.new("TextButton")
 	MiniButton.Size = UDim2.new(0, 150, 0, 42)
@@ -815,7 +878,8 @@ local function buildPCGui()
 	MiniButton.Parent = ScreenGui
 	Instance.new("UICorner", MiniButton).CornerRadius = UDim.new(1, 0)
 	noTextStroke(MiniButton)
-	addTrueRoundedShadow(MiniButton, 999, 1.05, Color3.fromRGB(0, 0, 0))
+	addTrueRoundedShadow(MiniButton, 999, 1.1, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MiniButton, 0, 0)
 
 	Notice = Instance.new("TextLabel")
 	Notice.Size = UDim2.new(0, 200, 0, 26)
@@ -831,6 +895,7 @@ local function buildPCGui()
 	Notice.Parent = ScreenGui
 	Instance.new("UICorner", Notice).CornerRadius = UDim.new(0, 10)
 	noTextStroke(Notice)
+	setTargetTransparency(Notice, 0.08, 0)
 
 	NoticeStroke = Instance.new("UIStroke")
 	NoticeStroke.Color = Color3.fromRGB(255,255,255)
