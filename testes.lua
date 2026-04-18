@@ -636,4 +636,4 @@ SlowButton.MouseButton1Click:Connect(function()
 	SlowButton.Text = isSlowEnabled and "Slow On" or "Slow Off"
 end)
 
-print("Made by netzwiiiiii | HHHHumanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwiiiiii | HHHHumanoid Wallhop - Loaded SSuccessfully ✅")
