@@ -314,17 +314,7 @@ local function hasValidHorizontalEdge(rayResult, params)
 			and probe.Instance.CanCollide
 	end
 
-	-- continua sendo BORDA:
-	-- no ponto central precisa haver quebra local
-	local centerOrigin = hitPos + surfaceOffset
-	local centerProbe = workspace:Raycast(centerOrigin, -normal * 0.22, params)
-	local hasCenterBreak = (not centerProbe) or (centerProbe.Instance ~= wallInstance)
-
-	if not hasCenterBreak then
-		return false
-	end
-
-	-- além disso, precisa ter parede acima e abaixo da borda
+	-- precisa ter parede acima e abaixo
 	local hasAbove = touchesSameWall(0.9) or touchesSameWall(1.25)
 	local hasBelow = touchesSameWall(-0.9) or touchesSameWall(-1.25)
 
@@ -332,7 +322,24 @@ local function hasValidHorizontalEdge(rayResult, params)
 		return false
 	end
 
-	return true
+	-- mantém a lógica de BORDA do script original:
+	-- precisa existir alguma descontinuidade vertical local
+	local verticalChecks = {
+		0.22, -0.22,
+		0.45, -0.45,
+		0.7,  -0.7,
+	}
+
+	for _, yOffset in ipairs(verticalChecks) do
+		local origin = hitPos + Vector3.new(0, yOffset, 0) + surfaceOffset
+		local probe = workspace:Raycast(origin, -normal * 0.22, params)
+
+		if not probe or not probe.Instance or probe.Instance ~= wallInstance then
+			return true
+		end
+	end
+
+	return false
 end
 
 local function findValidWall(hrp, params, directions)
@@ -470,4 +477,4 @@ TextButton.MouseButton1Click:Connect(function()
 	TextButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 end)
 
-print("Made by netzwii | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made by netzwiiiiii | Humanoid Wallhop - Loaded Successfully ✅")
