@@ -716,4 +716,4 @@ SlowButton.MouseButton1Click:Connect(function()
 	end
 end)
 
-print("Made by netzwwii | Humanoid Wallhop - Loaded Successfully ✅)
+print("Made by netzwiiiiii | Humanoid Wallhop - Loaded Successfully ✅ | "..SCRIPT_VERSION)
