@@ -11,7 +11,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
 -- kill previous gui / previous session
-local SCRIPT_VERSION = "external-slow-v3-fix-highwalls"
+local SCRIPT_VERSION = "external-slow-v3-fix-highwalls-supportfix1"
 
 _G.__NWT_WALLHOP_SESSION = (_G.__NWT_WALLHOP_SESSION or 0) + 1
 local THIS_SESSION = _G.__NWT_WALLHOP_SESSION
@@ -480,34 +480,30 @@ local function hasSupportBelowEdge(rayResult, params)
 		tangent = tangent.Unit
 	end
 
-	local checkCenter = hitPos - Vector3.new(0, 0.65, 0) - normal * 0.18
-	local checkSize = Vector3.new(0.8, 0.9, 0.7)
-
-	local overlapParams = OverlapParams.new()
-	overlapParams.FilterType = Enum.RaycastFilterType.Exclude
-	overlapParams.FilterDescendantsInstances = {LocalPlayer.Character}
-
-	local parts = workspace:GetPartBoundsInBox(CFrame.new(checkCenter), checkSize, overlapParams)
-
-	for _, part in ipairs(parts) do
-		if part and part.CanCollide and part ~= wall and not isPlayerCharacter(part) and part.Transparency < 1 then
-			return true
-		end
-	end
-
-	local sameWallHits = 0
+	local totalHits = 0
+	local deepHits = 0
+	local centerDeepHits = 0
 
 	for _, sx in ipairs({-0.22, 0, 0.22}) do
-		for _, y in ipairs({-0.28, -0.48, -0.72}) do
+		for _, y in ipairs({-0.20, -0.42, -0.68, -0.94}) do
 			local origin = hitPos + tangent * sx + Vector3.new(0, y, 0) + normal * 0.38
 			local probe = workspace:Raycast(origin, -normal * 1.0, params)
+
 			if probe and probe.Instance == wall then
-				sameWallHits += 1
+				totalHits += 1
+
+				if y <= -0.42 then
+					deepHits += 1
+				end
+
+				if math.abs(sx) <= 0.05 and y <= -0.68 then
+					centerDeepHits += 1
+				end
 			end
 		end
 	end
 
-	return sameWallHits >= 2
+	return totalHits >= 4 and deepHits >= 2 and centerDeepHits >= 1
 end
 
 local function hasValidHorizontalEdge(rayResult, params)
@@ -732,4 +728,4 @@ SlowButton.MouseButton1Click:Connect(function()
 	end
 end)
 
-print("Made by netzwiiiiiiii | Humanoid Wallhop - Loaded Successfully ✅ | "..SCRIPT_VERSION)
+print("Made by netzwiiiiii | Humanoid Wallhop - Loaded Successfully ✅ | "..SCRIPT_VERSION)
