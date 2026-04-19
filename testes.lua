@@ -367,9 +367,10 @@ local function showNotice(text)
 		end)
 	end)
 end
-local function bindSimpleTap(button, callback)
+local function bindRowPress(button, callback)
 	local activeInput = nil
-	local beganInside = false
+	local pressBegan = false
+	local lastTap = 0
 
 	button.Active = true
 	button.Selectable = false
@@ -377,16 +378,32 @@ local function bindSimpleTap(button, callback)
 	button.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 			activeInput = input
-			beganInside = true
+			pressBegan = true
 		end
 	end)
 
 	button.InputEnded:Connect(function(input)
-		if input == activeInput and beganInside then
+		if input == activeInput and pressBegan then
 			activeInput = nil
-			beganInside = false
+			pressBegan = false
+
+			local now = tick()
+			if now - lastTap < 0.08 then
+				return
+			end
+			lastTap = now
+
 			callback()
 		end
+	end)
+
+	button.MouseButton1Click:Connect(function()
+		local now = tick()
+		if now - lastTap < 0.08 then
+			return
+		end
+		lastTap = now
+		callback()
 	end)
 end
 
@@ -424,15 +441,19 @@ local function updateSwitchVisual(switchFrame, knob, enabled)
 end
 
 local function createSwitchRow(parent, yOffset, labelText)
-	local rowFrame = Instance.new("Frame")
-	rowFrame.Size = UDim2.new(1, -14, 0, 40)
-	rowFrame.Position = UDim2.new(0, 7, 0, yOffset)
-	rowFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	rowFrame.BorderSizePixel = 0
-	rowFrame.Parent = parent
-	rowFrame.ZIndex = 2
-	Instance.new("UICorner", rowFrame).CornerRadius = UDim.new(0, 12)
-	setTargetTransparency(rowFrame, 0, nil)
+	local row = Instance.new("TextButton")
+	row.Size = UDim2.new(1, -14, 0, 40)
+	row.Position = UDim2.new(0, 7, 0, yOffset)
+	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	row.AutoButtonColor = false
+	row.Text = ""
+	row.BorderSizePixel = 0
+	row.Parent = parent
+	row.ZIndex = 5
+	row.Active = true
+	row.Selectable = false
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+	setTargetTransparency(row, 0, 1)
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
@@ -444,8 +465,8 @@ local function createSwitchRow(parent, yOffset, labelText)
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 13
 	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Parent = rowFrame
-	label.ZIndex = 3
+	label.Parent = row
+	label.ZIndex = 6
 	label.Active = false
 	noTextStroke(label)
 	setTargetTransparency(label, 1, 0)
@@ -455,8 +476,8 @@ local function createSwitchRow(parent, yOffset, labelText)
 	switch.Position = UDim2.new(1, -66, 0.5, -14)
 	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
 	switch.BorderSizePixel = 0
-	switch.Parent = rowFrame
-	switch.ZIndex = 3
+	switch.Parent = row
+	switch.ZIndex = 6
 	switch.Active = false
 	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(switch, 0, nil)
@@ -467,26 +488,12 @@ local function createSwitchRow(parent, yOffset, labelText)
 	knob.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	knob.BorderSizePixel = 0
 	knob.Parent = switch
-	knob.ZIndex = 4
+	knob.ZIndex = 7
 	knob.Active = false
 	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(knob, 0, nil)
 
-	local hitbox = Instance.new("TextButton")
-	hitbox.Name = "Hitbox"
-	hitbox.Size = rowFrame.Size
-	hitbox.Position = rowFrame.Position
-	hitbox.BackgroundTransparency = 1
-	hitbox.Text = ""
-	hitbox.AutoButtonColor = false
-	hitbox.BorderSizePixel = 0
-	hitbox.Parent = parent
-	hitbox.ZIndex = 20
-	hitbox.Active = true
-	hitbox.Selectable = false
-	setTargetTransparency(hitbox, 1, 1)
-
-	return rowFrame, hitbox, switch, knob
+	return row, switch, knob
 end
 
 local function updateToggleButton()
@@ -565,7 +572,6 @@ local function setGuiVisible(state)
 	applyVisibility()
 	showNotice(state and "GUI shown" or "GUI hidden")
 end
-
 local function createModeSelector(onPick)
 	local selectorGui = Instance.new("ScreenGui")
 	selectorGui.Name = "WallhopModeSelector"
@@ -650,6 +656,7 @@ local function createModeSelector(onPick)
 		end)
 	end)
 end
+
 local function clearOldDragConnections()
 	for _, c in ipairs(dragConnections) do
 		if c and c.Disconnect then
@@ -766,16 +773,8 @@ local function buildMobileGui()
 	Instance.new("UICorner", mobileDragHandle).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(mobileDragHandle, 0, nil)
 
-	local MobileBeastSlowVisual
-	local MobileHideGuiVisual
-	local MobileBeastSlowHitbox
-	local MobileHideGuiHitbox
-
-	MobileBeastSlowVisual, MobileBeastSlowHitbox, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobilePanel, 22, "Beast Slow")
-	MobileHideGuiVisual, MobileHideGuiHitbox, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobilePanel, 62, "Hide GUI")
-
-	MobileBeastSlowRow = MobileBeastSlowVisual
-	MobileHideGuiRow = MobileHideGuiVisual
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobilePanel, 22, "Beast Slow")
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobilePanel, 62, "Hide GUI")
 
 	local function placeMobileButtonDefault()
 		local inset = GuiService:GetGuiInset()
@@ -845,11 +844,11 @@ local function buildMobileGui()
 		end
 	end)
 
-	bindSimpleTap(MobileBeastSlowHitbox, function()
+	bindRowPress(MobileBeastSlowRow, function()
 		setSlowEnabled(not isSlowEnabled)
 	end)
 
-	bindSimpleTap(MobileHideGuiHitbox, function()
+	bindRowPress(MobileHideGuiRow, function()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
 	end)
 
@@ -1666,4 +1665,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Made by nyhito | Humanoid Wallhop - Loaded Successfully ✅")
+print("Made bbbby nyhito | Humanoid Wallhop - Loaded Successfully ✅")
