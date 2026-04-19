@@ -50,6 +50,7 @@ local mobileBeastSlowSwitch
 local mobileBeastSlowKnob
 local mobileHideGuiSwitch
 local mobileHideGuiKnob
+local mobileDragHandle
 
 local dragConnections = {}
 local shadowRegistry = {}
@@ -397,6 +398,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	label.TextSize = 13
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = row
+	label.Active = false
 	noTextStroke(label)
 	setTargetTransparency(label, 1, 0)
 
@@ -406,6 +408,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
+	switch.Active = false
 	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(switch, 0, nil)
 
@@ -415,6 +418,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	knob.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	knob.BorderSizePixel = 0
 	knob.Parent = switch
+	knob.Active = false
 	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(knob, 0, nil)
 
@@ -594,14 +598,12 @@ local function bindFreeDrag(handle, target, onMove)
 	local activeInput = nil
 	local dragStart = nil
 	local startPos = nil
-	local didDrag = false
 
 	table.insert(dragConnections, handle.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 			activeInput = input
 			dragStart = input.Position
 			startPos = target.Position
-			didDrag = false
 		end
 	end))
 
@@ -610,7 +612,6 @@ local function bindFreeDrag(handle, target, onMove)
 			local delta = input.Position - dragStart
 
 			if delta.Magnitude >= 6 then
-				didDrag = true
 				handle:SetAttribute("LastDragTime", tick())
 			end
 
@@ -632,7 +633,6 @@ local function bindFreeDrag(handle, target, onMove)
 			activeInput = nil
 			dragStart = nil
 			startPos = nil
-			didDrag = false
 		end
 	end))
 end
@@ -644,7 +644,6 @@ local function canUseMobileTap(obj)
 	end
 	return true
 end
-
 local function buildMobileGui()
 	clearOldDragConnections()
 
@@ -682,7 +681,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 170, 0, 94)
+	MobilePanel.Size = UDim2.new(0, 170, 0, 108)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -691,8 +690,19 @@ local function buildMobileGui()
 	addTrueRoundedShadow(MobilePanel, 14, 1.15, Color3.fromRGB(0, 0, 0))
 	setTargetTransparency(MobilePanel, 0, nil)
 
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobilePanel, 7, "Beast Slow")
-	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobilePanel, 47, "Hide GUI")
+	mobileDragHandle = Instance.new("Frame")
+	mobileDragHandle.Size = UDim2.new(1, -14, 0, 14)
+	mobileDragHandle.Position = UDim2.new(0, 7, 0, 5)
+	mobileDragHandle.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+	mobileDragHandle.BorderSizePixel = 0
+	mobileDragHandle.Parent = MobilePanel
+	mobileDragHandle.Active = true
+	Instance.new("UICorner", mobileDragHandle).CornerRadius = UDim.new(1, 0)
+	setTargetTransparency(mobileDragHandle, 0, nil)
+
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobilePanel, 22, "Beast Slow")
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobilePanel, 62, "Hide GUI")
+
 	local function placeMobileButtonDefault()
 		local inset = GuiService:GetGuiInset()
 		if not MobileButton:GetAttribute("CustomMoved") then
@@ -726,6 +736,9 @@ local function buildMobileGui()
 	end)
 
 	bindFreeDrag(MobileMenuButton, MobileMenuButton)
+	bindFreeDrag(mobileDragHandle, MobilePanel, function()
+		MobilePanel:SetAttribute("CustomMoved", true)
+	end)
 
 	MobileButton.Activated:Connect(function()
 		if not canUseMobileTap(MobileButton) then return end
@@ -744,9 +757,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 164, 0, 90)
+			MobilePanel.Size = UDim2.new(0, 164, 0, 102)
 
-			elegantShow(MobilePanel, UDim2.new(0, 170, 0, 94), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 170, 0, 108), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -836,7 +849,6 @@ local function setMinimized(state)
 		showNotice("GUI restored")
 	end
 end
-
 local function buildPCGui()
 	clearOldDragConnections()
 
@@ -1042,6 +1054,7 @@ local function buildPCGui()
 	elegantShow(MainFrame, UDim2.new(0, 315, 0, 190), MainFrame.Position, 0)
 	showNotice("PC version loaded")
 end
+
 local function clearScriptSlowInstant()
 	slowToken += 1
 	scriptSlowActive = false
@@ -1091,6 +1104,10 @@ local function isCrouching(hum, hrp)
 		return false
 	end
 
+	if scriptSlowActive then
+		return false
+	end
+
 	local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
 	return hum.WalkSpeed <= 9 and horizontalSpeed < 8
 end
@@ -1128,7 +1145,6 @@ local function setupCharacter(char)
 		if new == Enum.HumanoidStateType.Landed then
 			canDoubleJump = false
 			lastHitPosition = nil
-
 			airborneSource = nil
 			airborneStartY = nil
 			airborneStartTime = 0
@@ -1361,11 +1377,7 @@ local function hasValidHorizontalEdge(rayResult, params)
 		end
 	end
 
-	if not foundHorizontalEdge then
-		return false
-	end
-
-	return true
+	return foundHorizontalEdge
 end
 
 local function findValidWall(hrp, params, directions)
@@ -1579,4 +1591,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Made by nyhito | Humanoiiiid Wallhop - Loaded Successfully ✅")
+print("Made by nyhito | Humanoid Wallhop - Loaded Successfully ✅")
