@@ -1319,7 +1319,7 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 local function pickNextFlick()
-	local minAngle, maxAngle = 35, 50
+	local minAngle, maxAngle = 45, 70
 	local attempt = 0
 	local angle
 
