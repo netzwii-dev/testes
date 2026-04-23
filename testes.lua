@@ -1497,55 +1497,33 @@ local function hasValidHorizontalEdge(rayResult, params)
 	end
 	tangent = tangent.Unit
 
-	local function hasFaceAt(yOffsets)
-		for _, sx in ipairs({-0.24, 0, 0.24}) do
-			for _, y in ipairs(yOffsets) do
-				local origin = hitPos + tangent * sx + Vector3.new(0, y, 0) + normal * 0.10
-				local probe = workspace:Raycast(origin, -normal * 0.26, params)
+	local function samePartAt(localOffset)
+		local origin = hitPos + localOffset + normal * 0.10
+		local probe = workspace:Raycast(origin, -normal * 0.26, params)
+		return probe and probe.Instance == target
+	end
 
-				if probe and probe.Instance == target then
-					return true
-				end
-			end
-		end
+	local hasAbove =
+		samePartAt(Vector3.new(0, 0.16, 0)) or
+		samePartAt(Vector3.new(0, 0.30, 0))
+
+	local hasBelow =
+		samePartAt(Vector3.new(0, -0.16, 0)) or
+		samePartAt(Vector3.new(0, -0.34, 0))
+
+	if not (hasAbove and hasBelow) then
 		return false
 	end
 
-	local hasAbove = hasFaceAt({0.16, 0.30})
-	local hasBelow = hasFaceAt({-0.16, -0.34})
+	local leftAbove = samePartAt(tangent * -0.22 + Vector3.new(0, 0.16, 0))
+	local leftBelow = samePartAt(tangent * -0.22 + Vector3.new(0, -0.16, 0))
+	local rightAbove = samePartAt(tangent * 0.22 + Vector3.new(0, 0.16, 0))
+	local rightBelow = samePartAt(tangent * 0.22 + Vector3.new(0, -0.16, 0))
 
-	return hasAbove and hasBelow
-end
+	local leftSideValid = leftAbove and leftBelow
+	local rightSideValid = rightAbove and rightBelow
 
-local function hasSupportBelowEdge(rayResult, params)
-	if not rayResult or not rayResult.Instance then
-		return false
-	end
-
-	local hitPos = rayResult.Position
-	local normal = rayResult.Normal.Unit
-	local target = rayResult.Instance
-
-	local tangent = normal:Cross(Vector3.new(0, 1, 0))
-	if tangent.Magnitude < 0.01 then
-		return false
-	end
-	tangent = tangent.Unit
-
-	local deepHits = 0
-
-	for _, sx in ipairs({-0.28, 0, 0.28}) do
-		for _, y in ipairs({-0.18, -0.42, -0.72, -1.05}) do
-			local origin = hitPos + tangent * sx + Vector3.new(0, y, 0) + normal * 0.10
-			local probe = workspace:Raycast(origin, -normal * 0.26, params)
-
-			if probe and probe.Instance == target and y <= -0.42 then
-				deepHits += 1
-			end
-		end
-	end
-
-	return deepHits >= 2
+	return leftSideValid or rightSideValid
 end
 
 local function findValidWall(hrp, params, directions)
@@ -1561,9 +1539,7 @@ local function findValidWall(hrp, params, directions)
 			local ray = workspace:Raycast(origin, dir, params)
 
 			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-				if isWallLikeSurface(ray.Normal)
-					and hasValidHorizontalEdge(ray, params)
-					and hasSupportBelowEdge(ray, params) then
+				if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
 					return ray
 				end
 			end
@@ -1761,4 +1737,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best FFFlee The Facility Wallhop Script | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility Wallhop Script | Made by Nyhito - Loaded Successfully ✅")
