@@ -1337,45 +1337,30 @@ local function getFlickProfile()
 
 	if flickRoll < 0.10 then
 		return {
-			goSteps = math.random(2, 3),
-			goDelayMin = 0.0070,
-			goDelayMax = 0.0083,
-			holdMin = 0.008,
-			holdMax = 0.012,
-			returnSteps = math.random(4, 5),
-			returnDelayMin = 0.0070,
-			returnDelayMax = 0.0083,
+			steps = math.random(2, 3),
+			delayMin = 0.0080,
+			delayMax = 0.0103,
 			overshootMin = 12,
 			overshootMax = 18,
-			overshootBaseDelay = 0.0068
+			baseDelay = 0.0068
 		}
 	elseif flickRoll < 0.40 then
 		return {
-			goSteps = math.random(3, 5),
-			goDelayMin = 0.0085,
-			goDelayMax = 0.0092,
-			holdMin = 0.009,
-			holdMax = 0.014,
-			returnSteps = math.random(4, 5),
-			returnDelayMin = 0.0085,
-			returnDelayMax = 0.0092,
+			steps = math.random(3, 4),
+			delayMin = 0.0085,
+			delayMax = 0.0110,
 			overshootMin = 14,
 			overshootMax = 20,
-			overshootBaseDelay = 0.0075
+			baseDelay = 0.0075
 		}
 	else
 		return {
-			goSteps = math.random(3, 5),
-			goDelayMin = 0.0087,
-			goDelayMax = 0.0098,
-			holdMin = 0.010,
-			holdMax = 0.016,
-			returnSteps = math.random(4, 5),
-			returnDelayMin = 0.0087,
-			returnDelayMax = 0.0098,
+			steps = math.random(2, 3),
+			delayMin = 0.0090,
+			delayMax = 0.0119,
 			overshootMin = 16,
 			overshootMax = 22,
-			overshootBaseDelay = 0.0085
+			baseDelay = 0.0085
 		}
 	end
 end
@@ -1403,41 +1388,35 @@ local function performVideoFlick()
 	local angle = -pickNextFlick()
 	local profile = getFlickProfile()
 
-	local goSteps = profile.goSteps
-	local goDelayMin = profile.goDelayMin
-	local goDelayMax = profile.goDelayMax
-
-	local holdTime = profile.holdMin + math.random() * (profile.holdMax - profile.holdMin)
-
-	local returnSteps = profile.returnSteps
-	local returnDelayMin = profile.returnDelayMin
-	local returnDelayMax = profile.returnDelayMax
-
+	local steps = profile.steps
+	local delayMin = profile.delayMin
+	local delayMax = profile.delayMax
+	local holdTime = 0.01
 	local overshoot = math.rad(math.random(profile.overshootMin, profile.overshootMax))
-	local overshootBaseDelay = profile.overshootBaseDelay
-	local useOvershoot = math.random() < 0.30
+	local baseDelay = profile.baseDelay
+	local useOvershoot = math.random() < 0.40
 
 	-- IDA
-	for i = 1, goSteps do
-		local alpha = i / goSteps
+	for i = 1, steps do
+		local alpha = i / steps
 		local offset = angle * alpha
 		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
 
 		RunService.RenderStepped:Wait()
-		task.wait(goDelayMin + math.random() * (goDelayMax - goDelayMin))
+		task.wait(delayMin + math.random() * (delayMax - delayMin))
 	end
 
-	-- SEGURA NO ÂNGULO
+	-- SEGURADINHA
 	task.wait(holdTime)
 
 	-- VOLTA
-	for i = 1, returnSteps do
-		local alpha = i / returnSteps
+	for i = 1, steps do
+		local alpha = i / steps
 		local offset = angle * (1 - alpha)
 		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
 
 		RunService.RenderStepped:Wait()
-		task.wait(returnDelayMin + math.random() * (returnDelayMax - returnDelayMin))
+		task.wait(delayMin + math.random() * (delayMax - delayMin))
 	end
 
 	if useOvershoot then
@@ -1447,7 +1426,7 @@ local function performVideoFlick()
 			end
 
 			local smallSteps = math.random(2, 3)
-			local localDelay = overshootBaseDelay * (math.random(80, 92) / 100)
+			local localDelay = baseDelay * (math.random(80, 92) / 100)
 
 			for i = 1, smallSteps do
 				local alpha = i / smallSteps
@@ -1506,34 +1485,67 @@ local function hasValidHorizontalEdge(rayResult, params)
 
 	local hitPos = rayResult.Position
 	local normal = rayResult.Normal.Unit
+	local target = rayResult.Instance
 
-	local right = normal:Cross(Vector3.new(0, 1, 0))
-	if right.Magnitude < 0.01 then
+	if math.abs(normal.Y) >= 0.35 then
 		return false
 	end
-	right = right.Unit
 
-	local surfaceOffset = normal * 0.08
+	local tangent = normal:Cross(Vector3.new(0, 1, 0))
+	if tangent.Magnitude < 0.01 then
+		return false
+	end
+	tangent = tangent.Unit
 
-	local verticalChecks = {
-		Vector3.new(0, 0.9, 0),
-		Vector3.new(0, -0.9, 0),
-		Vector3.new(0, 1.25, 0),
-		Vector3.new(0, -1.25, 0),
-	}
+	local function hasFaceAt(yOffsets)
+		for _, sx in ipairs({-0.24, 0, 0.24}) do
+			for _, y in ipairs(yOffsets) do
+				local origin = hitPos + tangent * sx + Vector3.new(0, y, 0) + normal * 0.10
+				local probe = workspace:Raycast(origin, -normal * 0.26, params)
 
-	local foundHorizontalEdge = false
-	for _, vOffset in ipairs(verticalChecks) do
-		local origin = hitPos + vOffset + surfaceOffset
-		local probe = workspace:Raycast(origin, -normal * 0.22, params)
+				if probe and probe.Instance == target then
+					return true
+				end
+			end
+		end
+		return false
+	end
 
-		if not probe or not probe.Instance or probe.Instance ~= rayResult.Instance then
-			foundHorizontalEdge = true
-			break
+	local hasAbove = hasFaceAt({0.16, 0.30})
+	local hasBelow = hasFaceAt({-0.16, -0.34})
+
+	return hasAbove and hasBelow
+end
+
+local function hasSupportBelowEdge(rayResult, params)
+	if not rayResult or not rayResult.Instance then
+		return false
+	end
+
+	local hitPos = rayResult.Position
+	local normal = rayResult.Normal.Unit
+	local target = rayResult.Instance
+
+	local tangent = normal:Cross(Vector3.new(0, 1, 0))
+	if tangent.Magnitude < 0.01 then
+		return false
+	end
+	tangent = tangent.Unit
+
+	local deepHits = 0
+
+	for _, sx in ipairs({-0.28, 0, 0.28}) do
+		for _, y in ipairs({-0.18, -0.42, -0.72, -1.05}) do
+			local origin = hitPos + tangent * sx + Vector3.new(0, y, 0) + normal * 0.10
+			local probe = workspace:Raycast(origin, -normal * 0.26, params)
+
+			if probe and probe.Instance == target and y <= -0.42 then
+				deepHits += 1
+			end
 		end
 	end
 
-	return foundHorizontalEdge
+	return deepHits >= 2
 end
 
 local function findValidWall(hrp, params, directions)
@@ -1549,7 +1561,9 @@ local function findValidWall(hrp, params, directions)
 			local ray = workspace:Raycast(origin, dir, params)
 
 			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-				if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
+				if isWallLikeSurface(ray.Normal)
+					and hasValidHorizontalEdge(ray, params)
+					and hasSupportBelowEdge(ray, params) then
 					return ray
 				end
 			end
@@ -1747,4 +1761,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Besttt Flee The Facility Wallhop Script | Made by Nyhito - Loaded Successfully ✅")
+print("Best FFFlee The Facility Wallhop Script | Made by Nyhito - Loaded Successfully ✅")
