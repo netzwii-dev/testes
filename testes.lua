@@ -1,12 +1,13 @@
--- (Auto Wallhop - Made by nyhito)
+-- (Made by nyhito)
 -- All Credits: nyhito (tester, config and uploader)
--- The Best Wallhop Script
+-- The Best
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -97,6 +98,81 @@ local FIRST_FLICK_RESET_GROUND_TIME = 3
 local lastLandedTime = 0
 local hasWallhoppedSinceLanding = false
 local specialFirstFlickArmed = false
+
+local CONFIG_FILE_NAME = "nyhito_ftf_wallhop_pc_keybinds.json"
+
+local function keyCodeFromName(name)
+	if typeof(name) ~= "string" then
+		return nil
+	end
+
+	local ok, value = pcall(function()
+		return Enum.KeyCode[name]
+	end)
+
+	if ok then
+		return value
+	end
+
+	return nil
+end
+
+local function canUseFileAPI()
+	return typeof(writefile) == "function"
+		and typeof(readfile) == "function"
+		and typeof(isfile) == "function"
+end
+
+local function savePCKeybinds()
+	if not canUseFileAPI() then
+		return
+	end
+
+	local payload = {
+		hideGuiKey = hideGuiKey.Name,
+		toggleScriptKey = toggleScriptKey.Name,
+		toggleBeastSlowKey = toggleBeastSlowKey.Name
+	}
+
+	pcall(function()
+		writefile(CONFIG_FILE_NAME, HttpService:JSONEncode(payload))
+	end)
+end
+
+local function loadPCKeybinds()
+	if not canUseFileAPI() then
+		return
+	end
+
+	if not isfile(CONFIG_FILE_NAME) then
+		return
+	end
+
+	local ok, decoded = pcall(function()
+		local raw = readfile(CONFIG_FILE_NAME)
+		return HttpService:JSONDecode(raw)
+	end)
+
+	if not ok or typeof(decoded) ~= "table" then
+		return
+	end
+
+	local loadedHide = keyCodeFromName(decoded.hideGuiKey)
+	local loadedToggle = keyCodeFromName(decoded.toggleScriptKey)
+	local loadedSlow = keyCodeFromName(decoded.toggleBeastSlowKey)
+
+	if loadedHide then
+		hideGuiKey = loadedHide
+	end
+	if loadedToggle then
+		toggleScriptKey = loadedToggle
+	end
+	if loadedSlow then
+		toggleBeastSlowKey = loadedSlow
+	end
+end
+
+loadPCKeybinds()
 
 local function destroyOld()
 	for _, name in ipairs({
@@ -544,6 +620,7 @@ updateMobilePanelButtons = function()
 	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, mobileWallhopGuiHidden)
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
 end
+
 local function updateBindButtons()
 	if selectedMode ~= "PC" then
 		return
@@ -590,7 +667,6 @@ local function setGuiVisible(state)
 	applyVisibility()
 	showNotice(state and "GUI shown" or "GUI hidden")
 end
-
 local function createModeSelector(onPick)
 	local selectorGui = Instance.new("ScreenGui")
 	selectorGui.Name = "WallhopModeSelector"
@@ -982,6 +1058,7 @@ local function setMinimized(state)
 		showNotice("GUI restored")
 	end
 end
+
 local function buildPCGui()
 	clearOldDragConnections()
 
@@ -1185,9 +1262,8 @@ local function buildPCGui()
 
 	updateBindButtons()
 	elegantShow(MainFrame, UDim2.new(0, 315, 0, 190), MainFrame.Position, 0)
-	showNotice("PC version loaded")
+	showNotice(canUseFileAPI() and "PC version loaded" or "PC version loaded (no file save)")
 end
-
 clearScriptSlowInstant = function()
 	slowToken += 1
 	scriptSlowActive = false
@@ -1331,9 +1407,9 @@ local function pickNextFlick(useSpecialFirst)
 	local minAngle, maxAngle
 
 	if useSpecialFirst then
-		minAngle, maxAngle = 70, 80
+		minAngle, maxAngle = 65, 80
 	else
-		minAngle, maxAngle = 55, 80
+		minAngle, maxAngle = 65, 80
 	end
 
 	local attempt = 0
@@ -1358,8 +1434,8 @@ local function getFlickProfile(useSpecialFirst)
 			returnSteps = math.random(2, 3),
 			returnDelayMin = 0.0095,
 			returnDelayMax = 0.0120,
-			overshootMin = 22,
-			overshootMax = 25,
+			overshootMin = 27,
+			overshootMax = 30,
 			overshootBaseDelay = 0.0085
 		}
 	end
@@ -1375,8 +1451,8 @@ local function getFlickProfile(useSpecialFirst)
 			returnSteps = math.random(2, 3),
 			returnDelayMin = 0.0080,
 			returnDelayMax = 0.0103,
-			overshootMin = 12,
-			overshootMax = 18,
+			overshootMin = 17,
+			overshootMax = 23,
 			overshootBaseDelay = 0.0068
 		}
 	elseif flickRoll < 0.40 then
@@ -1388,8 +1464,8 @@ local function getFlickProfile(useSpecialFirst)
 			returnSteps = math.random(3, 4),
 			returnDelayMin = 0.0085,
 			returnDelayMax = 0.0110,
-			overshootMin = 14,
-			overshootMax = 20,
+			overshootMin = 19,
+			overshootMax = 25,
 			overshootBaseDelay = 0.0075
 		}
 	else
@@ -1401,11 +1477,28 @@ local function getFlickProfile(useSpecialFirst)
 			returnSteps = math.random(2, 3),
 			returnDelayMin = 0.0090,
 			returnDelayMax = 0.0119,
-			overshootMin = 16,
-			overshootMax = 22,
+			overshootMin = 21,
+			overshootMax = 27,
 			overshootBaseDelay = 0.0085
 		}
 	end
+end
+
+local function forceCharacterYaw(char, hrp, yaw)
+	if not char or not hrp or not char.Parent or not hrp.Parent then
+		return
+	end
+
+	local pos = hrp.Position
+	local cf = CFrame.new(pos) * CFrame.Angles(0, yaw, 0)
+
+	hrp.CFrame = cf
+
+	pcall(function()
+		char:PivotTo(cf)
+	end)
+
+	hrp.AssemblyAngularVelocity = Vector3.zero
 end
 
 local function performVideoFlick()
@@ -1434,7 +1527,10 @@ local function performVideoFlick()
 
 	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
-	local baseYaw = hrp.Orientation.Y
+	local oldAutoRotate = hum.AutoRotate
+	hum.AutoRotate = false
+
+	local baseYaw = math.rad(hrp.Orientation.Y)
 	local angle = -pickNextFlick(useSpecialFirst)
 	local profile = getFlickProfile(useSpecialFirst)
 
@@ -1453,10 +1549,10 @@ local function performVideoFlick()
 	for i = 1, goSteps do
 		local alpha = i / goSteps
 		local offset = angle * alpha
-		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+		forceCharacterYaw(char, hrp, baseYaw + offset)
 
 		if i < goSteps then
-			RunService.RenderStepped:Wait()
+			RunService.Heartbeat:Wait()
 			task.wait(goDelayMin + math.random() * (goDelayMax - goDelayMin))
 		end
 	end
@@ -1466,28 +1562,30 @@ local function performVideoFlick()
 	for i = 1, returnSteps do
 		local alpha = i / returnSteps
 		local offset = angle * (1 - alpha)
-		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+		forceCharacterYaw(char, hrp, baseYaw + offset)
 
 		if i < returnSteps then
-			RunService.RenderStepped:Wait()
+			RunService.Heartbeat:Wait()
 			task.wait(returnDelayMin + math.random() * (returnDelayMax - returnDelayMin))
 		end
 	end
 
 	if useOvershoot then
 		task.delay(0.018, function()
-			if not hrp or not hrp.Parent then
+			if not hrp or not hrp.Parent or not char or not char.Parent then
 				return
 			end
 
 			local smallSteps = math.random(2, 3)
 			local localDelay = overshootBaseDelay * (math.random(88, 102) / 100)
+
 			for i = 1, smallSteps do
 				local alpha = i / smallSteps
 				local offset = overshoot * alpha
-				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+				forceCharacterYaw(char, hrp, baseYaw + offset)
+
 				if i < smallSteps then
-					RunService.RenderStepped:Wait()
+					RunService.Heartbeat:Wait()
 					task.wait(localDelay)
 				end
 			end
@@ -1495,18 +1593,19 @@ local function performVideoFlick()
 			for i = 1, smallSteps do
 				local alpha = i / smallSteps
 				local offset = overshoot * (1 - alpha)
-				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+				forceCharacterYaw(char, hrp, baseYaw + offset)
+
 				if i < smallSteps then
-					RunService.RenderStepped:Wait()
+					RunService.Heartbeat:Wait()
 					task.wait(localDelay)
 				end
 			end
 
-			hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+			forceCharacterYaw(char, hrp, baseYaw)
 		end)
 	end
 
-	hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+	forceCharacterYaw(char, hrp, baseYaw)
 
 	if isSlowEnabled then
 		applyWallhopSlow(hum)
@@ -1518,6 +1617,9 @@ local function performVideoFlick()
 
 	task.delay(0.15, function()
 		isWallHopping = false
+		if hum and hum.Parent then
+			hum.AutoRotate = oldAutoRotate
+		end
 	end)
 
 	isFlicking = false
@@ -1615,7 +1717,6 @@ local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
 
 	return frontAngle <= maxAngleDeg or backAngle <= maxAngleDeg
 end
-
 RunService.Heartbeat:Connect(function()
 	if not isWallHopEnabled then
 		return
@@ -1724,6 +1825,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if key ~= toggleScriptKey and key ~= toggleBeastSlowKey then
 				hideGuiKey = key
 				waitingForHideKey = false
+				savePCKeybinds()
 				updateBindButtons()
 				showNotice("Hide GUI key updated")
 			else
@@ -1736,6 +1838,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if key ~= hideGuiKey and key ~= toggleBeastSlowKey then
 				toggleScriptKey = key
 				waitingForToggleKey = false
+				savePCKeybinds()
 				updateBindButtons()
 				showNotice("Wallhop key updated")
 			else
@@ -1748,6 +1851,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if key ~= hideGuiKey and key ~= toggleScriptKey then
 				toggleBeastSlowKey = key
 				waitingForBeastSlowKey = false
+				savePCKeybinds()
 				updateBindButtons()
 				showNotice("Beast Slow key updated")
 			else
@@ -1790,4 +1894,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee HHThe Facility Wallhop Script | Made by Nyhito - Loaded Successfully ✅")	
+print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
