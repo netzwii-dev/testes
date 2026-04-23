@@ -1388,35 +1388,41 @@ local function performVideoFlick()
 	local angle = -pickNextFlick()
 	local profile = getFlickProfile()
 
-	local steps = profile.steps
-	local delayMin = profile.delayMin
-	local delayMax = profile.delayMax
-	local holdTime = 0.01
+	local goSteps = profile.goSteps
+	local goDelayMin = profile.goDelayMin
+	local goDelayMax = profile.goDelayMax
+
+	local holdTime = profile.holdMin + math.random() * (profile.holdMax - profile.holdMin)
+
+	local returnSteps = profile.returnSteps
+	local returnDelayMin = profile.returnDelayMin
+	local returnDelayMax = profile.returnDelayMax
+
 	local overshoot = math.rad(math.random(profile.overshootMin, profile.overshootMax))
-	local baseDelay = profile.baseDelay
-	local useOvershoot = math.random() < 0.40
+	local overshootBaseDelay = profile.overshootBaseDelay
+	local useOvershoot = math.random() < 0.50
 
 	-- IDA
-	for i = 1, steps do
-		local alpha = i / steps
+	for i = 1, goSteps do
+		local alpha = i / goSteps
 		local offset = angle * alpha
 		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
 
 		RunService.RenderStepped:Wait()
-		task.wait(delayMin + math.random() * (delayMax - delayMin))
+		task.wait(goDelayMin + math.random() * (goDelayMax - goDelayMin))
 	end
 
-	-- SEGURADINHA
+	-- SEGURA NO ÂNGULO
 	task.wait(holdTime)
 
 	-- VOLTA
-	for i = 1, steps do
-		local alpha = i / steps
+	for i = 1, returnSteps do
+		local alpha = i / returnSteps
 		local offset = angle * (1 - alpha)
 		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
 
 		RunService.RenderStepped:Wait()
-		task.wait(delayMin + math.random() * (delayMax - delayMin))
+		task.wait(returnDelayMin + math.random() * (returnDelayMax - returnDelayMin))
 	end
 
 	if useOvershoot then
@@ -1426,7 +1432,7 @@ local function performVideoFlick()
 			end
 
 			local smallSteps = math.random(2, 3)
-			local localDelay = baseDelay * (math.random(80, 92) / 100)
+			local localDelay = overshootBaseDelay * (math.random(80, 92) / 100)
 
 			for i = 1, smallSteps do
 				local alpha = i / smallSteps
@@ -1485,62 +1491,34 @@ local function hasValidHorizontalEdge(rayResult, params)
 
 	local hitPos = rayResult.Position
 	local normal = rayResult.Normal.Unit
-	local target = rayResult.Instance
 
-	if math.abs(normal.Y) >= 0.35 then
+	local right = normal:Cross(Vector3.new(0, 1, 0))
+	if right.Magnitude < 0.01 then
 		return false
 	end
+	right = right.Unit
 
-	local tangent = normal:Cross(Vector3.new(0, 1, 0))
-	if tangent.Magnitude < 0.01 then
-		return false
-	end
-	tangent = tangent.Unit
+	local surfaceOffset = normal * 0.08
 
-	local function probeAt(localOffset)
-		local origin = hitPos + localOffset + normal * 0.10
-		local probe = workspace:Raycast(origin, -normal * 0.35, params)
-		if probe and probe.Instance == target then
-			return probe
+	local verticalChecks = {
+		Vector3.new(0, 0.9, 0),
+		Vector3.new(0, -0.9, 0),
+		Vector3.new(0, 1.25, 0),
+		Vector3.new(0, -1.25, 0),
+	}
+
+	local foundHorizontalEdge = false
+	for _, vOffset in ipairs(verticalChecks) do
+		local origin = hitPos + vOffset + surfaceOffset
+		local probe = workspace:Raycast(origin, -normal * 0.22, params)
+
+		if not probe or not probe.Instance or probe.Instance ~= rayResult.Instance then
+			foundHorizontalEdge = true
+			break
 		end
-		return nil
 	end
 
-	local function sideHasRealHorizontalEdge(sideOffset)
-		local aboveNear = probeAt(sideOffset + Vector3.new(0, 0.16, 0))
-		local aboveFar  = probeAt(sideOffset + Vector3.new(0, 0.30, 0))
-		local belowNear = probeAt(sideOffset + Vector3.new(0, -0.16, 0))
-		local belowFar  = probeAt(sideOffset + Vector3.new(0, -0.34, 0))
-
-		local hasAbove = aboveNear or aboveFar
-		local hasBelow = belowNear or belowFar
-
-		if not (hasAbove and hasBelow) then
-			return false
-		end
-
-		local aboveProbe = aboveNear or aboveFar
-		local belowProbe = belowNear or belowFar
-
-		local aboveDepth = (aboveProbe.Position - (hitPos + sideOffset)).Magnitude
-		local belowDepth = (belowProbe.Position - (hitPos + sideOffset)).Magnitude
-
-		local depthDelta = math.abs(aboveDepth - belowDepth)
-
-		return depthDelta >= 0.065
-	end
-
-	if sideHasRealHorizontalEdge(Vector3.new(0, 0, 0)) then
-		return true
-	end
-	if sideHasRealHorizontalEdge(tangent * -0.22) then
-		return true
-	end
-	if sideHasRealHorizontalEdge(tangent * 0.22) then
-		return true
-	end
-
-	return false
+	return foundHorizontalEdge
 end
 
 local function findValidWall(hrp, params, directions)
@@ -1754,4 +1732,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility Wallhop Script | MMMMade by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility Wallhop Script | Made by Nyhito - Loaded Successfully ✅")
