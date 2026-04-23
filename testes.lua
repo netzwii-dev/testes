@@ -1,7 +1,3 @@
--- (Made by nyhito)
--- All Credits: nyhito (tester, config and uploader)
--- The Best
-
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -16,6 +12,8 @@ local Camera = workspace.CurrentCamera
 local DEFAULT_HIDE_GUI_KEY = Enum.KeyCode.RightShift
 local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Q
 local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.E
+
+local SETTINGS_FILE = "nyhito_ftf_wallhop_settings.json"
 
 local selectedMode = nil
 
@@ -99,80 +97,70 @@ local lastLandedTime = 0
 local hasWallhoppedSinceLanding = false
 local specialFirstFlickArmed = false
 
-local CONFIG_FILE_NAME = "nyhito_ftf_wallhop_pc_keybinds.json"
+local function executorSupportsFiles()
+	return writefile and readfile and isfile
+end
 
-local function keyCodeFromName(name)
-	if typeof(name) ~= "string" then
-		return nil
-	end
+local function encodeKeyCode(keyCode)
+	return keyCode and keyCode.Name or nil
+end
 
-	local ok, value = pcall(function()
+local function decodeKeyCode(name, fallback)
+	if typeof(name) == "string" and Enum.KeyCode[name] then
 		return Enum.KeyCode[name]
-	end)
-
-	if ok then
-		return value
 	end
-
-	return nil
+	return fallback
 end
 
-local function canUseFileAPI()
-	return typeof(writefile) == "function"
-		and typeof(readfile) == "function"
-		and typeof(isfile) == "function"
-end
-
-local function savePCKeybinds()
-	if not canUseFileAPI() then
-		return
+local function saveKeybindSettings()
+	if not executorSupportsFiles() then
+		return false
 	end
 
-	local payload = {
-		hideGuiKey = hideGuiKey.Name,
-		toggleScriptKey = toggleScriptKey.Name,
-		toggleBeastSlowKey = toggleBeastSlowKey.Name
+	local data = {
+		hideGuiKey = encodeKeyCode(hideGuiKey),
+		toggleScriptKey = encodeKeyCode(toggleScriptKey),
+		toggleBeastSlowKey = encodeKeyCode(toggleBeastSlowKey),
 	}
 
-	pcall(function()
-		writefile(CONFIG_FILE_NAME, HttpService:JSONEncode(payload))
+	local ok = pcall(function()
+		writefile(SETTINGS_FILE, HttpService:JSONEncode(data))
 	end)
+
+	return ok
 end
 
-local function loadPCKeybinds()
-	if not canUseFileAPI() then
-		return
+local function loadKeybindSettings()
+	if not executorSupportsFiles() then
+		return false
 	end
 
-	if not isfile(CONFIG_FILE_NAME) then
-		return
+	if not isfile(SETTINGS_FILE) then
+		return false
 	end
 
-	local ok, decoded = pcall(function()
-		local raw = readfile(CONFIG_FILE_NAME)
+	local ok, raw = pcall(function()
+		return readfile(SETTINGS_FILE)
+	end)
+
+	if not ok or not raw or raw == "" then
+		return false
+	end
+
+	local ok2, data = pcall(function()
 		return HttpService:JSONDecode(raw)
 	end)
 
-	if not ok or typeof(decoded) ~= "table" then
-		return
+	if not ok2 or typeof(data) ~= "table" then
+		return false
 	end
 
-	local loadedHide = keyCodeFromName(decoded.hideGuiKey)
-	local loadedToggle = keyCodeFromName(decoded.toggleScriptKey)
-	local loadedSlow = keyCodeFromName(decoded.toggleBeastSlowKey)
+	hideGuiKey = decodeKeyCode(data.hideGuiKey, DEFAULT_HIDE_GUI_KEY)
+	toggleScriptKey = decodeKeyCode(data.toggleScriptKey, DEFAULT_TOGGLE_SCRIPT_KEY)
+	toggleBeastSlowKey = decodeKeyCode(data.toggleBeastSlowKey, DEFAULT_TOGGLE_BEAST_SLOW_KEY)
 
-	if loadedHide then
-		hideGuiKey = loadedHide
-	end
-	if loadedToggle then
-		toggleScriptKey = loadedToggle
-	end
-	if loadedSlow then
-		toggleBeastSlowKey = loadedSlow
-	end
+	return true
 end
-
-loadPCKeybinds()
 
 local function destroyOld()
 	for _, name in ipairs({
@@ -188,6 +176,7 @@ local function destroyOld()
 end
 
 destroyOld()
+loadKeybindSettings()
 
 local function noTextStroke(obj)
 	obj.TextStrokeTransparency = 1
@@ -452,7 +441,6 @@ local function showNotice(text)
 		end)
 	end)
 end
-
 local function canUseMobileTap(obj)
 	local lastDragTime = obj:GetAttribute("LastDragTime")
 	if typeof(lastDragTime) == "number" then
@@ -667,6 +655,7 @@ local function setGuiVisible(state)
 	applyVisibility()
 	showNotice(state and "GUI shown" or "GUI hidden")
 end
+
 local function createModeSelector(onPick)
 	local selectorGui = Instance.new("ScreenGui")
 	selectorGui.Name = "WallhopModeSelector"
@@ -751,7 +740,6 @@ local function createModeSelector(onPick)
 		end)
 	end)
 end
-
 local function clearOldDragConnections()
 	for _, c in ipairs(dragConnections) do
 		if c and c.Disconnect then
@@ -848,215 +836,6 @@ end
 local function setMobileGuiHidden(state)
 	mobileWallhopGuiHidden = state and true or false
 	updateMobilePanelButtons()
-end
-
-local function buildMobileGui()
-	clearOldDragConnections()
-
-	ScreenGui = Instance.new("ScreenGui")
-	ScreenGui.Name = "AutoWallHopGuiMobile"
-	ScreenGui.ResetOnSpawn = false
-	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	ScreenGui.Parent = PlayerGui
-
-	MobileButton = Instance.new("TextButton")
-	MobileButton.Size = UDim2.new(0, 140, 0, 50)
-	MobileButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	MobileButton.Text = "Wallhop Off"
-	MobileButton.TextColor3 = Color3.fromRGB(255,255,255)
-	MobileButton.Font = Enum.Font.GothamBold
-	MobileButton.TextScaled = true
-	MobileButton.Parent = ScreenGui
-	MobileButton:SetAttribute("LastDragTime", 0)
-	MobileButton:SetAttribute("CustomMoved", false)
-	Instance.new("UICorner", MobileButton).CornerRadius = UDim.new(0, 12)
-	noTextStroke(MobileButton)
-	addTrueRoundedShadow(MobileButton, 14, 1.15, Color3.fromRGB(0, 0, 0))
-	setTargetTransparency(MobileButton, 0, 0)
-
-	MobileMenuButton = Instance.new("TextButton")
-	MobileMenuButton.Size = UDim2.new(0, 54, 0, 54)
-	MobileMenuButton.Position = UDim2.new(0, 20, 0, 180)
-	MobileMenuButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	MobileMenuButton.Text = "≡"
-	MobileMenuButton.TextColor3 = Color3.fromRGB(255,255,255)
-	MobileMenuButton.Font = Enum.Font.GothamBold
-	MobileMenuButton.TextSize = 22
-	MobileMenuButton.Parent = ScreenGui
-	Instance.new("UICorner", MobileMenuButton).CornerRadius = UDim.new(1, 0)
-	noTextStroke(MobileMenuButton)
-	addTrueRoundedShadow(MobileMenuButton, 999, 1.05, Color3.fromRGB(0, 0, 0))
-	setTargetTransparency(MobileMenuButton, 0, 0)
-
-	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 170, 0, 108)
-	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	MobilePanel.BorderSizePixel = 0
-	MobilePanel.Visible = false
-	MobilePanel.Parent = ScreenGui
-	Instance.new("UICorner", MobilePanel).CornerRadius = UDim.new(0, 14)
-	addTrueRoundedShadow(MobilePanel, 14, 1.15, Color3.fromRGB(0, 0, 0))
-	setTargetTransparency(MobilePanel, 0, nil)
-
-	mobileDragHandle = Instance.new("Frame")
-	mobileDragHandle.Size = UDim2.new(1, -14, 0, 14)
-	mobileDragHandle.Position = UDim2.new(0, 7, 0, 5)
-	mobileDragHandle.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
-	mobileDragHandle.BorderSizePixel = 0
-	mobileDragHandle.Parent = MobilePanel
-	mobileDragHandle.Active = true
-	Instance.new("UICorner", mobileDragHandle).CornerRadius = UDim.new(1, 0)
-	setTargetTransparency(mobileDragHandle, 0, nil)
-
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobilePanel, 22, "Beast Slow")
-	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobilePanel, 62, "Hide GUI")
-
-	local function placeMobileButtonDefault()
-		local inset = GuiService:GetGuiInset()
-		if not MobileButton:GetAttribute("CustomMoved") then
-			MobileButton.Position = UDim2.new(0, 150, 0, inset.Y - 58)
-		end
-	end
-
-	local function placePanelToRightOfWallhop()
-		local xOffset = MobileButton.Position.X.Offset + MobileButton.Size.X.Offset + 28
-		local yOffset = MobileButton.Position.Y.Offset + 6
-		MobilePanel.Position = UDim2.new(0, xOffset, 0, yOffset)
-	end
-
-	RunService.RenderStepped:Connect(function()
-		if selectedMode ~= "Mobile" then
-			return
-		end
-		placeMobileButtonDefault()
-
-		if mobileMenuOpen and not MobilePanel:GetAttribute("CustomMoved") then
-			placePanelToRightOfWallhop()
-		end
-	end)
-
-	placeMobileButtonDefault()
-	placePanelToRightOfWallhop()
-
-	bindFreeDrag(MobileButton, MobileButton, function()
-		MobileButton:SetAttribute("CustomMoved", true)
-		if not MobilePanel:GetAttribute("CustomMoved") then
-			placePanelToRightOfWallhop()
-		end
-	end, 0.5)
-
-	bindFreeDrag(MobileMenuButton, MobileMenuButton)
-	bindFreeDrag(mobileDragHandle, MobilePanel, function()
-		MobilePanel:SetAttribute("CustomMoved", true)
-	end)
-
-	MobileButton.Activated:Connect(function()
-		if not canUseMobileTap(MobileButton) then
-			return
-		end
-		isWallHopEnabled = not isWallHopEnabled
-		updateToggleButton()
-	end)
-
-	MobileMenuButton.Activated:Connect(function()
-		if not canUseMobileTap(MobileMenuButton) then
-			return
-		end
-
-		mobileMenuOpen = not mobileMenuOpen
-
-		if mobileMenuOpen then
-			if not MobilePanel:GetAttribute("CustomMoved") then
-				placePanelToRightOfWallhop()
-			end
-
-			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 164, 0, 102)
-
-			elegantShow(MobilePanel, UDim2.new(0, 170, 0, 108), MobilePanel.Position, 0)
-		else
-			elegantHide(MobilePanel)
-		end
-	end)
-
-	bindRowPress(MobileBeastSlowRow, function()
-		setSlowEnabled(not isSlowEnabled)
-	end)
-
-	bindRowPress(MobileHideGuiRow, function()
-		setMobileGuiHidden(not mobileWallhopGuiHidden)
-	end)
-
-	updateMobilePanelButtons()
-end
-
-local function setMinimized(state)
-	if selectedMode ~= "PC" then
-		return
-	end
-
-	guiMinimized = state
-
-	if state then
-		if MainFrame and MiniButton then
-			local savedPos = MainFrame.Position
-
-			elegantHide(MainFrame, function()
-				MainFrame.Visible = false
-
-				MiniButton.Position = savedPos
-				MiniButton.Visible = true
-				setHostShadowVisible(MiniButton, true)
-
-				MiniButton.BackgroundTransparency = 1
-				MiniButton.TextTransparency = 1
-				MiniButton.Size = UDim2.new(0, 138, 0, 38)
-
-				local finalMiniSize = UDim2.new(0, 150, 0, 42)
-				local finalMiniPos = savedPos
-
-				TweenService:Create(
-					MiniButton,
-					TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-					{
-						Size = finalMiniSize,
-						Position = finalMiniPos,
-						BackgroundTransparency = 0,
-						TextTransparency = 0
-					}
-				):Play()
-			end)
-		end
-
-		showNotice("GUI minimized")
-	else
-		if MainFrame and MiniButton then
-			local restorePos = MiniButton.Position
-
-			local miniTween = TweenService:Create(
-				MiniButton,
-				TweenInfo.new(0.16, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
-				{
-					BackgroundTransparency = 1,
-					TextTransparency = 1,
-					Size = UDim2.new(0, 140, 0, 39)
-				}
-			)
-
-			miniTween:Play()
-			miniTween.Completed:Connect(function()
-				MiniButton.Visible = false
-				setHostShadowVisible(MiniButton, false)
-
-				MainFrame.Position = restorePos
-				MainFrame.Size = UDim2.new(0, 315, 0, 190)
-
-				elegantShow(MainFrame, UDim2.new(0, 315, 0, 190), restorePos, 0)
-			end)
-		end
-
-		showNotice("GUI restored")
-	end
 end
 
 local function buildPCGui()
@@ -1223,11 +1002,21 @@ local function buildPCGui()
 	NoticeStroke.Parent = Notice
 
 	MinimizeButton.MouseButton1Click:Connect(function()
-		setMinimized(true)
+		guiMinimized = true
+		MainFrame.Visible = false
+		MiniButton.Visible = true
+		setHostShadowVisible(MainFrame, false)
+		setHostShadowVisible(MiniButton, true)
+		showNotice("GUI minimized")
 	end)
 
 	MiniButton.MouseButton1Click:Connect(function()
-		setMinimized(false)
+		guiMinimized = false
+		MiniButton.Visible = false
+		MainFrame.Visible = true
+		setHostShadowVisible(MiniButton, false)
+		setHostShadowVisible(MainFrame, true)
+		showNotice("GUI restored")
 	end)
 
 	HideGuiBindButton.MouseButton1Click:Connect(function()
@@ -1262,553 +1051,146 @@ local function buildPCGui()
 
 	updateBindButtons()
 	elegantShow(MainFrame, UDim2.new(0, 315, 0, 190), MainFrame.Position, 0)
-	showNotice(canUseFileAPI() and "PC version loaded" or "PC version loaded (no file save)")
+	showNotice("PC version loaded")
 end
-clearScriptSlowInstant = function()
-	slowToken += 1
-	scriptSlowActive = false
+local function buildMobileGui()
+	clearOldDragConnections()
 
-	local char = LocalPlayer.Character
-	local hum = char and char:FindFirstChild("Humanoid")
-	if hum and hum.Parent and hum.WalkSpeed == SLOW_WALKSPEED then
-		hum.WalkSpeed = DEFAULT_WALKSPEED
+	ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = "AutoWallHopGuiMobile"
+	ScreenGui.ResetOnSpawn = false
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	ScreenGui.Parent = PlayerGui
+
+	MobileButton = Instance.new("TextButton")
+	MobileButton.Size = UDim2.new(0, 140, 0, 50)
+	MobileButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobileButton.Text = "Wallhop Off"
+	MobileButton.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileButton.Font = Enum.Font.GothamBold
+	MobileButton.TextScaled = true
+	MobileButton.Parent = ScreenGui
+	MobileButton:SetAttribute("LastDragTime", 0)
+	MobileButton:SetAttribute("CustomMoved", false)
+	Instance.new("UICorner", MobileButton).CornerRadius = UDim.new(0, 12)
+	noTextStroke(MobileButton)
+	addTrueRoundedShadow(MobileButton, 14, 1.15, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobileButton, 0, 0)
+
+	MobileMenuButton = Instance.new("TextButton")
+	MobileMenuButton.Size = UDim2.new(0, 54, 0, 54)
+	MobileMenuButton.Position = UDim2.new(0, 20, 0, 180)
+	MobileMenuButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobileMenuButton.Text = "≡"
+	MobileMenuButton.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileMenuButton.Font = Enum.Font.GothamBold
+	MobileMenuButton.TextSize = 22
+	MobileMenuButton.Parent = ScreenGui
+	Instance.new("UICorner", MobileMenuButton).CornerRadius = UDim.new(1, 0)
+	noTextStroke(MobileMenuButton)
+	addTrueRoundedShadow(MobileMenuButton, 999, 1.05, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobileMenuButton, 0, 0)
+
+	MobilePanel = Instance.new("Frame")
+	MobilePanel.Size = UDim2.new(0, 170, 0, 108)
+	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobilePanel.BorderSizePixel = 0
+	MobilePanel.Visible = false
+	MobilePanel.Parent = ScreenGui
+	Instance.new("UICorner", MobilePanel).CornerRadius = UDim.new(0, 14)
+	addTrueRoundedShadow(MobilePanel, 14, 1.15, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobilePanel, 0, nil)
+
+	mobileDragHandle = Instance.new("Frame")
+	mobileDragHandle.Size = UDim2.new(1, -14, 0, 14)
+	mobileDragHandle.Position = UDim2.new(0, 7, 0, 5)
+	mobileDragHandle.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+	mobileDragHandle.BorderSizePixel = 0
+	mobileDragHandle.Parent = MobilePanel
+	mobileDragHandle.Active = true
+	Instance.new("UICorner", mobileDragHandle).CornerRadius = UDim.new(1, 0)
+	setTargetTransparency(mobileDragHandle, 0, nil)
+
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobilePanel, 22, "Beast Slow")
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobilePanel, 62, "Hide GUI")
+
+	local function placeMobileButtonDefault()
+		local inset = GuiService:GetGuiInset()
+		if not MobileButton:GetAttribute("CustomMoved") then
+			MobileButton.Position = UDim2.new(0, 150, 0, inset.Y - 58)
+		end
 	end
-end
 
-local function applyWallhopSlow(hum)
-	if not hum or not hum.Parent or not isSlowEnabled then
-		return
+	local function placePanelToRightOfWallhop()
+		local xOffset = MobileButton.Position.X.Offset + MobileButton.Size.X.Offset + 28
+		local yOffset = MobileButton.Position.Y.Offset + 6
+		MobilePanel.Position = UDim2.new(0, xOffset, 0, yOffset)
 	end
 
-	slowToken += 1
-	local myToken = slowToken
+	RunService.RenderStepped:Connect(function()
+		if selectedMode ~= "Mobile" then
+			return
+		end
+		placeMobileButtonDefault()
 
-	scriptSlowActive = true
-	hum.WalkSpeed = SLOW_WALKSPEED
+		if mobileMenuOpen and not MobilePanel:GetAttribute("CustomMoved") then
+			placePanelToRightOfWallhop()
+		end
+	end)
 
-	task.delay(SLOW_DURATION, function()
-		if not hum or not hum.Parent then
-			scriptSlowActive = false
+	placeMobileButtonDefault()
+	placePanelToRightOfWallhop()
+
+	bindFreeDrag(MobileButton, MobileButton, function()
+		MobileButton:SetAttribute("CustomMoved", true)
+		if not MobilePanel:GetAttribute("CustomMoved") then
+			placePanelToRightOfWallhop()
+		end
+	end, 0.5)
+
+	bindFreeDrag(MobileMenuButton, MobileMenuButton)
+	bindFreeDrag(mobileDragHandle, MobilePanel, function()
+		MobilePanel:SetAttribute("CustomMoved", true)
+	end)
+
+	MobileButton.Activated:Connect(function()
+		if not canUseMobileTap(MobileButton) then
+			return
+		end
+		isWallHopEnabled = not isWallHopEnabled
+		updateToggleButton()
+	end)
+
+	MobileMenuButton.Activated:Connect(function()
+		if not canUseMobileTap(MobileMenuButton) then
 			return
 		end
 
-		if myToken ~= slowToken then
-			return
-		end
+		mobileMenuOpen = not mobileMenuOpen
 
-		scriptSlowActive = false
-
-		if not isSlowEnabled then
-			return
-		end
-
-		if hum.WalkSpeed == SLOW_WALKSPEED then
-			hum.WalkSpeed = DEFAULT_WALKSPEED
-		end
-	end)
-end
-
-local function isCrouching(hum, hrp)
-	if not hum or not hrp then
-		return false
-	end
-
-	if scriptSlowActive then
-		return false
-	end
-
-	local horizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
-	return hum.WalkSpeed <= 9 and horizontalSpeed < 8
-end
-
-local function setupCharacter(char)
-	local hum = char:WaitForChild("Humanoid")
-	local hrp = char:WaitForChild("HumanoidRootPart")
-
-	slowToken = 0
-	scriptSlowActive = false
-
-	hum.StateChanged:Connect(function(_, new)
-		if new == Enum.HumanoidStateType.Jumping then
-			jumpedRecently = true
-			airborneSource = "jump"
-			airborneStartY = hrp.Position.Y
-			airborneStartTime = tick()
-		end
-
-		if new == Enum.HumanoidStateType.Freefall then
-			canDoubleJump = true
-
-			if airborneSource == nil then
-				if jumpedRecently then
-					airborneSource = "jump"
-				else
-					airborneSource = "ledge"
-				end
-
-				airborneStartY = hrp.Position.Y
-				airborneStartTime = tick()
-			end
-		end
-
-		if new == Enum.HumanoidStateType.Landed then
-			canDoubleJump = false
-			lastHitPosition = nil
-			airborneSource = nil
-			airborneStartY = nil
-			airborneStartTime = 0
-			jumpedRecently = false
-
-			lastLandedTime = tick()
-			hasWallhoppedSinceLanding = false
-			specialFirstFlickArmed = false
-		end
-	end)
-end
-
-if LocalPlayer.Character then
-	setupCharacter(LocalPlayer.Character)
-end
-LocalPlayer.CharacterAdded:Connect(setupCharacter)
-
-UserInputService.JumpRequest:Connect(function()
-	if not isWallHopEnabled or blockDoubleJump then
-		return
-	end
-
-	local char = LocalPlayer.Character
-	local hum = char and char:FindFirstChild("Humanoid")
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if not hum or not hrp then
-		return
-	end
-
-	local stillValid = isWallHopping or (tick() - lastWallHopTime <= WALLHOP_GRACE_TIME)
-	if not stillValid then
-		return
-	end
-
-	if canDoubleJump and tick() - lastDoubleJump > DOUBLE_JUMP_COOLDOWN then
-		lastDoubleJump = tick()
-		canDoubleJump = false
-
-		hrp.Velocity = Vector3.new(hrp.Velocity.X, 30, hrp.Velocity.Z)
-		hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
-		task.delay(0.18, function()
-			if hum then
-				hum:ChangeState(Enum.HumanoidStateType.Freefall)
-			end
-		end)
-	end
-end)
-
-local function pickNextFlick(useSpecialFirst)
-	local minAngle, maxAngle
-
-	if useSpecialFirst then
-		minAngle, maxAngle = 65, 80
-	else
-		minAngle, maxAngle = 65, 80
-	end
-
-	local attempt = 0
-	local angle
-
-	repeat
-		angle = math.random(minAngle, maxAngle)
-		attempt += 1
-	until not lastFlickAngle or math.abs(angle - lastFlickAngle) >= 10 or attempt > 20
-
-	lastFlickAngle = angle
-	return math.rad(angle)
-end
-
-local function getFlickProfile(useSpecialFirst)
-	if useSpecialFirst then
-		return {
-			goSteps = math.random(2, 3),
-			goDelayMin = 0.0095,
-			goDelayMax = 0.0120,
-			holdTime = 0.01,
-			returnSteps = math.random(2, 3),
-			returnDelayMin = 0.0095,
-			returnDelayMax = 0.0120,
-			overshootMin = 27,
-			overshootMax = 30,
-			overshootBaseDelay = 0.0085
-		}
-	end
-
-	local flickRoll = math.random()
-
-	if flickRoll < 0.10 then
-		return {
-			goSteps = math.random(2, 3),
-			goDelayMin = 0.0080,
-			goDelayMax = 0.0103,
-			holdTime = 0.01,
-			returnSteps = math.random(2, 3),
-			returnDelayMin = 0.0080,
-			returnDelayMax = 0.0103,
-			overshootMin = 17,
-			overshootMax = 23,
-			overshootBaseDelay = 0.0068
-		}
-	elseif flickRoll < 0.40 then
-		return {
-			goSteps = math.random(3, 4),
-			goDelayMin = 0.0085,
-			goDelayMax = 0.0110,
-			holdTime = 0.01,
-			returnSteps = math.random(3, 4),
-			returnDelayMin = 0.0085,
-			returnDelayMax = 0.0110,
-			overshootMin = 19,
-			overshootMax = 25,
-			overshootBaseDelay = 0.0075
-		}
-	else
-		return {
-			goSteps = math.random(2, 3),
-			goDelayMin = 0.0090,
-			goDelayMax = 0.0119,
-			holdTime = 0.01,
-			returnSteps = math.random(2, 3),
-			returnDelayMin = 0.0090,
-			returnDelayMax = 0.0119,
-			overshootMin = 21,
-			overshootMax = 27,
-			overshootBaseDelay = 0.0085
-		}
-	end
-end
-
-local function forceCharacterYaw(char, hrp, yaw)
-	if not char or not hrp or not char.Parent or not hrp.Parent then
-		return
-	end
-
-	local pos = hrp.Position
-	local cf = CFrame.new(pos) * CFrame.Angles(0, yaw, 0)
-
-	hrp.CFrame = cf
-
-	pcall(function()
-		char:PivotTo(cf)
-	end)
-
-	hrp.AssemblyAngularVelocity = Vector3.zero
-end
-
-local function performVideoFlick()
-	if isFlicking then
-		return
-	end
-
-	isFlicking = true
-	isWallHopping = true
-	lastWallHopTime = tick()
-	blockDoubleJump = true
-
-	local char = LocalPlayer.Character
-	local hum = char and char:FindFirstChild("Humanoid")
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if not hum or not hrp then
-		isFlicking = false
-		return
-	end
-
-	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
-	if useSpecialFirst then
-		specialFirstFlickArmed = false
-	end
-	hasWallhoppedSinceLanding = true
-
-	hum:ChangeState(Enum.HumanoidStateType.Jumping)
-
-	local oldAutoRotate = hum.AutoRotate
-	hum.AutoRotate = false
-
-	local baseYaw = math.rad(hrp.Orientation.Y)
-	local angle = -pickNextFlick(useSpecialFirst)
-	local profile = getFlickProfile(useSpecialFirst)
-
-	local goSteps = profile.goSteps
-	local goDelayMin = profile.goDelayMin
-	local goDelayMax = profile.goDelayMax
-	local holdTime = profile.holdTime
-	local returnSteps = profile.returnSteps
-	local returnDelayMin = profile.returnDelayMin
-	local returnDelayMax = profile.returnDelayMax
-
-	local overshoot = math.rad(math.random(profile.overshootMin, profile.overshootMax))
-	local overshootBaseDelay = profile.overshootBaseDelay
-	local useOvershoot = math.random() < 0.40
-
-	for i = 1, goSteps do
-		local alpha = i / goSteps
-		local offset = angle * alpha
-		forceCharacterYaw(char, hrp, baseYaw + offset)
-
-		if i < goSteps then
-			RunService.Heartbeat:Wait()
-			task.wait(goDelayMin + math.random() * (goDelayMax - goDelayMin))
-		end
-	end
-
-	task.wait(holdTime)
-
-	for i = 1, returnSteps do
-		local alpha = i / returnSteps
-		local offset = angle * (1 - alpha)
-		forceCharacterYaw(char, hrp, baseYaw + offset)
-
-		if i < returnSteps then
-			RunService.Heartbeat:Wait()
-			task.wait(returnDelayMin + math.random() * (returnDelayMax - returnDelayMin))
-		end
-	end
-
-	if useOvershoot then
-		task.delay(0.018, function()
-			if not hrp or not hrp.Parent or not char or not char.Parent then
-				return
+		if mobileMenuOpen then
+			if not MobilePanel:GetAttribute("CustomMoved") then
+				placePanelToRightOfWallhop()
 			end
 
-			local smallSteps = math.random(2, 3)
-			local localDelay = overshootBaseDelay * (math.random(88, 102) / 100)
-
-			for i = 1, smallSteps do
-				local alpha = i / smallSteps
-				local offset = overshoot * alpha
-				forceCharacterYaw(char, hrp, baseYaw + offset)
-
-				if i < smallSteps then
-					RunService.Heartbeat:Wait()
-					task.wait(localDelay)
-				end
-			end
-
-			for i = 1, smallSteps do
-				local alpha = i / smallSteps
-				local offset = overshoot * (1 - alpha)
-				forceCharacterYaw(char, hrp, baseYaw + offset)
-
-				if i < smallSteps then
-					RunService.Heartbeat:Wait()
-					task.wait(localDelay)
-				end
-			end
-
-			forceCharacterYaw(char, hrp, baseYaw)
-		end)
-	end
-
-	forceCharacterYaw(char, hrp, baseYaw)
-
-	if isSlowEnabled then
-		applyWallhopSlow(hum)
-	end
-
-	task.delay(0.05, function()
-		blockDoubleJump = false
-	end)
-
-	task.delay(0.15, function()
-		isWallHopping = false
-		if hum and hum.Parent then
-			hum.AutoRotate = oldAutoRotate
-		end
-	end)
-
-	isFlicking = false
-end
-
-local function isPlayerCharacter(instance)
-	if not instance then
-		return false
-	end
-
-	local model = instance:FindFirstAncestorOfClass("Model")
-	return model and model:FindFirstChild("Humanoid")
-end
-
-local function isWallLikeSurface(normal)
-	return math.abs(normal.Y) < 0.35
-end
-
-local function hasValidHorizontalEdge(rayResult, params)
-	if not rayResult or not rayResult.Instance then
-		return false
-	end
-
-	local hitPos = rayResult.Position
-	local normal = rayResult.Normal.Unit
-
-	local right = normal:Cross(Vector3.new(0, 1, 0))
-	if right.Magnitude < 0.01 then
-		return false
-	end
-	right = right.Unit
-
-	local surfaceOffset = normal * 0.08
-
-	local verticalChecks = {
-		Vector3.new(0, 0.9, 0),
-		Vector3.new(0, -0.9, 0),
-		Vector3.new(0, 1.25, 0),
-		Vector3.new(0, -1.25, 0),
-	}
-
-	local foundHorizontalEdge = false
-	for _, vOffset in ipairs(verticalChecks) do
-		local origin = hitPos + vOffset + surfaceOffset
-		local probe = workspace:Raycast(origin, -normal * 0.22, params)
-
-		if not probe or not probe.Instance or probe.Instance ~= rayResult.Instance then
-			foundHorizontalEdge = true
-			break
-		end
-	end
-
-	return foundHorizontalEdge
-end
-
-local function findValidWall(hrp, params, directions)
-	local offsets = {
-		Vector3.new(0, -2.3, 0),
-		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -1.2, 0)
-	}
-
-	for _, dir in ipairs(directions) do
-		for _, offset in ipairs(offsets) do
-			local origin = hrp.Position + offset
-			local ray = workspace:Raycast(origin, dir, params)
-
-			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-				if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
-					return ray
-				end
-			end
-		end
-	end
-
-	return nil
-end
-
-local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
-	local look = Vector3.new(cameraLook.X, 0, cameraLook.Z)
-	local normal = Vector3.new(wallNormal.X, 0, wallNormal.Z)
-
-	if look.Magnitude <= 0 or normal.Magnitude <= 0 then
-		return false
-	end
-
-	look = look.Unit
-	normal = normal.Unit
-
-	local dotFront = math.clamp(look:Dot(-normal), -1, 1)
-	local dotBack = math.clamp(look:Dot(normal), -1, 1)
-
-	local frontAngle = math.deg(math.acos(dotFront))
-	local backAngle = math.deg(math.acos(dotBack))
-
-	return frontAngle <= maxAngleDeg or backAngle <= maxAngleDeg
-end
-RunService.Heartbeat:Connect(function()
-	if not isWallHopEnabled then
-		return
-	end
-
-	local char = LocalPlayer.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	local hum = char and char:FindFirstChild("Humanoid")
-
-	if not hrp or not hum then
-		return
-	end
-
-	if isCrouching(hum, hrp) then
-		return
-	end
-
-	local state = hum:GetState()
-	local airborne = state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping
-
-	if state == Enum.HumanoidStateType.Landed then
-		if not hasWallhoppedSinceLanding and lastLandedTime > 0 and tick() - lastLandedTime >= FIRST_FLICK_RESET_GROUND_TIME then
-			specialFirstFlickArmed = true
-		end
-	end
-
-	if not airborne then
-		lastHitPosition = nil
-		return
-	end
-
-	local allowWallhop = true
-
-	if airborneSource == "ledge" and airborneStartY then
-		local fallDistance = airborneStartY - hrp.Position.Y
-		local airTime = tick() - airborneStartTime
-
-		if fallDistance < LEDGE_BLOCK_DISTANCE and airTime < LEDGE_BLOCK_TIME then
-			allowWallhop = false
-		end
-	end
-
-	if not allowWallhop then
-		lastHitPosition = nil
-		return
-	end
-
-	local params = RaycastParams.new()
-	params.FilterDescendantsInstances = {char}
-	params.FilterType = Enum.RaycastFilterType.Exclude
-
-	local look = Camera.CFrame.LookVector
-	local horizontal = Vector3.new(look.X, 0, look.Z)
-
-	if horizontal.Magnitude <= 0 then
-		lastHitPosition = nil
-		return
-	end
-
-	horizontal = horizontal.Unit
-
-	local forwardDirection = horizontal * 1.55
-	local backwardDirection = -horizontal * 1.55
-
-	local result = findValidWall(hrp, params, {
-		forwardDirection,
-		backwardDirection
-	})
-
-	if result and result.Instance then
-		local validAngle = isWithinWallhopAngle(Camera.CFrame.LookVector, result.Normal, 25)
-
-		if validAngle then
-			local farEnough = true
-			if lastHitPosition then
-				farEnough = (result.Position - lastHitPosition).Magnitude >= MIN_HIT_DISTANCE
-			end
-
-			if hrp.Velocity.Y < -0.8 and tick() - lastFlickTime > WALLHOP_COOLDOWN and farEnough then
-				lastFlickTime = tick()
-				lastHitPosition = result.Position
-				performVideoFlick()
-			else
-				lastHitPosition = result.Position
-			end
+			MobilePanel.BackgroundTransparency = 1
+			MobilePanel.Size = UDim2.new(0, 164, 0, 102)
+			elegantShow(MobilePanel, UDim2.new(0, 170, 0, 108), MobilePanel.Position, 0)
 		else
-			lastHitPosition = nil
+			elegantHide(MobilePanel)
 		end
-	else
-		lastHitPosition = nil
-	end
-end)
+	end)
+
+	bindRowPress(MobileBeastSlowRow, function()
+		setSlowEnabled(not isSlowEnabled)
+	end)
+
+	bindRowPress(MobileHideGuiRow, function()
+		setMobileGuiHidden(not mobileWallhopGuiHidden)
+	end)
+
+	updateMobilePanelButtons()
+end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
@@ -1825,7 +1207,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if key ~= toggleScriptKey and key ~= toggleBeastSlowKey then
 				hideGuiKey = key
 				waitingForHideKey = false
-				savePCKeybinds()
+				saveKeybindSettings()
 				updateBindButtons()
 				showNotice("Hide GUI key updated")
 			else
@@ -1838,7 +1220,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if key ~= hideGuiKey and key ~= toggleBeastSlowKey then
 				toggleScriptKey = key
 				waitingForToggleKey = false
-				savePCKeybinds()
+				saveKeybindSettings()
 				updateBindButtons()
 				showNotice("Wallhop key updated")
 			else
@@ -1851,7 +1233,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			if key ~= hideGuiKey and key ~= toggleScriptKey then
 				toggleBeastSlowKey = key
 				waitingForBeastSlowKey = false
-				savePCKeybinds()
+				saveKeybindSettings()
 				updateBindButtons()
 				showNotice("Beast Slow key updated")
 			else
@@ -1892,6 +1274,6 @@ createModeSelector(function(mode)
 	updateToggleButton()
 	updateMobilePanelButtons()
 	applyVisibility()
+	saveKeybindSettings()
 end)
-
 print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
