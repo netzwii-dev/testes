@@ -1497,33 +1497,50 @@ local function hasValidHorizontalEdge(rayResult, params)
 	end
 	tangent = tangent.Unit
 
-	local function samePartAt(localOffset)
+	local function probeAt(localOffset)
 		local origin = hitPos + localOffset + normal * 0.10
-		local probe = workspace:Raycast(origin, -normal * 0.26, params)
-		return probe and probe.Instance == target
+		local probe = workspace:Raycast(origin, -normal * 0.35, params)
+		if probe and probe.Instance == target then
+			return probe
+		end
+		return nil
 	end
 
-	local hasAbove =
-		samePartAt(Vector3.new(0, 0.16, 0)) or
-		samePartAt(Vector3.new(0, 0.30, 0))
+	local function sideHasRealHorizontalEdge(sideOffset)
+		local aboveNear = probeAt(sideOffset + Vector3.new(0, 0.16, 0))
+		local aboveFar  = probeAt(sideOffset + Vector3.new(0, 0.30, 0))
+		local belowNear = probeAt(sideOffset + Vector3.new(0, -0.16, 0))
+		local belowFar  = probeAt(sideOffset + Vector3.new(0, -0.34, 0))
 
-	local hasBelow =
-		samePartAt(Vector3.new(0, -0.16, 0)) or
-		samePartAt(Vector3.new(0, -0.34, 0))
+		local hasAbove = aboveNear or aboveFar
+		local hasBelow = belowNear or belowFar
 
-	if not (hasAbove and hasBelow) then
-		return false
+		if not (hasAbove and hasBelow) then
+			return false
+		end
+
+		local aboveProbe = aboveNear or aboveFar
+		local belowProbe = belowNear or belowFar
+
+		local aboveDepth = (aboveProbe.Position - (hitPos + sideOffset)).Magnitude
+		local belowDepth = (belowProbe.Position - (hitPos + sideOffset)).Magnitude
+
+		local depthDelta = math.abs(aboveDepth - belowDepth)
+
+		return depthDelta >= 0.065
 	end
 
-	local leftAbove = samePartAt(tangent * -0.22 + Vector3.new(0, 0.16, 0))
-	local leftBelow = samePartAt(tangent * -0.22 + Vector3.new(0, -0.16, 0))
-	local rightAbove = samePartAt(tangent * 0.22 + Vector3.new(0, 0.16, 0))
-	local rightBelow = samePartAt(tangent * 0.22 + Vector3.new(0, -0.16, 0))
+	if sideHasRealHorizontalEdge(Vector3.new(0, 0, 0)) then
+		return true
+	end
+	if sideHasRealHorizontalEdge(tangent * -0.22) then
+		return true
+	end
+	if sideHasRealHorizontalEdge(tangent * 0.22) then
+		return true
+	end
 
-	local leftSideValid = leftAbove and leftBelow
-	local rightSideValid = rightAbove and rightBelow
-
-	return leftSideValid or rightSideValid
+	return false
 end
 
 local function findValidWall(hrp, params, directions)
@@ -1737,4 +1754,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility Wallhop Script | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility Wallhop Script | MMMMade by Nyhito - Loaded Successfully ✅")
