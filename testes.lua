@@ -1992,6 +1992,43 @@ local function findValidWall(hrp, params, directions)
 	return nil
 end
 
+local function findValidWallConsole(hrp, params)
+	local offsets = {
+		Vector3.new(0, -2.3, 0),
+		Vector3.new(0, -2.2, 0),
+		Vector3.new(0, -1.2, 0)
+	}
+
+	local directions = {
+		Vector3.new( 1, 0,  0),
+		Vector3.new(-1, 0,  0),
+		Vector3.new( 0, 0,  1),
+		Vector3.new( 0, 0, -1),
+
+		(Vector3.new( 1, 0,  1)).Unit,
+		(Vector3.new(-1, 0,  1)).Unit,
+		(Vector3.new( 1, 0, -1)).Unit,
+		(Vector3.new(-1, 0, -1)).Unit,
+	}
+
+	for _, dir in ipairs(directions) do
+		local castDir = dir * 1.55
+
+		for _, offset in ipairs(offsets) do
+			local origin = hrp.Position + offset
+			local ray = workspace:Raycast(origin, castDir, params)
+
+			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
+				if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
+					return ray
+				end
+			end
+		end
+	end
+
+	return nil
+end
+
 local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
 	local look = Vector3.new(cameraLook.X, 0, cameraLook.Z)
 	local normal = Vector3.new(wallNormal.X, 0, wallNormal.Z)
@@ -2073,13 +2110,19 @@ RunService.Heartbeat:Connect(function()
 
 	horizontal = horizontal.Unit
 
-	local forwardDirection = horizontal * 1.55
-	local backwardDirection = -horizontal * 1.55
+	local result
 
-	local result = findValidWall(hrp, params, {
-		forwardDirection,
-		backwardDirection
-	})
+	if currentFlickMode == "Console Wallhop" then
+		result = findValidWallConsole(hrp, params)
+	else
+		local forwardDirection = horizontal * 1.55
+		local backwardDirection = -horizontal * 1.55
+
+		result = findValidWall(hrp, params, {
+			forwardDirection,
+			backwardDirection
+		})
+	end
 
 	if result and result.Instance then
 		local validAngle = currentFlickMode == "Console Wallhop"
@@ -2103,7 +2146,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	else
 		lastHitPosition = nil
-		end
+	end
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -2191,4 +2234,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Fleeee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
