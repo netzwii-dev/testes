@@ -1914,8 +1914,8 @@ local function performConsoleWallhop()
 		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, flickYaw, 0)
 
 		task.spawn(function()
-			local returnSteps = 14
-			local stepDelay = 0.030
+			local returnSteps = 90
+			local stepDelay = 0.250
 
 			for i = 1, returnSteps do
 				if not hrp or not hrp.Parent then
@@ -1930,7 +1930,7 @@ local function performConsoleWallhop()
 				local liveTargetYaw = getYawFromVector(liveFlat)
 				local currentYaw = math.atan2(-hrp.CFrame.LookVector.X, -hrp.CFrame.LookVector.Z)
 				local delta = wrapAngle(liveTargetYaw - currentYaw)
-				local nextYaw = currentYaw + (delta * 0.12)
+				local nextYaw = currentYaw + (delta * 0.50)
 
 				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, nextYaw, 0)
 
@@ -2237,4 +2237,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best FFFlee The Facility | Made by Nyhito - Loaded Successfully ✅")
