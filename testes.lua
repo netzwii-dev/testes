@@ -2082,7 +2082,8 @@ RunService.Heartbeat:Connect(function()
 	})
 
 	if result and result.Instance then
-		local validAngle = isWithinWallhopAngle(Camera.CFrame.LookVector, result.Normal, 25)
+		local validAngle = currentFlickMode == "Console Wallhop"
+			or isWithinWallhopAngle(Camera.CFrame.LookVector, result.Normal, 25)
 
 		if validAngle then
 			local farEnough = true
@@ -2102,7 +2103,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	else
 		lastHitPosition = nil
-	end
+		end
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
@@ -2190,4 +2191,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Fleeee The Facility | Made by Nyhito - Loaded Successfully ✅")
