@@ -1869,6 +1869,56 @@ local function getFlickProfile(useSpecialFirst)
 	end
 end
 
+
+local rotateToken = 0
+
+local function getCameraYaw()
+	local look = Camera.CFrame.LookVector
+	local flat = Vector3.new(look.X, 0, look.Z)
+
+	if flat.Magnitude <= 0 then
+		return nil
+	end
+
+	flat = flat.Unit
+	return math.atan2(-flat.X, -flat.Z)
+end
+
+local function restoreCharacterRotate(hum, hrp, myToken)
+	task.delay(0.16, function()
+		if myToken ~= rotateToken then
+			return
+		end
+
+		if hrp and hrp.Parent then
+			local camYaw = getCameraYaw()
+			if camYaw then
+				pcall(function()
+					hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, camYaw, 0)
+				end)
+			end
+		end
+
+		if hum and hum.Parent then
+			pcall(function()
+				hum.AutoRotate = true
+			end)
+		end
+	end)
+
+	task.delay(0.42, function()
+		if myToken ~= rotateToken then
+			return
+		end
+
+		if hum and hum.Parent then
+			pcall(function()
+				hum.AutoRotate = true
+			end)
+		end
+	end)
+end
+
 local function performNormalWallhop()
 	if isFlicking then
 		return
@@ -1885,6 +1935,15 @@ local function performNormalWallhop()
 	if not hum or not hrp then
 		isFlicking = false
 		return
+	end
+
+	rotateToken += 1
+	local myRotateToken = rotateToken
+
+	if hum then
+		pcall(function()
+			hum.AutoRotate = false
+		end)
 	end
 
 	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
@@ -1971,6 +2030,7 @@ local function performNormalWallhop()
 	end
 
 	hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+	restoreCharacterRotate(hum, hrp, myRotateToken)
 
 	if isSlowEnabled then
 		applyWallhopSlow(hum)
@@ -2003,6 +2063,15 @@ local function performConsoleWallhop()
 	if not hum or not hrp then
 		isFlicking = false
 		return
+	end
+
+	rotateToken += 1
+	local myRotateToken = rotateToken
+
+	if hum then
+		pcall(function()
+			hum.AutoRotate = false
+		end)
 	end
 
 	hasWallhoppedSinceLanding = true
@@ -2072,6 +2141,8 @@ local function performConsoleWallhop()
 	task.delay(0.12, function()
 		blockDoubleJump = false
 	end)
+
+	restoreCharacterRotate(hum, hrp, myRotateToken)
 
 	task.delay(0.45, function()
 		isWallHopping = false
@@ -2183,6 +2254,13 @@ end
 
 RunService.Heartbeat:Connect(function()
 	if not isWallHopEnabled then
+		local char = LocalPlayer.Character
+		local hum = char and char:FindFirstChild("Humanoid")
+		if hum and hum.AutoRotate == false then
+			pcall(function()
+				hum.AutoRotate = true
+			end)
+		end
 		return
 	end
 
@@ -2360,4 +2438,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loadeddd Successfully ✅")
+print("Best Flee The Facility | Made by Nyhito - Loaddded Successfully ✅")
