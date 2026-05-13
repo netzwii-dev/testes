@@ -1,6 +1,14 @@
 -- (Made by nyhito)
 -- All Credits: nyhito (tester, config and uploader)
 -- The Best
+-- Edited:
+-- WALLHOP_COOLDOWN = 0.26
+-- MIN_HIT_DISTANCE = 0.1
+-- Normal flick: ida mais lenta e volta igual
+-- Jump trocado para hum.Jump = true via doRealJump(hum)
+-- findValidWall offsets: -2.2 e -2.3
+-- Raycast distance: 1.25
+-- Angle mantido em 25
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -90,7 +98,7 @@ local lastFlickTime = 0
 local isWallHopping = false
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
-local WALLHOP_COOLDOWN = 0.18
+local WALLHOP_COOLDOWN = 0.26
 
 local canDoubleJump = false
 local lastDoubleJump = 0
@@ -98,7 +106,7 @@ local DOUBLE_JUMP_COOLDOWN = 3
 local blockDoubleJump = false
 
 local lastHitPosition = nil
-local MIN_HIT_DISTANCE = 0.2
+local MIN_HIT_DISTANCE = 0.1
 local lastFlickAngle = nil
 
 local airborneSource = nil
@@ -603,6 +611,7 @@ local function createSimpleRow(parent, yOffset, labelText)
 	row.Selectable = false
 	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
 	setTargetTransparency(row, 0, 1)
+
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
 	label.Size = UDim2.new(1, -24, 1, 0)
@@ -847,6 +856,7 @@ local function bindFreeDrag(handle, target, onMove, holdTime)
 	local holdId = 0
 
 	holdTime = holdTime or 0
+
 	table.insert(dragConnections, handle.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
 			activeInput = input
@@ -1081,6 +1091,7 @@ local function buildMobileGui()
 			MobileButton.Position = UDim2.new(0, 150, 0, insetNow.Y - 58)
 		end
 	end
+
 	local function placePanelToRightOfWallhop()
 		local xOffset = MobileButton.Position.X.Offset + MobileButton.Size.X.Offset + 28
 		local yOffset = MobileButton.Position.Y.Offset + 6
@@ -1375,6 +1386,7 @@ local function buildPCGui()
 	HideGuiBindButton.Parent = PcFunctionsPage
 	noTextStroke(HideGuiBindButton)
 	setTargetTransparency(HideGuiBindButton, 1, 0)
+
 	ToggleBindButton = Instance.new("TextButton")
 	ToggleBindButton.Size = UDim2.new(1, -36, 0, 18)
 	ToggleBindButton.Position = UDim2.new(0, 18, 0, 30)
@@ -1637,6 +1649,22 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
+local function doRealJump(hum)
+	if not hum or not hum.Parent then
+		return
+	end
+
+	local state = hum:GetState()
+
+	if state == Enum.HumanoidStateType.Dead
+		or state == Enum.HumanoidStateType.Seated
+		or state == Enum.HumanoidStateType.PlatformStanding then
+		return
+	end
+
+	hum.Jump = true
+end
+
 UserInputService.JumpRequest:Connect(function()
 	if not isWallHopEnabled or blockDoubleJump then
 		return
@@ -1659,11 +1687,11 @@ UserInputService.JumpRequest:Connect(function()
 		canDoubleJump = false
 
 		hrp.Velocity = Vector3.new(hrp.Velocity.X, 30, hrp.Velocity.Z)
-		hum:ChangeState(Enum.HumanoidStateType.Jumping)
+		doRealJump(hum)
 
 		task.delay(0.18, function()
 			if hum then
-				hum:ChangeState(Enum.HumanoidStateType.Freefall)
+				hum.Jump = false
 			end
 		end)
 	end
@@ -1693,9 +1721,9 @@ end
 local function getFlickProfile(useSpecialFirst)
 	if useSpecialFirst then
 		return {
-			goSteps = math.random(2, 3),
-			goDelayMin = 0.0095,
-			goDelayMax = 0.0120,
+			goSteps = math.random(3, 4),
+			goDelayMin = 0.0130,
+			goDelayMax = 0.0165,
 			holdTime = 0.01,
 			returnSteps = math.random(2, 3),
 			returnDelayMin = 0.0095,
@@ -1710,9 +1738,9 @@ local function getFlickProfile(useSpecialFirst)
 
 	if flickRoll < 0.10 then
 		return {
-			goSteps = math.random(2, 3),
-			goDelayMin = 0.0080,
-			goDelayMax = 0.0103,
+			goSteps = math.random(3, 4),
+			goDelayMin = 0.0118,
+			goDelayMax = 0.0148,
 			holdTime = 0.01,
 			returnSteps = math.random(2, 3),
 			returnDelayMin = 0.0080,
@@ -1723,9 +1751,9 @@ local function getFlickProfile(useSpecialFirst)
 		}
 	elseif flickRoll < 0.40 then
 		return {
-			goSteps = math.random(3, 4),
-			goDelayMin = 0.0085,
-			goDelayMax = 0.0110,
+			goSteps = math.random(4, 5),
+			goDelayMin = 0.0122,
+			goDelayMax = 0.0155,
 			holdTime = 0.01,
 			returnSteps = math.random(3, 4),
 			returnDelayMin = 0.0085,
@@ -1736,9 +1764,9 @@ local function getFlickProfile(useSpecialFirst)
 		}
 	else
 		return {
-			goSteps = math.random(2, 3),
-			goDelayMin = 0.0090,
-			goDelayMax = 0.0119,
+			goSteps = math.random(3, 4),
+			goDelayMin = 0.0128,
+			goDelayMax = 0.0162,
 			holdTime = 0.01,
 			returnSteps = math.random(2, 3),
 			returnDelayMin = 0.0090,
@@ -1774,7 +1802,7 @@ local function performNormalWallhop()
 	end
 	hasWallhoppedSinceLanding = true
 
-	hum:ChangeState(Enum.HumanoidStateType.Jumping)
+	doRealJump(hum)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick(useSpecialFirst)
@@ -1859,7 +1887,13 @@ local function performNormalWallhop()
 		blockDoubleJump = false
 	end)
 
-	task.delay(0.15, function()
+	task.delay(0.14, function()
+		if hum and hum.Parent then
+			hum.Jump = false
+		end
+	end)
+
+	task.delay(0.20, function()
 		isWallHopping = false
 	end)
 
@@ -1887,7 +1921,7 @@ local function performConsoleWallhop()
 	hasWallhoppedSinceLanding = true
 	specialFirstFlickArmed = false
 
-	hum:ChangeState(Enum.HumanoidStateType.Jumping)
+	doRealJump(hum)
 
 	local function getCameraFlat()
 		local look = Camera.CFrame.LookVector
@@ -1948,6 +1982,12 @@ local function performConsoleWallhop()
 
 	task.delay(0.12, function()
 		blockDoubleJump = false
+	end)
+
+	task.delay(0.14, function()
+		if hum and hum.Parent then
+			hum.Jump = false
+		end
 	end)
 
 	task.delay(0.45, function()
@@ -2017,9 +2057,8 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-		Vector3.new(0, -2.3, 0),
 		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -1.2, 0)
+		Vector3.new(0, -2.3, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -2119,8 +2158,8 @@ RunService.Heartbeat:Connect(function()
 
 	horizontal = horizontal.Unit
 
-	local forwardDirection = horizontal * 1.55
-	local backwardDirection = -horizontal * 1.55
+	local forwardDirection = horizontal * 1.25
+	local backwardDirection = -horizontal * 1.25
 
 	local result = findValidWall(hrp, params, {
 		forwardDirection,
