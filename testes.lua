@@ -2,7 +2,7 @@
 -- All Credits: nyhito (tester, config and uploader)
 -- The Best
 -- Edited:
--- WALLHOP_COOLDOWN = 0.26
+-- WALLHOP_COOLDOWN = 0.30
 -- MIN_HIT_DISTANCE = 0.1
 -- Normal flick: ida mais lenta e volta igual
 -- Jump voltou para hum:ChangeState(Enum.HumanoidStateType.Jumping)
@@ -98,7 +98,7 @@ local lastFlickTime = 0
 local isWallHopping = false
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
-local WALLHOP_COOLDOWN = 0.26
+local WALLHOP_COOLDOWN = 0.30
 
 local canDoubleJump = false
 local lastDoubleJump = 0
@@ -1681,13 +1681,55 @@ UserInputService.JumpRequest:Connect(function()
 	end
 end)
 
+local jumpAnimToken = 0
+
+local function forceWallhopJump(hum)
+	if not hum or not hum.Parent then
+		return
+	end
+
+	jumpAnimToken += 1
+	local myToken = jumpAnimToken
+
+	pcall(function()
+		hum:ChangeState(Enum.HumanoidStateType.Freefall)
+	end)
+
+	RunService.RenderStepped:Wait()
+
+	if myToken ~= jumpAnimToken then
+		return
+	end
+
+	if hum and hum.Parent then
+		pcall(function()
+			hum:ChangeState(Enum.HumanoidStateType.Jumping)
+		end)
+	end
+
+	task.delay(0.10, function()
+		if myToken ~= jumpAnimToken then
+			return
+		end
+
+		if hum and hum.Parent then
+			local state = hum:GetState()
+			if state == Enum.HumanoidStateType.Jumping then
+				pcall(function()
+					hum:ChangeState(Enum.HumanoidStateType.Freefall)
+				end)
+			end
+		end
+	end)
+end
+
 local function pickNextFlick(useSpecialFirst)
 	local minAngle, maxAngle
 
 	if useSpecialFirst then
-		minAngle, maxAngle = 70, 80
+		minAngle, maxAngle = 80, 100
 	else
-		minAngle, maxAngle = 65, 80
+		minAngle, maxAngle = 80, 100
 	end
 
 	local attempt = 0
@@ -1786,7 +1828,7 @@ local function performNormalWallhop()
 	end
 	hasWallhoppedSinceLanding = true
 
-	hum:ChangeState(Enum.HumanoidStateType.Jumping)
+	forceWallhopJump(hum)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick(useSpecialFirst)
@@ -1899,7 +1941,7 @@ local function performConsoleWallhop()
 	hasWallhoppedSinceLanding = true
 	specialFirstFlickArmed = false
 
-	hum:ChangeState(Enum.HumanoidStateType.Jumping)
+	forceWallhopJump(hum)
 
 	local function getCameraFlat()
 		local look = Camera.CFrame.LookVector
@@ -2131,8 +2173,8 @@ RunService.Heartbeat:Connect(function()
 
 	horizontal = horizontal.Unit
 
-	local forwardDirection = horizontal * 1.45
-	local backwardDirection = -horizontal * 1.45
+	local forwardDirection = horizontal * 0.95
+	local backwardDirection = -horizontal * 0.65
 
 	local result = findValidWall(hrp, params, {
 		forwardDirection,
@@ -2249,4 +2291,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Fleee The Facility | Made by Nyhito - Loaded Successfully ✅")
