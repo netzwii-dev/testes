@@ -2,12 +2,12 @@
 -- All Credits: nyhito (tester, config and uploader)
 -- The Best
 -- Edited:
--- WALLHOP_COOLDOWN = 0.30
+-- WALLHOP_COOLDOWN = 0.22
 -- MIN_HIT_DISTANCE = 0.1
 -- Normal flick: ida mais lenta e volta igual
 -- Jump voltou para hum:ChangeState(Enum.HumanoidStateType.Jumping)
 -- findValidWall offsets: -2.3, -2.2 e -2.1
--- Raycast distance: 1.45
+-- Raycast distance: forward 1.20 / backward 1.20
 -- Angle mantido em 25
 
 local Players = game:GetService("Players")
@@ -98,7 +98,7 @@ local lastFlickTime = 0
 local isWallHopping = false
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
-local WALLHOP_COOLDOWN = 0.30
+local WALLHOP_COOLDOWN = 0.22
 
 local canDoubleJump = false
 local lastDoubleJump = 0
@@ -1682,6 +1682,81 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 local jumpAnimToken = 0
+local rotationLockToken = 0
+local activeJumpTrack = nil
+
+local function playWallhopArmPulse(hum)
+	if not hum or not hum.Parent then
+		return
+	end
+
+	local animator = hum:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = hum
+	end
+
+	if activeJumpTrack then
+		pcall(function()
+			activeJumpTrack:Stop(0.02)
+			activeJumpTrack:Destroy()
+		end)
+		activeJumpTrack = nil
+	end
+
+	local anim = Instance.new("Animation")
+	anim.AnimationId = hum.RigType == Enum.HumanoidRigType.R15
+		and "rbxassetid://507765000"
+		or "rbxassetid://125750702"
+
+	local ok, track = pcall(function()
+		return animator:LoadAnimation(anim)
+	end)
+
+	if not ok or not track then
+		anim:Destroy()
+		return
+	end
+
+	activeJumpTrack = track
+	track.Priority = Enum.AnimationPriority.Action
+	track.Looped = false
+	track:Play(0.025, 1, 1.25)
+
+	task.delay(0.34, function()
+		if activeJumpTrack == track then
+			pcall(function()
+				track:Stop(0.08)
+				track:Destroy()
+			end)
+			activeJumpTrack = nil
+		end
+		pcall(function()
+			anim:Destroy()
+		end)
+	end)
+end
+
+local function lockBodyRotation(hum, duration)
+	if not hum or not hum.Parent then
+		return
+	end
+
+	rotationLockToken += 1
+	local myToken = rotationLockToken
+	local oldAutoRotate = hum.AutoRotate
+
+	hum.AutoRotate = false
+
+	task.delay(duration or 0.35, function()
+		if myToken ~= rotationLockToken then
+			return
+		end
+		if hum and hum.Parent then
+			hum.AutoRotate = oldAutoRotate
+		end
+	end)
+end
 
 local function forceWallhopJump(hum)
 	if not hum or not hum.Parent then
@@ -1691,23 +1766,13 @@ local function forceWallhopJump(hum)
 	jumpAnimToken += 1
 	local myToken = jumpAnimToken
 
+	playWallhopArmPulse(hum)
+
 	pcall(function()
-		hum:ChangeState(Enum.HumanoidStateType.Freefall)
+		hum:ChangeState(Enum.HumanoidStateType.Jumping)
 	end)
 
-	RunService.RenderStepped:Wait()
-
-	if myToken ~= jumpAnimToken then
-		return
-	end
-
-	if hum and hum.Parent then
-		pcall(function()
-			hum:ChangeState(Enum.HumanoidStateType.Jumping)
-		end)
-	end
-
-	task.delay(0.10, function()
+	task.delay(0.085, function()
 		if myToken ~= jumpAnimToken then
 			return
 		end
@@ -1829,6 +1894,8 @@ local function performNormalWallhop()
 	hasWallhoppedSinceLanding = true
 
 	forceWallhopJump(hum)
+	lockBodyRotation(hum, 0.36)
+	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick(useSpecialFirst)
@@ -1942,6 +2009,8 @@ local function performConsoleWallhop()
 	specialFirstFlickArmed = false
 
 	forceWallhopJump(hum)
+	lockBodyRotation(hum, 0.62)
+	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
 
 	local function getCameraFlat()
 		local look = Camera.CFrame.LookVector
@@ -2073,7 +2142,7 @@ local function findValidWall(hrp, params, directions)
 	local offsets = {
 		Vector3.new(0, -2.3, 0),
 		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -2.1, 0)
+		Vector3.new(0, -2.0, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -2173,8 +2242,8 @@ RunService.Heartbeat:Connect(function()
 
 	horizontal = horizontal.Unit
 
-	local forwardDirection = horizontal * 0.95
-	local backwardDirection = -horizontal * 0.65
+	local forwardDirection = horizontal * 1.20
+	local backwardDirection = -horizontal * 1.20
 
 	local result = findValidWall(hrp, params, {
 		forwardDirection,
@@ -2291,4 +2360,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Fleee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility | Made by Nyhito - Loadeddd Successfully ✅")
