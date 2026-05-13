@@ -1649,22 +1649,6 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
-local function hum:ChangeState(Enum.HumanoidStateType.Jumping)
-	if not hum or not hum.Parent then
-		return
-	end
-
-	local state = hum:GetState()
-
-	if state == Enum.HumanoidStateType.Dead
-		or state == Enum.HumanoidStateType.Seated
-		or state == Enum.HumanoidStateType.PlatformStanding then
-		return
-	end
-
-	hum.Jump = true
-end
-
 UserInputService.JumpRequest:Connect(function()
 	if not isWallHopEnabled or blockDoubleJump then
 		return
