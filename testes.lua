@@ -5,9 +5,9 @@
 -- WALLHOP_COOLDOWN = 0.26
 -- MIN_HIT_DISTANCE = 0.1
 -- Normal flick: ida mais lenta e volta igual
--- Jump trocado para hum.Jump = true via doRealJump(hum)
--- findValidWall offsets: -2.2 e -2.3
--- Raycast distance: 1.25
+-- Jump voltou para hum:ChangeState(Enum.HumanoidStateType.Jumping)
+-- findValidWall offsets: -2.3, -2.2 e -2.1
+-- Raycast distance: 1.45
 -- Angle mantido em 25
 
 local Players = game:GetService("Players")
@@ -1649,7 +1649,7 @@ if LocalPlayer.Character then
 end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
-local function doRealJump(hum)
+local function hum:ChangeState(Enum.HumanoidStateType.Jumping)
 	if not hum or not hum.Parent then
 		return
 	end
@@ -1687,11 +1687,11 @@ UserInputService.JumpRequest:Connect(function()
 		canDoubleJump = false
 
 		hrp.Velocity = Vector3.new(hrp.Velocity.X, 30, hrp.Velocity.Z)
-		doRealJump(hum)
+		hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
 		task.delay(0.18, function()
 			if hum then
-				hum.Jump = false
+				hum:ChangeState(Enum.HumanoidStateType.Freefall)
 			end
 		end)
 	end
@@ -1802,7 +1802,7 @@ local function performNormalWallhop()
 	end
 	hasWallhoppedSinceLanding = true
 
-	doRealJump(hum)
+	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick(useSpecialFirst)
@@ -1887,12 +1887,6 @@ local function performNormalWallhop()
 		blockDoubleJump = false
 	end)
 
-	task.delay(0.14, function()
-		if hum and hum.Parent then
-			hum.Jump = false
-		end
-	end)
-
 	task.delay(0.20, function()
 		isWallHopping = false
 	end)
@@ -1921,7 +1915,7 @@ local function performConsoleWallhop()
 	hasWallhoppedSinceLanding = true
 	specialFirstFlickArmed = false
 
-	doRealJump(hum)
+	hum:ChangeState(Enum.HumanoidStateType.Jumping)
 
 	local function getCameraFlat()
 		local look = Camera.CFrame.LookVector
@@ -1982,12 +1976,6 @@ local function performConsoleWallhop()
 
 	task.delay(0.12, function()
 		blockDoubleJump = false
-	end)
-
-	task.delay(0.14, function()
-		if hum and hum.Parent then
-			hum.Jump = false
-		end
 	end)
 
 	task.delay(0.45, function()
@@ -2057,8 +2045,9 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
+		Vector3.new(0, -2.3, 0),
 		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -2.3, 0)
+		Vector3.new(0, -2.1, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -2158,8 +2147,8 @@ RunService.Heartbeat:Connect(function()
 
 	horizontal = horizontal.Unit
 
-	local forwardDirection = horizontal * 1.25
-	local backwardDirection = -horizontal * 1.25
+	local forwardDirection = horizontal * 1.45
+	local backwardDirection = -horizontal * 1.45
 
 	local result = findValidWall(hrp, params, {
 		forwardDirection,
@@ -2276,4 +2265,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee Thhhe Facility | Made by Nyhito - Loaded Successfully ✅")
