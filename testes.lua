@@ -2450,121 +2450,274 @@ local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
 end
 
 
-local function isGroundedForCornerWalk(hum)
-	if not hum then
-		return false
-	end
 
-	local state = hum:GetState()
-	return state == Enum.HumanoidStateType.Running
-		or state == Enum.HumanoidStateType.Landed
-end
+local cornerWalkAirStart = 0
+local CORNER_WALK_AIR_TIME = 0.30
+local CORNER_WALK_WALL_DISTANCE = 1.35
+local CORNER_WALK_STICK_DISTANCE = 0.52
+local CORNER_WALK_MIN_MOVE = 0.08
 
-local function safeUnit(vec)
+local function flatUnit(vec)
 	if not vec or vec.Magnitude < 0.05 then
 		return nil
 	end
 	return vec.Unit
 end
 
-local function getCornerWalkWall(hrp, hum, params)
+local function isCornerWalkStateAllowed(hum)
+	if not hum then
+		return false
+	end
+
+	local state = hum:GetState()
+
+	if state == Enum.HumanoidStateType.Dead
+		or state == Enum.HumanoidStateType.Seated
+		or state == Enum.HumanoidStateType.PlatformStanding
+		or state == Enum.HumanoidStateType.Swimming
+		or state == Enum.HumanoidStateType.Climbing then
+		return false
+	end
+
+	if state == Enum.HumanoidStateType.Jumping then
+		return false
+	end
+
+	if state == Enum.HumanoidStateType.Freefall then
+		if cornerWalkAirStart <= 0 then
+			cornerWalkAirStart = tick()
+		end
+
+		return (tick() - cornerWalkAirStart) <= CORNER_WALK_AIR_TIME
+	end
+
+	cornerWalkAirStart = 0
+	return true
+end
+
+local function getCornerWalkDirections(hrp, hum)
+	local dirs = {}
+
+	local move = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)
+	move = flatUnit(move)
+
+	if move then
+		table.insert(dirs, move)
+		table.insert(dirs, -move)
+
+		local moveRight = flatUnit(move:Cross(Vector3.new(0, 1, 0)))
+		if moveRight then
+			table.insert(dirs, moveRight)
+			table.insert(dirs, -moveRight)
+
+			local d1 = flatUnit(move + moveRight)
+			local d2 = flatUnit(move - moveRight)
+			local d3 = flatUnit(-move + moveRight)
+			local d4 = flatUnit(-move - moveRight)
+
+			if d1 then table.insert(dirs, d1) end
+			if d2 then table.insert(dirs, d2) end
+			if d3 then table.insert(dirs, d3) end
+			if d4 then table.insert(dirs, d4) end
+		end
+	end
+
+	if hrp then
+		local look = Vector3.new(hrp.CFrame.LookVector.X, 0, hrp.CFrame.LookVector.Z)
+		local right = Vector3.new(hrp.CFrame.RightVector.X, 0, hrp.CFrame.RightVector.Z)
+
+		look = flatUnit(look)
+		right = flatUnit(right)
+
+		if look then
+			table.insert(dirs, look)
+			table.insert(dirs, -look)
+		end
+
+		if right then
+			table.insert(dirs, right)
+			table.insert(dirs, -right)
+		end
+	end
+
+	return dirs
+end
+
+local function findCornerWalkWall(hrp, hum, params)
 	if not hrp or not hum then
 		return nil
 	end
 
-	local moveDir = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)
-	moveDir = safeUnit(moveDir)
-	if not moveDir then
-		return nil
-	end
-
-	local right = moveDir:Cross(Vector3.new(0, 1, 0))
-	right = safeUnit(right)
-	if not right then
-		return nil
-	end
-
-	local diagLeft = safeUnit(moveDir - right)
-	local diagRight = safeUnit(moveDir + right)
-
-	local dirs = {
-		moveDir * 1.15,
-		-right * 1.05,
-		right * 1.05
-	}
-
-	if diagLeft then
-		table.insert(dirs, diagLeft * 1.10)
-	end
-	if diagRight then
-		table.insert(dirs, diagRight * 1.10)
-	end
+	local dirs = getCornerWalkDirections(hrp, hum)
 
 	local offsets = {
-		Vector3.new(0, -2.45, 0),
-		Vector3.new(0, -2.25, 0),
-		Vector3.new(0, -2.05, 0)
+		Vector3.new(0, -2.55, 0),
+		Vector3.new(0, -2.35, 0),
+		Vector3.new(0, -2.15, 0),
+		Vector3.new(0, -1.95, 0),
+		Vector3.new(0, -1.75, 0)
 	}
+
+	local bestRay = nil
+	local bestDist = math.huge
 
 	for _, dir in ipairs(dirs) do
 		for _, offset in ipairs(offsets) do
 			local origin = hrp.Position + offset
-			local ray = workspace:Raycast(origin, dir, params)
+			local ray = workspace:Raycast(origin, dir * CORNER_WALK_WALL_DISTANCE, params)
 
 			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
 				if isWallLikeSurface(ray.Normal) then
-					return ray
+					local dist = (ray.Position - origin).Magnitude
+					if dist < bestDist then
+						bestRay = ray
+						bestDist = dist
+					end
 				end
 			end
 		end
 	end
 
-	return nil
+	return bestRay
 end
 
-local function applyCornerWalkAssist(hrp, hum, ray)
-	if not hrp or not hum or not ray then
+local function findCornerWalkSupport(hrp, wallRay, params)
+	if not hrp or not wallRay then
+		return nil
+	end
+
+	local normal = Vector3.new(wallRay.Normal.X, 0, wallRay.Normal.Z)
+	normal = flatUnit(normal)
+	if not normal then
+		return nil
+	end
+
+	local nearWall = wallRay.Position - normal * 0.18
+
+	local origins = {
+		nearWall + Vector3.new(0, 0.55, 0),
+		nearWall + Vector3.new(0, 0.35, 0),
+		hrp.Position + Vector3.new(0, -1.45, 0),
+		hrp.Position + Vector3.new(0, -1.75, 0)
+	}
+
+	local best = nil
+	local bestY = -math.huge
+
+	for _, origin in ipairs(origins) do
+		local ray = workspace:Raycast(origin, Vector3.new(0, -1.10, 0), params)
+		if ray and ray.Instance and ray.Instance.CanCollide then
+			if ray.Position.Y > bestY then
+				best = ray
+				bestY = ray.Position.Y
+			end
+		end
+	end
+
+	return best
+end
+
+local function applyCornerWalk(hrp, hum, wallRay, supportRay)
+	if not hrp or not hum or not wallRay then
 		return
 	end
 
-	local flatMove = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)
-	flatMove = safeUnit(flatMove)
-	if not flatMove then
+	local move = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)
+	move = flatUnit(move)
+	if not move then
 		return
 	end
 
-	local normal = Vector3.new(ray.Normal.X, 0, ray.Normal.Z)
-	normal = safeUnit(normal)
+	local normal = Vector3.new(wallRay.Normal.X, 0, wallRay.Normal.Z)
+	normal = flatUnit(normal)
 	if not normal then
 		return
 	end
 
 	local tangent = normal:Cross(Vector3.new(0, 1, 0))
-	tangent = safeUnit(tangent)
+	tangent = flatUnit(tangent)
 	if not tangent then
 		return
 	end
 
-	if tangent:Dot(flatMove) < 0 then
+	if tangent:Dot(move) < 0 then
 		tangent = -tangent
 	end
 
-	local currentVel = hrp.Velocity
-	local horizontalSpeed = Vector3.new(currentVel.X, 0, currentVel.Z).Magnitude
-	local targetSpeed = math.clamp(math.max(horizontalSpeed, hum.WalkSpeed * 0.92), 8, 22)
+	local vel = hrp.Velocity
+	local horizontalSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+	local targetSpeed = math.clamp(math.max(horizontalSpeed, hum.WalkSpeed * 0.96), 8, 23)
 
-	local wallDistance = (ray.Position - hrp.Position).Magnitude
-	local stickStrength = 2.2
+	local currentWallDistance = (Vector3.new(hrp.Position.X, wallRay.Position.Y, hrp.Position.Z) - wallRay.Position).Magnitude
+	local stickPower = 1.7
 
-	if wallDistance < 0.75 then
-		stickStrength = 1.2
-	elseif wallDistance > 1.35 then
-		stickStrength = 2.8
+	if currentWallDistance > CORNER_WALK_STICK_DISTANCE then
+		stickPower = 3.2
+	elseif currentWallDistance < 0.28 then
+		stickPower = 0.8
 	end
 
-	local newHorizontal = tangent * targetSpeed + (normal * -stickStrength)
-	hrp.Velocity = Vector3.new(newHorizontal.X, currentVel.Y, newHorizontal.Z)
+	local newHorizontal = tangent * targetSpeed + normal * -stickPower
+
+	local yVel = vel.Y
+	if supportRay then
+		local targetY = supportRay.Position.Y + 2.45
+		local diffY = targetY - hrp.Position.Y
+
+		if math.abs(diffY) <= 0.85 then
+			yVel = math.clamp(diffY * 16, -1.5, 3.5)
+		elseif vel.Y < 0 then
+			yVel = math.max(vel.Y, -0.7)
+		end
+	else
+		if vel.Y < 0 then
+			yVel = math.max(vel.Y, -0.65)
+		end
+	end
+
+	hrp.Velocity = Vector3.new(newHorizontal.X, yVel, newHorizontal.Z)
 end
+
+local function runCornerWalk()
+	if not isCornerWalkEnabled then
+		cornerWalkAirStart = 0
+		return
+	end
+
+	local char = LocalPlayer.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChild("Humanoid")
+
+	if not char or not hrp or not hum then
+		cornerWalkAirStart = 0
+		return
+	end
+
+	if hum.MoveDirection.Magnitude < CORNER_WALK_MIN_MOVE then
+		cornerWalkAirStart = 0
+		return
+	end
+
+	if not isCornerWalkStateAllowed(hum) then
+		return
+	end
+
+	local params = RaycastParams.new()
+	params.FilterDescendantsInstances = {char}
+	params.FilterType = Enum.RaycastFilterType.Exclude
+
+	local wallRay = findCornerWalkWall(hrp, hum, params)
+	if not wallRay then
+		return
+	end
+
+	local supportRay = findCornerWalkSupport(hrp, wallRay, params)
+	applyCornerWalk(hrp, hum, wallRay, supportRay)
+end
+
+RunService.Heartbeat:Connect(function()
+	runCornerWalk()
+end)
 
 RunService.Heartbeat:Connect(function()
 	if not isWallHopEnabled then
@@ -2588,24 +2741,6 @@ RunService.Heartbeat:Connect(function()
 
 	if isCrouching(hum, hrp) then
 		return
-	end
-
-	if isCornerWalkEnabled then
-		local stateForCorner = hum:GetState()
-		local movingForCorner = hum.MoveDirection.Magnitude > 0.08
-		local jumpingForCorner = stateForCorner == Enum.HumanoidStateType.Jumping
-			or stateForCorner == Enum.HumanoidStateType.Freefall
-
-		if movingForCorner and not jumpingForCorner and isGroundedForCornerWalk(hum) then
-			local cornerParams = RaycastParams.new()
-			cornerParams.FilterDescendantsInstances = {char}
-			cornerParams.FilterType = Enum.RaycastFilterType.Exclude
-
-			local cornerRay = getCornerWalkWall(hrp, hum, cornerParams)
-			if cornerRay then
-				applyCornerWalkAssist(hrp, hum, cornerRay)
-			end
-		end
 	end
 
 	local state = hum:GetState()
