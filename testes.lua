@@ -2456,7 +2456,7 @@ local CORNER_WALK_AIR_TIME = 0.05
 local CORNER_WALK_WALL_DISTANCE = 1.35
 local CORNER_WALK_STICK_DISTANCE = 0.52
 local CORNER_WALK_MIN_MOVE = 0.08
-local CORNER_WALK_MIN_REAL_SPEED = 2.0
+local CORNER_WALK_MIN_REAL_SPEED = 0.45
 
 local function flatUnit(vec)
 	if not vec or vec.Magnitude < 0.05 then
@@ -2552,11 +2552,7 @@ local function findCornerWalkWall(hrp, hum, params)
 	local dirs = getCornerWalkDirections(hrp, hum)
 
 	local offsets = {
-		Vector3.new(0, -2.55, 0),
-		Vector3.new(0, -2.35, 0),
-		Vector3.new(0, -2.15, 0),
-		Vector3.new(0, -1.95, 0),
-		Vector3.new(0, -1.75, 0)
+		Vector3.new(0, -2.35, 0)
 	}
 
 	local bestRay = nil
@@ -2637,41 +2633,33 @@ local function applyCornerWalk(hrp, hum, wallRay, supportRay)
 		return
 	end
 
-	local normal = Vector3.new(wallRay.Normal.X, 0, wallRay.Normal.Z)
-	normal = flatUnit(normal)
-	if not normal then
-		return
-	end
-
 	local yVel = vel.Y
 
 	if supportRay then
 		local targetY = supportRay.Position.Y + 2.45
 		local diffY = targetY - hrp.Position.Y
 
-		if math.abs(diffY) <= 0.55 then
-			yVel = math.clamp(diffY * 12, -0.35, 1.65)
+		if math.abs(diffY) <= 0.75 then
+			yVel = math.clamp(diffY * 18, -0.10, 2.25)
 		elseif vel.Y < 0 then
-			yVel = math.max(vel.Y, -0.25)
+			yVel = math.max(vel.Y, -0.10)
+		end
+
+		local state = hum:GetState()
+		if state == Enum.HumanoidStateType.Freefall then
+			pcall(function()
+				hum:ChangeState(Enum.HumanoidStateType.Running)
+			end)
 		end
 	else
 		if vel.Y < 0 then
-			yVel = math.max(vel.Y, -0.25)
+			yVel = math.max(vel.Y, -0.10)
 		end
 	end
 
-	local state = hum:GetState()
-	if state == Enum.HumanoidStateType.Freefall then
-		pcall(function()
-			hum:ChangeState(Enum.HumanoidStateType.Running)
-		end)
-	end
-
-	local wallStick = normal * -0.18
-	local newX = vel.X + wallStick.X
-	local newZ = vel.Z + wallStick.Z
-
-	hrp.Velocity = Vector3.new(newX, yVel, newZ)
+	-- Não mexe no X/Z.
+	-- A velocidade e direção horizontal continuam 100% controladas pelo player.
+	hrp.Velocity = Vector3.new(vel.X, yVel, vel.Z)
 end
 
 local function runCornerWalk()
