@@ -2686,7 +2686,7 @@ local function updateCornerWalkFloor(hrp, hum, edgeRay)
 	local floor = getCornerWalkFloor()
 
 	-- A superfície de cima do chão fica exatamente na linha detectada no pé.
-	local floorTopY = edgeRay.Position.Y - 0.15
+	local floorTopY = edgeRay.Position.Y - 0.40
 	local floorCenterY = floorTopY - (CORNER_WALK_FLOOR_THICKNESS / 2)
 
 	-- Coloca o chão levemente para fora da parede, na direção do jogador.
@@ -2973,4 +2973,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Faciiility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility | Made by Nnnyhito - Loaded Successfully ✅")
