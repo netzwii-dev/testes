@@ -198,10 +198,7 @@ local currentFlickMode = "Normal Wallhop"
 local next360Direction = 1
 
 local CONFIGS_FILE = "nyhito_ftf_wallhop_configs.json"
-local configsData = {
-	configs = {},
-	autoload = nil
-}
+local configsData = {configs = {}, autoload = nil}
 local selectedConfigName = nil
 local configDropdownOpen = false
 
@@ -425,11 +422,18 @@ local function applyXrayToPart(part)
 
 	pcall(function()
 		local targetTransparency = math.clamp(xrayOpacityValue / 100, 0, 1)
-		local baseTransparency = xrayOriginalTransparency[part] or part.Transparency
-		local baseLocalTransparency = xrayOriginalLocalTransparency[part] or part.LocalTransparencyModifier
+		local originalT = xrayOriginalTransparency[part]
+		local originalLT = xrayOriginalLocalTransparency[part]
 
-		part.Transparency = math.max(baseTransparency, targetTransparency)
-		part.LocalTransparencyModifier = math.max(baseLocalTransparency, targetTransparency)
+		if originalT == nil then
+			originalT = part.Transparency
+		end
+		if originalLT == nil then
+			originalLT = part.LocalTransparencyModifier
+		end
+
+		part.Transparency = math.max(originalT, targetTransparency)
+		part.LocalTransparencyModifier = math.max(originalLT, targetTransparency)
 	end)
 end
 
@@ -477,7 +481,9 @@ local function setXrayEnabled(state)
 		clearXray()
 	end
 
-	updateMobilePanelButtons()
+	if updateMobilePanelButtons then
+		updateMobilePanelButtons()
+	end
 end
 
 local function setXrayOpacityValue(value)
@@ -489,7 +495,9 @@ local function setXrayOpacityValue(value)
 		end
 	end
 
-	updateMobilePanelButtons()
+	if updateMobilePanelButtons then
+		updateMobilePanelButtons()
+	end
 end
 
 workspace.DescendantAdded:Connect(function(obj)
@@ -1348,11 +1356,7 @@ switchMobileTab = function(name)
 	MobileTabSettings.BackgroundColor3 = isSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 
 	if MobilePanel then
-		if isSettings then
-			MobilePanel.Size = UDim2.new(0, 220, 0, 560)
-		else
-			MobilePanel.Size = UDim2.new(0, 190, 0, 282)
-		end
+		MobilePanel.Size = isSettings and UDim2.new(0, 220, 0, 560) or UDim2.new(0, 190, 0, 282)
 	end
 
 	refreshConfigDropdown()
@@ -1390,12 +1394,38 @@ local function setMobileBeastSlowButtonState(state)
 end
 
 
-local function copySimpleConfig(tbl)
-	local copy = {}
-	for k, v in pairs(tbl or {}) do
-		copy[k] = v
+local function trimConfigName(name)
+	name = tostring(name or "")
+	name = name:gsub("^%s+", ""):gsub("%s+$", "")
+	return name
+end
+
+local function loadConfigsData()
+	if not readfile or not isfile then
+		return
 	end
-	return copy
+
+	if not isfile(CONFIGS_FILE) then
+		return
+	end
+
+	pcall(function()
+		local decoded = HttpService:JSONDecode(readfile(CONFIGS_FILE))
+		if type(decoded) == "table" then
+			configsData.configs = type(decoded.configs) == "table" and decoded.configs or {}
+			configsData.autoload = decoded.autoload
+		end
+	end)
+end
+
+local function saveConfigsData()
+	if not writefile then
+		return
+	end
+
+	pcall(function()
+		writefile(CONFIGS_FILE, HttpService:JSONEncode(configsData))
+	end)
 end
 
 local function getCurrentConfigData()
@@ -1409,11 +1439,11 @@ local function getCurrentConfigData()
 		mobileWallhopGuiHidden = mobileWallhopGuiHidden,
 		mobileCornerWalkButtonVisible = mobileCornerWalkButtonVisible,
 		mobileBeastSlowButtonVisible = mobileBeastSlowButtonVisible,
+		hideGuiKey = hideGuiKey.Name,
 		toggleScriptKey = toggleScriptKey.Name,
 		toggleBeastSlowKey = toggleBeastSlowKey.Name,
 		toggleCornerWalkKey = toggleCornerWalkKey.Name,
-		toggleXrayKey = toggleXrayKey.Name,
-		hideGuiKey = hideGuiKey.Name
+		toggleXrayKey = toggleXrayKey.Name
 	}
 end
 
@@ -1460,34 +1490,6 @@ local function applyConfigData(cfg)
 	applyVisibility()
 end
 
-local function loadConfigsData()
-	if not readfile or not isfile then
-		return
-	end
-
-	if not isfile(CONFIGS_FILE) then
-		return
-	end
-
-	pcall(function()
-		local decoded = HttpService:JSONDecode(readfile(CONFIGS_FILE))
-		if type(decoded) == "table" then
-			configsData.configs = type(decoded.configs) == "table" and decoded.configs or {}
-			configsData.autoload = decoded.autoload
-		end
-	end)
-end
-
-local function saveConfigsData()
-	if not writefile then
-		return
-	end
-
-	pcall(function()
-		writefile(CONFIGS_FILE, HttpService:JSONEncode(configsData))
-	end)
-end
-
 local function getSortedConfigNames()
 	local names = {}
 
@@ -1503,15 +1505,9 @@ local function getSortedConfigNames()
 end
 
 local function refreshConfigDropdown()
-	if not MobileConfigListButton then
-		return
+	if MobileConfigListButton then
+		MobileConfigListButton.Text = selectedConfigName or "---"
 	end
-
-	if selectedConfigName and not configsData.configs[selectedConfigName] then
-		selectedConfigName = nil
-	end
-
-	MobileConfigListButton.Text = selectedConfigName or "---"
 
 	if MobileAutoloadLabel then
 		MobileAutoloadLabel.Text = "Currently autoload config: " .. (configsData.autoload or "Default")
@@ -1527,14 +1523,13 @@ local function refreshConfigDropdown()
 		end
 	end
 
-	local names = getSortedConfigNames()
-	local rowY = 0
+	local y = 0
 
-	for _, name in ipairs(names) do
+	for _, name in ipairs(getSortedConfigNames()) do
 		local btn = Instance.new("TextButton")
 		btn.Size = UDim2.new(1, 0, 0, 28)
-		btn.Position = UDim2.new(0, 0, 0, rowY)
-		btn.BackgroundColor3 = Color3.fromRGB(4, 4, 4)
+		btn.Position = UDim2.new(0, 0, 0, y)
+		btn.BackgroundColor3 = Color3.fromRGB(4,4,4)
 		btn.Text = name
 		btn.TextColor3 = Color3.fromRGB(255,255,255)
 		btn.Font = Enum.Font.Gotham
@@ -1551,22 +1546,22 @@ local function refreshConfigDropdown()
 			refreshConfigDropdown()
 		end)
 
-		rowY += 30
+		y += 30
 	end
 
-	MobileConfigDropdown.Size = UDim2.new(1, -14, 0, math.min(rowY, 120))
+	MobileConfigDropdown.Size = UDim2.new(1, -14, 0, math.min(y, 120))
 end
 
-local activeMobileNoticeId = 0
-local function showMobileSettingsNotice(textMessage)
+local mobileNoticeId = 0
+local function showMobileSettingsNotice(message)
 	if not MobileSettingsNotice or not MobileSettingsNoticeStroke or not MobileSettingsNoticeBar then
 		return
 	end
 
-	activeMobileNoticeId += 1
-	local myId = activeMobileNoticeId
+	mobileNoticeId += 1
+	local myId = mobileNoticeId
 
-	MobileSettingsNotice.Text = textMessage
+	MobileSettingsNotice.Text = message
 	MobileSettingsNotice.Visible = true
 	MobileSettingsNotice.Position = UDim2.new(1, -8, 0, 8)
 	MobileSettingsNotice.BackgroundTransparency = 1
@@ -1574,15 +1569,12 @@ local function showMobileSettingsNotice(textMessage)
 	MobileSettingsNoticeStroke.Transparency = 1
 
 	MobileSettingsNoticeBar.Visible = true
-	MobileSettingsNoticeBar.Size = UDim2.new(1, -12, 0, 2)
-	MobileSettingsNoticeBar.Position = UDim2.new(1, -6, 1, -5)
-	MobileSettingsNoticeBar.AnchorPoint = Vector2.new(1, 0)
 	MobileSettingsNoticeBar.BackgroundTransparency = 0
+	MobileSettingsNoticeBar.Size = UDim2.new(1, -12, 0, 2)
 
-	TweenService:Create(MobileSettingsNotice, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+	TweenService:Create(MobileSettingsNotice, TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		BackgroundTransparency = 0.08,
-		TextTransparency = 0,
-		Position = UDim2.new(1, -8, 0, 8)
+		TextTransparency = 0
 	}):Play()
 
 	TweenService:Create(MobileSettingsNoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -1594,14 +1586,14 @@ local function showMobileSettingsNotice(textMessage)
 	}):Play()
 
 	task.delay(3, function()
-		if myId ~= activeMobileNoticeId then
+		if myId ~= mobileNoticeId then
 			return
 		end
 
 		TweenService:Create(MobileSettingsNotice, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
 			BackgroundTransparency = 1,
 			TextTransparency = 1,
-			Position = UDim2.new(1, 240, 0, 8)
+			Position = UDim2.new(1, 260, 0, 8)
 		}):Play()
 
 		TweenService:Create(MobileSettingsNoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -1612,8 +1604,8 @@ local function showMobileSettingsNotice(textMessage)
 			BackgroundTransparency = 1
 		}):Play()
 
-		task.delay(0.24, function()
-			if myId == activeMobileNoticeId then
+		task.delay(0.25, function()
+			if myId == mobileNoticeId then
 				MobileSettingsNotice.Visible = false
 				MobileSettingsNoticeBar.Visible = false
 			end
@@ -1635,7 +1627,7 @@ local function tryApplyAutoloadConfig()
 
 	if configsData.autoload and configsData.configs and configsData.configs[configsData.autoload] then
 		selectedConfigName = configsData.autoload
-		applyConfigData(copySimpleConfig(configsData.configs[configsData.autoload]))
+		applyConfigData(configsData.configs[configsData.autoload])
 	end
 end
 
@@ -1893,7 +1885,6 @@ local function buildMobileGui()
 	MobileConfigNameBox.Text = ""
 	MobileConfigNameBox.PlaceholderText = ""
 	MobileConfigNameBox.TextColor3 = Color3.fromRGB(255,255,255)
-	MobileConfigNameBox.PlaceholderColor3 = Color3.fromRGB(120,120,120)
 	MobileConfigNameBox.Font = Enum.Font.Gotham
 	MobileConfigNameBox.TextSize = 12
 	MobileConfigNameBox.ClearTextOnFocus = false
@@ -1926,7 +1917,6 @@ local function buildMobileGui()
 
 	MobileConfigListButton = createSettingsButton(MobileSettingsPage, 168, "---")
 	MobileConfigListButton.TextXAlignment = Enum.TextXAlignment.Left
-	MobileConfigListButton.Text = "   ---"
 
 	MobileConfigDropdown = Instance.new("Frame")
 	MobileConfigDropdown.Size = UDim2.new(1, -14, 0, 0)
@@ -1996,7 +1986,7 @@ local function buildMobileGui()
 	end)
 
 	createConfigButton.Activated:Connect(function()
-		local name = tostring(MobileConfigNameBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+		local name = trimConfigName(MobileConfigNameBox.Text)
 		if name == "" then
 			showMobileSettingsNotice("You need to give the config a name first!")
 			return
@@ -2011,20 +2001,14 @@ local function buildMobileGui()
 
 	loadConfigButton.Activated:Connect(function()
 		local name = requireSelectedConfig()
-		if not name then
-			return
-		end
-
-		applyConfigData(copySimpleConfig(configsData.configs[name]))
+		if not name then return end
+		applyConfigData(configsData.configs[name])
 		showMobileSettingsNotice("The " .. name .. " config was loaded successfully.")
 	end)
 
 	overwriteConfigButton.Activated:Connect(function()
 		local name = requireSelectedConfig()
-		if not name then
-			return
-		end
-
+		if not name then return end
 		configsData.configs[name] = getCurrentConfigData()
 		saveConfigsData()
 		refreshConfigDropdown()
@@ -2033,10 +2017,7 @@ local function buildMobileGui()
 
 	deleteConfigButton.Activated:Connect(function()
 		local name = requireSelectedConfig()
-		if not name then
-			return
-		end
-
+		if not name then return end
 		configsData.configs[name] = nil
 		if configsData.autoload == name then
 			configsData.autoload = nil
@@ -2055,10 +2036,7 @@ local function buildMobileGui()
 
 	setAutoloadButton.Activated:Connect(function()
 		local name = requireSelectedConfig()
-		if not name then
-			return
-		end
-
+		if not name then return end
 		configsData.autoload = name
 		saveConfigsData()
 		refreshConfigDropdown()
