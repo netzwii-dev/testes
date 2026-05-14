@@ -2,6 +2,7 @@
 -- All Credits: nyhito (tester, config and uploader)
 -- The Best
 -- Edited:
+-- Added 3 flick modes: Normal Wallhop / No Move Flick / Console Wallhop
 -- WALLHOP_COOLDOWN = 0.22
 -- MIN_HIT_DISTANCE = 0.1
 -- Normal flick: ida mais lenta e volta igual
@@ -61,6 +62,7 @@ local PcFunctionsPage
 local PcFlicksPage
 local PcCurrentUsingLabel
 local PcNormalWallhopButton
+local PcNoMoveWallhopButton
 local PcConsoleWallhopButton
 
 local MobileTabFunctions
@@ -69,6 +71,7 @@ local MobileFunctionsPage
 local MobileFlicksPage
 local MobileCurrentUsingLabel
 local MobileNormalWallhopRow
+local MobileNoMoveWallhopRow
 local MobileConsoleWallhopRow
 local MobileBeastSlowRow
 local MobileHideGuiRow
@@ -662,6 +665,11 @@ updateFlickButtons = function()
 			currentFlickMode == "Normal Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
 	end
 
+	if PcNoMoveWallhopButton then
+		PcNoMoveWallhopButton.BackgroundColor3 =
+			currentFlickMode == "No Move Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
+	end
+
 	if PcConsoleWallhopButton then
 		PcConsoleWallhopButton.BackgroundColor3 =
 			currentFlickMode == "Console Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
@@ -670,6 +678,11 @@ updateFlickButtons = function()
 	if MobileNormalWallhopRow then
 		MobileNormalWallhopRow.BackgroundColor3 =
 			currentFlickMode == "Normal Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
+	end
+
+	if MobileNoMoveWallhopRow then
+		MobileNoMoveWallhopRow.BackgroundColor3 =
+			currentFlickMode == "No Move Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
 	end
 
 	if MobileConsoleWallhopRow then
@@ -687,6 +700,9 @@ updateMobilePanelButtons = function()
 	end
 	if MobileNormalWallhopRow and MobileNormalWallhopRow:FindFirstChild("Label") then
 		MobileNormalWallhopRow.Label.Text = "Normal Wallhop"
+	end
+	if MobileNoMoveWallhopRow and MobileNoMoveWallhopRow:FindFirstChild("Label") then
+		MobileNoMoveWallhopRow.Label.Text = "No Move Flick"
 	end
 	if MobileConsoleWallhopRow and MobileConsoleWallhopRow:FindFirstChild("Label") then
 		MobileConsoleWallhopRow.Label.Text = "Console Wallhop"
@@ -1005,7 +1021,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 196)
+	MobilePanel.Size = UDim2.new(0, 190, 0, 240)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1069,11 +1085,12 @@ local function buildMobileGui()
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 46, "Hide GUI")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
-	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Console Wallhop")
+	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "No Move Flick")
+	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 88, "Console Wallhop")
 
 	MobileCurrentUsingLabel = Instance.new("TextLabel")
-	MobileCurrentUsingLabel.Size = UDim2.new(1, -14, 0, 34)
-	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 92)
+	MobileCurrentUsingLabel.Size = UDim2.new(1, -14, 0, 46)
+	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 134)
 	MobileCurrentUsingLabel.BackgroundTransparency = 1
 	MobileCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileCurrentUsingLabel.Font = Enum.Font.Gotham
@@ -1145,9 +1162,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 188)
+			MobilePanel.Size = UDim2.new(0, 184, 0, 232)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 196), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 240), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1171,6 +1188,10 @@ local function buildMobileGui()
 
 	bindRowPress(MobileNormalWallhopRow, function()
 		setFlickMode("Normal Wallhop")
+	end)
+
+	bindRowPress(MobileNoMoveWallhopRow, function()
+		setFlickMode("No Move Flick")
 	end)
 
 	bindRowPress(MobileConsoleWallhopRow, function()
@@ -1414,11 +1435,12 @@ local function buildPCGui()
 	setTargetTransparency(BeastSlowBindButton, 1, 0)
 
 	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 8, "Normal Wallhop")
-	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 46, "Console Wallhop")
+	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 46, "No Move Flick")
+	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 84, "Console Wallhop")
 
 	PcCurrentUsingLabel = Instance.new("TextLabel")
 	PcCurrentUsingLabel.Size = UDim2.new(1, -36, 0, 34)
-	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 88)
+	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 126)
 	PcCurrentUsingLabel.BackgroundTransparency = 1
 	PcCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcCurrentUsingLabel.Font = Enum.Font.Gotham
@@ -1529,6 +1551,10 @@ local function buildPCGui()
 
 	PcNormalWallhopButton.MouseButton1Click:Connect(function()
 		setFlickMode("Normal Wallhop")
+	end)
+
+	PcNoMoveWallhopButton.MouseButton1Click:Connect(function()
+		setFlickMode("No Move Flick")
 	end)
 
 	PcConsoleWallhopButton.MouseButton1Click:Connect(function()
@@ -2047,6 +2073,124 @@ local function performNormalWallhop()
 	isFlicking = false
 end
 
+local function performNoMoveWallhop()
+	if isFlicking then
+		return
+	end
+
+	isFlicking = true
+	isWallHopping = true
+	lastWallHopTime = tick()
+	blockDoubleJump = true
+
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hum or not hrp then
+		isFlicking = false
+		return
+	end
+
+	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
+	if useSpecialFirst then
+		specialFirstFlickArmed = false
+	end
+	hasWallhoppedSinceLanding = true
+
+	forceWallhopJump(hum)
+	lockBodyRotation(hum, 0.36)
+	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
+
+	local baseYaw = hrp.Orientation.Y
+	local angle = -pickNextFlick(useSpecialFirst)
+	local profile = getFlickProfile(useSpecialFirst)
+
+	local goSteps = profile.goSteps
+	local goDelayMin = profile.goDelayMin
+	local goDelayMax = profile.goDelayMax
+	local holdTime = profile.holdTime
+	local returnSteps = profile.returnSteps
+	local returnDelayMin = profile.returnDelayMin
+	local returnDelayMax = profile.returnDelayMax
+
+	local overshoot = math.rad(math.random(profile.overshootMin, profile.overshootMax) + 5)
+	local overshootBaseDelay = profile.overshootBaseDelay
+	local useOvershoot = math.random() < 0.40
+
+	for i = 1, goSteps do
+		local alpha = i / goSteps
+		local offset = angle * alpha
+		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+
+		if i < goSteps then
+			RunService.RenderStepped:Wait()
+			task.wait(goDelayMin + math.random() * (goDelayMax - goDelayMin))
+		end
+	end
+
+	task.wait(holdTime)
+
+	for i = 1, returnSteps do
+		local alpha = i / returnSteps
+		local offset = angle * (1 - alpha)
+		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+
+		if i < returnSteps then
+			RunService.RenderStepped:Wait()
+			task.wait(returnDelayMin + math.random() * (returnDelayMax - returnDelayMin))
+		end
+	end
+
+	if useOvershoot then
+		task.delay(0.018, function()
+			if not hrp or not hrp.Parent then
+				return
+			end
+
+			local smallSteps = math.random(2, 3)
+			local localDelay = overshootBaseDelay * (math.random(88, 102) / 100)
+
+			for i = 1, smallSteps do
+				local alpha = i / smallSteps
+				local offset = overshoot * alpha
+				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+				if i < smallSteps then
+					RunService.RenderStepped:Wait()
+					task.wait(localDelay)
+				end
+			end
+
+			for i = 1, smallSteps do
+				local alpha = i / smallSteps
+				local offset = overshoot * (1 - alpha)
+				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+				if i < smallSteps then
+					RunService.RenderStepped:Wait()
+					task.wait(localDelay)
+				end
+			end
+
+			hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+		end)
+	end
+
+	hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+
+	if isSlowEnabled then
+		applyWallhopSlow(hum)
+	end
+
+	task.delay(0.05, function()
+		blockDoubleJump = false
+	end)
+
+	task.delay(0.20, function()
+		isWallHopping = false
+	end)
+
+	isFlicking = false
+end
+
 local function performConsoleWallhop()
 	if isFlicking then
 		return
@@ -2154,6 +2298,8 @@ end
 local function performSelectedWallhop()
 	if currentFlickMode == "Console Wallhop" then
 		performConsoleWallhop()
+	elseif currentFlickMode == "No Move Flick" then
+		performNoMoveWallhop()
 	else
 		performNormalWallhop()
 	end
@@ -2438,4 +2584,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loaddded Successfully ✅")
+print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
