@@ -2,7 +2,7 @@
 -- All Credits: nyhito (tester, config and uploader)
 -- The Best
 -- Edited:
--- Added 3 flick modes: Normal Wallhop / No Move Flick / Console Wallhop
+-- Added 3 flick modes: Normal Wallhop / Visual Flick / Console Wallhop
 -- WALLHOP_COOLDOWN = 0.22
 -- MIN_HIT_DISTANCE = 0.1
 -- Normal flick: ida mais lenta e volta igual
@@ -667,7 +667,7 @@ updateFlickButtons = function()
 
 	if PcNoMoveWallhopButton then
 		PcNoMoveWallhopButton.BackgroundColor3 =
-			currentFlickMode == "No Move Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
+			currentFlickMode == "Visual Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
 	end
 
 	if PcConsoleWallhopButton then
@@ -682,7 +682,7 @@ updateFlickButtons = function()
 
 	if MobileNoMoveWallhopRow then
 		MobileNoMoveWallhopRow.BackgroundColor3 =
-			currentFlickMode == "No Move Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
+			currentFlickMode == "Visual Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
 	end
 
 	if MobileConsoleWallhopRow then
@@ -702,7 +702,7 @@ updateMobilePanelButtons = function()
 		MobileNormalWallhopRow.Label.Text = "Normal Wallhop"
 	end
 	if MobileNoMoveWallhopRow and MobileNoMoveWallhopRow:FindFirstChild("Label") then
-		MobileNoMoveWallhopRow.Label.Text = "No Move Flick"
+		MobileNoMoveWallhopRow.Label.Text = "Visual Flick"
 	end
 	if MobileConsoleWallhopRow and MobileConsoleWallhopRow:FindFirstChild("Label") then
 		MobileConsoleWallhopRow.Label.Text = "Console Wallhop"
@@ -1085,7 +1085,7 @@ local function buildMobileGui()
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 46, "Hide GUI")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
-	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "No Move Flick")
+	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Flick")
 	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 88, "Console Wallhop")
 
 	MobileCurrentUsingLabel = Instance.new("TextLabel")
@@ -1191,7 +1191,7 @@ local function buildMobileGui()
 	end)
 
 	bindRowPress(MobileNoMoveWallhopRow, function()
-		setFlickMode("No Move Flick")
+		setFlickMode("Visual Flick")
 	end)
 
 	bindRowPress(MobileConsoleWallhopRow, function()
@@ -1435,7 +1435,7 @@ local function buildPCGui()
 	setTargetTransparency(BeastSlowBindButton, 1, 0)
 
 	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 8, "Normal Wallhop")
-	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 46, "No Move Flick")
+	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 46, "Visual Flick")
 	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 84, "Console Wallhop")
 
 	PcCurrentUsingLabel = Instance.new("TextLabel")
@@ -1554,7 +1554,7 @@ local function buildPCGui()
 	end)
 
 	PcNoMoveWallhopButton.MouseButton1Click:Connect(function()
-		setFlickMode("No Move Flick")
+		setFlickMode("Visual Flick")
 	end)
 
 	PcConsoleWallhopButton.MouseButton1Click:Connect(function()
@@ -2098,8 +2098,6 @@ local function performNoMoveWallhop()
 	hasWallhoppedSinceLanding = true
 
 	forceWallhopJump(hum)
-	lockBodyRotation(hum, 0.36)
-	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick(useSpecialFirst)
@@ -2298,7 +2296,7 @@ end
 local function performSelectedWallhop()
 	if currentFlickMode == "Console Wallhop" then
 		performConsoleWallhop()
-	elseif currentFlickMode == "No Move Flick" then
+	elseif currentFlickMode == "Visual Flick" then
 		performNoMoveWallhop()
 	else
 		performNormalWallhop()
@@ -2359,7 +2357,7 @@ local function findValidWall(hrp, params, directions)
 	local offsets = {
 		Vector3.new(0, -2.3, 0),
 		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -2.0, 0)
+		Vector3.new(0, -2.1, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -2466,8 +2464,8 @@ RunService.Heartbeat:Connect(function()
 
 	horizontal = horizontal.Unit
 
-	local forwardDirection = horizontal * 1.20
-	local backwardDirection = -horizontal * 1.20
+	local forwardDirection = horizontal * 0.95
+	local backwardDirection = -horizontal * 0.65
 
 	local result = findValidWall(hrp, params, {
 		forwardDirection,
@@ -2584,4 +2582,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | MaAAde by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
