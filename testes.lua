@@ -2618,7 +2618,7 @@ local function findCornerWalkEdge(hrp, hum, params)
 	local dirs = getCornerWalkDirections(hrp, hum)
 
 	-- Somente a região do pé. Não tem outro offset.
-	local footOffset = Vector3.new(0, -2.45, 0)
+	local footOffset = Vector3.new(0, -2.4, 0)
 
 	local bestRay = nil
 	local bestDist = math.huge
@@ -2973,4 +2973,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Faciiility | Made by Nyhito - Loaded Successfully ✅")
