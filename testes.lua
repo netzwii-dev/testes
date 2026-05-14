@@ -997,6 +997,7 @@ local function setCornerWalkEnabled(state)
 	updateMobilePanelButtons()
 end
 
+
 local function setMobileGuiHidden(state)
 	mobileWallhopGuiHidden = state and true or false
 	updateMobilePanelButtons()
@@ -2742,4 +2743,45 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			return
 		end
 
-			print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+		if key == hideGuiKey then
+			setGuiVisible(not guiVisible)
+			return
+		end
+
+		if key == toggleScriptKey then
+			isWallHopEnabled = not isWallHopEnabled
+			updateToggleButton()
+			showNotice(isWallHopEnabled and "Wallhop enabled" or "Wallhop disabled")
+			return
+		end
+
+		if key == toggleBeastSlowKey then
+			setSlowEnabled(not isSlowEnabled)
+			showNotice(isSlowEnabled and "Beast Slow enabled" or "Beast Slow disabled")
+			return
+		end
+
+		if key == toggleCornerWalkKey then
+			setCornerWalkEnabled(not isCornerWalkEnabled)
+			showNotice(isCornerWalkEnabled and "Corner Walk enabled" or "Corner Walk disabled")
+			return
+		end
+	end
+end)
+
+createModeSelector(function(mode)
+	selectedMode = mode
+
+	if mode == "PC" then
+		buildPCGui()
+	else
+		buildMobileGui()
+	end
+
+	updateToggleButton()
+	updateMobilePanelButtons()
+	updateFlickButtons()
+	applyVisibility()
+end)
+
+print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
