@@ -98,6 +98,7 @@ local PcFlicksPage
 local PcCurrentUsingLabel
 local PcNormalWallhopButton
 local PcNoMoveWallhopButton
+local Pc360WallhopButton
 local PcConsoleWallhopButton
 
 local MobileTabFunctions
@@ -107,6 +108,7 @@ local MobileFlicksPage
 local MobileCurrentUsingLabel
 local MobileNormalWallhopRow
 local MobileNoMoveWallhopRow
+local Mobile360WallhopRow
 local MobileConsoleWallhopRow
 local MobileBeastSlowRow
 local MobileCornerWalkRow
@@ -173,6 +175,7 @@ local hasWallhoppedSinceLanding = false
 local specialFirstFlickArmed = false
 
 local currentFlickMode = "Normal Wallhop"
+local next360Direction = 1
 
 local function destroyOld()
 
@@ -752,6 +755,11 @@ updateFlickButtons = function()
 			currentFlickMode == "Visual Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
 	end
 
+	if Pc360WallhopButton then
+		Pc360WallhopButton.BackgroundColor3 =
+			currentFlickMode == "360° Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
+	end
+
 	if PcConsoleWallhopButton then
 		PcConsoleWallhopButton.BackgroundColor3 =
 			currentFlickMode == "Console Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
@@ -765,6 +773,11 @@ updateFlickButtons = function()
 	if MobileNoMoveWallhopRow then
 		MobileNoMoveWallhopRow.BackgroundColor3 =
 			currentFlickMode == "Visual Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
+	end
+
+	if Mobile360WallhopRow then
+		Mobile360WallhopRow.BackgroundColor3 =
+			currentFlickMode == "360° Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
 	end
 
 	if MobileConsoleWallhopRow then
@@ -788,6 +801,9 @@ updateMobilePanelButtons = function()
 	end
 	if MobileNoMoveWallhopRow and MobileNoMoveWallhopRow:FindFirstChild("Label") then
 		MobileNoMoveWallhopRow.Label.Text = "Visual Flick"
+	end
+	if Mobile360WallhopRow and Mobile360WallhopRow:FindFirstChild("Label") then
+		Mobile360WallhopRow.Label.Text = "360° Wallhop"
 	end
 	if MobileConsoleWallhopRow and MobileConsoleWallhopRow:FindFirstChild("Label") then
 		MobileConsoleWallhopRow.Label.Text = "Console Wallhop"
@@ -1161,7 +1177,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 240)
+	MobilePanel.Size = UDim2.new(0, 190, 0, 282)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1227,11 +1243,12 @@ local function buildMobileGui()
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Flick")
-	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 88, "Console Wallhop")
+	Mobile360WallhopRow = createSimpleRow(MobileFlicksPage, 88, "360° Wallhop")
+	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 130, "Console Wallhop")
 
 	MobileCurrentUsingLabel = Instance.new("TextLabel")
 	MobileCurrentUsingLabel.Size = UDim2.new(1, -14, 0, 46)
-	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 134)
+	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 176)
 	MobileCurrentUsingLabel.BackgroundTransparency = 1
 	MobileCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileCurrentUsingLabel.Font = Enum.Font.Gotham
@@ -1394,9 +1411,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 232)
+			MobilePanel.Size = UDim2.new(0, 184, 0, 274)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 240), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 282), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1428,6 +1445,10 @@ local function buildMobileGui()
 
 	bindRowPress(MobileNoMoveWallhopRow, function()
 		setFlickMode("Visual Flick")
+	end)
+
+	bindRowPress(Mobile360WallhopRow, function()
+		setFlickMode("360° Wallhop")
 	end)
 
 	bindRowPress(MobileConsoleWallhopRow, function()
@@ -1685,11 +1706,12 @@ local function buildPCGui()
 
 	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 8, "Normal Wallhop")
 	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 46, "Visual Flick")
-	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 84, "Console Wallhop")
+	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 84, "360° Wallhop")
+	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 122, "Console Wallhop")
 
 	PcCurrentUsingLabel = Instance.new("TextLabel")
 	PcCurrentUsingLabel.Size = UDim2.new(1, -36, 0, 34)
-	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 126)
+	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 164)
 	PcCurrentUsingLabel.BackgroundTransparency = 1
 	PcCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcCurrentUsingLabel.Font = Enum.Font.Gotham
@@ -1816,6 +1838,10 @@ local function buildPCGui()
 
 	PcNoMoveWallhopButton.MouseButton1Click:Connect(function()
 		setFlickMode("Visual Flick")
+	end)
+
+	Pc360WallhopButton.MouseButton1Click:Connect(function()
+		setFlickMode("360° Wallhop")
 	end)
 
 	PcConsoleWallhopButton.MouseButton1Click:Connect(function()
@@ -2176,9 +2202,15 @@ local function getCameraYaw()
 end
 
 local function restoreCharacterRotate(hum, hrp, myToken)
-	task.delay(0.16, function()
+	task.delay(0.12, function()
 		if myToken ~= rotateToken then
 			return
+		end
+
+		if hum and hum.Parent then
+			pcall(function()
+				hum.AutoRotate = true
+			end)
 		end
 
 		if hrp and hrp.Parent then
@@ -2189,6 +2221,12 @@ local function restoreCharacterRotate(hum, hrp, myToken)
 				end)
 			end
 		end
+	end)
+
+	task.delay(0.32, function()
+		if myToken ~= rotateToken then
+			return
+		end
 
 		if hum and hum.Parent then
 			pcall(function()
@@ -2197,7 +2235,7 @@ local function restoreCharacterRotate(hum, hrp, myToken)
 		end
 	end)
 
-	task.delay(0.42, function()
+	task.delay(0.65, function()
 		if myToken ~= rotateToken then
 			return
 		end
@@ -2262,6 +2300,137 @@ local function performNormalWallhop()
 	local overshoot = math.rad(math.random(profile.overshootMin, profile.overshootMax) + 5)
 	local overshootBaseDelay = profile.overshootBaseDelay
 	local useOvershoot = math.random() < 0.40
+
+	for i = 1, goSteps do
+		local alpha = i / goSteps
+		local offset = angle * alpha
+		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+
+		if i < goSteps then
+			RunService.RenderStepped:Wait()
+			task.wait(goDelayMin + math.random() * (goDelayMax - goDelayMin))
+		end
+	end
+
+	task.wait(holdTime)
+
+	for i = 1, returnSteps do
+		local alpha = i / returnSteps
+		local offset = angle * (1 - alpha)
+		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+
+		if i < returnSteps then
+			RunService.RenderStepped:Wait()
+			task.wait(returnDelayMin + math.random() * (returnDelayMax - returnDelayMin))
+		end
+	end
+
+	if useOvershoot then
+		task.delay(0.018, function()
+			if not hrp or not hrp.Parent then
+				return
+			end
+
+			local smallSteps = math.random(2, 3)
+			local localDelay = overshootBaseDelay * (math.random(88, 102) / 100)
+
+			for i = 1, smallSteps do
+				local alpha = i / smallSteps
+				local offset = overshoot * alpha
+				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+				if i < smallSteps then
+					RunService.RenderStepped:Wait()
+					task.wait(localDelay)
+				end
+			end
+
+			for i = 1, smallSteps do
+				local alpha = i / smallSteps
+				local offset = overshoot * (1 - alpha)
+				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+				if i < smallSteps then
+					RunService.RenderStepped:Wait()
+					task.wait(localDelay)
+				end
+			end
+
+			hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+		end)
+	end
+
+	hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
+	restoreCharacterRotate(hum, hrp, myRotateToken)
+
+	if isSlowEnabled then
+		applyWallhopSlow(hum)
+	end
+
+	task.delay(0.05, function()
+		blockDoubleJump = false
+	end)
+
+	task.delay(0.20, function()
+		isWallHopping = false
+	end)
+
+	isFlicking = false
+end
+
+local function perform360Wallhop()
+	if isFlicking then
+		return
+	end
+
+	isFlicking = true
+	isWallHopping = true
+	lastWallHopTime = tick()
+	blockDoubleJump = true
+
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChild("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hum or not hrp then
+		isFlicking = false
+		return
+	end
+
+	rotateToken += 1
+	local myRotateToken = rotateToken
+
+	if hum then
+		pcall(function()
+			hum.AutoRotate = false
+		end)
+	end
+
+	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
+	if useSpecialFirst then
+		specialFirstFlickArmed = false
+	end
+	hasWallhoppedSinceLanding = true
+
+	forceWallhopJump(hum)
+	lockBodyRotation(hum, 0.36)
+	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
+
+	local baseYaw = hrp.Orientation.Y
+	local direction = next360Direction
+	next360Direction = -next360Direction
+
+	local angle = math.rad(360) * direction
+	local profile = getFlickProfile(useSpecialFirst)
+
+	local goSteps = math.max(profile.goSteps, 8)
+	local goDelayMin = profile.goDelayMin
+	local goDelayMax = profile.goDelayMax
+	local holdTime = profile.holdTime
+	local returnSteps = math.max(profile.returnSteps, 8)
+	local returnDelayMin = profile.returnDelayMin
+	local returnDelayMax = profile.returnDelayMax
+
+	local overshoot = math.rad(math.random(profile.overshootMin, profile.overshootMax) + 5)
+	local overshootBaseDelay = profile.overshootBaseDelay
+	local useOvershoot = false
 
 	for i = 1, goSteps do
 		local alpha = i / goSteps
@@ -2538,6 +2707,12 @@ local function performConsoleWallhop()
 					task.wait(stepDelay)
 				end
 			end
+
+			if hum and hum.Parent and myRotateToken == rotateToken then
+				pcall(function()
+					hum.AutoRotate = true
+				end)
+			end
 		end)
 	end
 
@@ -2551,6 +2726,14 @@ local function performConsoleWallhop()
 
 	restoreCharacterRotate(hum, hrp, myRotateToken)
 
+	task.delay(0.28, function()
+		if hum and hum.Parent and myRotateToken == rotateToken then
+			pcall(function()
+				hum.AutoRotate = true
+			end)
+		end
+	end)
+
 	task.delay(0.45, function()
 		isWallHopping = false
 	end)
@@ -2563,6 +2746,8 @@ local function performSelectedWallhop()
 		performConsoleWallhop()
 	elseif currentFlickMode == "Visual Flick" then
 		performNoMoveWallhop()
+	elseif currentFlickMode == "360° Wallhop" then
+		perform360Wallhop()
 	else
 		performNormalWallhop()
 	end
