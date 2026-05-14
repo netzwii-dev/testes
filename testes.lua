@@ -72,11 +72,15 @@ local guiVisible = true
 local guiMinimized = false
 local mobileMenuOpen = false
 local mobileWallhopGuiHidden = false
+local mobileCornerWalkButtonVisible = false
+local mobileBeastSlowButtonVisible = false
 
 local ScreenGui
 local MainFrame
 local MiniButton
 local MobileButton
+local MobileCornerWalkButton
+local MobileBeastSlowButton
 local MobileMenuButton
 local MobilePanel
 local ToggleButton
@@ -122,6 +126,8 @@ local shadowRegistry = {}
 local clearScriptSlowInstant
 local updateMobilePanelButtons
 local setMobileWallhopVisualHidden
+local setMobileCornerWalkButtonVisible
+local setMobileBeastSlowButtonVisible
 local applyVisibility
 local updateFlickButtons
 local switchPcTab
@@ -683,8 +689,16 @@ end
 local function updateToggleButton()
 	if selectedMode == "PC" and ToggleButton then
 		ToggleButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
-	elseif selectedMode == "Mobile" and MobileButton then
-		MobileButton.Text = isWallHopEnabled and "Wallhop On" or "Wallhop Off"
+	elseif selectedMode == "Mobile" then
+		if MobileButton then
+			MobileButton.Text = isWallHopEnabled and "Wallhop On" or "Wallhop Off"
+		end
+		if MobileCornerWalkButton then
+			MobileCornerWalkButton.Text = isCornerWalkEnabled and "Cwalk On" or "Cwalk Off"
+		end
+		if MobileBeastSlowButton then
+			MobileBeastSlowButton.Text = isSlowEnabled and "Beast Slow On" or "Beast Slow Off"
+		end
 	end
 end
 
@@ -695,6 +709,28 @@ setMobileWallhopVisualHidden = function(hidden)
 	MobileButton.BackgroundTransparency = hidden and 1 or 0
 	MobileButton.TextTransparency = hidden and 1 or 0
 	setHostShadowVisible(MobileButton, not hidden)
+end
+
+setMobileCornerWalkButtonVisible = function(visible)
+	if not MobileCornerWalkButton then
+		return
+	end
+
+	MobileCornerWalkButton.Visible = visible
+	MobileCornerWalkButton.BackgroundTransparency = visible and 0 or 1
+	MobileCornerWalkButton.TextTransparency = visible and 0 or 1
+	setHostShadowVisible(MobileCornerWalkButton, visible)
+end
+
+setMobileBeastSlowButtonVisible = function(visible)
+	if not MobileBeastSlowButton then
+		return
+	end
+
+	MobileBeastSlowButton.Visible = visible
+	MobileBeastSlowButton.BackgroundTransparency = visible and 0 or 1
+	MobileBeastSlowButton.TextTransparency = visible and 0 or 1
+	setHostShadowVisible(MobileBeastSlowButton, visible)
 end
 
 updateFlickButtons = function()
@@ -738,14 +774,14 @@ updateFlickButtons = function()
 end
 
 updateMobilePanelButtons = function()
-	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
-		MobileBeastSlowRow.Label.Text = "Beast Slow"
+	if MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("Label") then
+		MobileHideGuiRow.Label.Text = "Wallhop button"
 	end
 	if MobileCornerWalkRow and MobileCornerWalkRow:FindFirstChild("Label") then
-		MobileCornerWalkRow.Label.Text = "Corner Walk"
+		MobileCornerWalkRow.Label.Text = "Corner Walk button"
 	end
-	if MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("Label") then
-		MobileHideGuiRow.Label.Text = "Hide GUI"
+	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
+		MobileBeastSlowRow.Label.Text = "Beast Slow button"
 	end
 	if MobileNormalWallhopRow and MobileNormalWallhopRow:FindFirstChild("Label") then
 		MobileNormalWallhopRow.Label.Text = "Normal Wallhop"
@@ -757,10 +793,14 @@ updateMobilePanelButtons = function()
 		MobileConsoleWallhopRow.Label.Text = "Console Wallhop"
 	end
 
-	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, isSlowEnabled)
-	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, isCornerWalkEnabled)
-	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, mobileWallhopGuiHidden)
+	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, not mobileWallhopGuiHidden)
+	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
+	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
+
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
+	setMobileCornerWalkButtonVisible(mobileCornerWalkButtonVisible)
+	setMobileBeastSlowButtonVisible(mobileBeastSlowButtonVisible)
+	updateToggleButton()
 	updateFlickButtons()
 end
 
@@ -795,7 +835,13 @@ applyVisibility = function()
 		end
 	elseif selectedMode == "Mobile" then
 		if MobileButton then
-			MobileButton.Visible = guiVisible
+			MobileButton.Visible = guiVisible and not mobileWallhopGuiHidden
+		end
+		if MobileCornerWalkButton then
+			MobileCornerWalkButton.Visible = guiVisible and mobileCornerWalkButtonVisible
+		end
+		if MobileBeastSlowButton then
+			MobileBeastSlowButton.Visible = guiVisible and mobileBeastSlowButtonVisible
 		end
 		if MobileMenuButton then
 			MobileMenuButton.Visible = true
@@ -805,6 +851,8 @@ applyVisibility = function()
 			setHostShadowVisible(MobilePanel, mobileMenuOpen)
 		end
 		setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
+		setMobileCornerWalkButtonVisible(guiVisible and mobileCornerWalkButtonVisible)
+		setMobileBeastSlowButtonVisible(guiVisible and mobileBeastSlowButtonVisible)
 	end
 end
 
@@ -1039,6 +1087,16 @@ local function setMobileGuiHidden(state)
 	updateMobilePanelButtons()
 end
 
+local function setMobileCornerWalkButtonState(state)
+	mobileCornerWalkButtonVisible = state and true or false
+	updateMobilePanelButtons()
+end
+
+local function setMobileBeastSlowButtonState(state)
+	mobileBeastSlowButtonVisible = state and true or false
+	updateMobilePanelButtons()
+end
+
 local function buildMobileGui()
 	clearOldDragConnections()
 
@@ -1063,6 +1121,29 @@ local function buildMobileGui()
 	addTrueRoundedShadow(MobileButton, 14, 1.15, Color3.fromRGB(0, 0, 0))
 	setTargetTransparency(MobileButton, 0, 0)
 
+	local function createFloatingMobileButton(name, text)
+		local button = Instance.new("TextButton")
+		button.Name = name
+		button.Size = UDim2.new(0, 140, 0, 50)
+		button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		button.Text = text
+		button.TextColor3 = Color3.fromRGB(255,255,255)
+		button.Font = Enum.Font.GothamBold
+		button.TextScaled = true
+		button.Visible = false
+		button.Parent = ScreenGui
+		button:SetAttribute("LastDragTime", 0)
+		button:SetAttribute("CustomMoved", false)
+		Instance.new("UICorner", button).CornerRadius = UDim.new(0, 12)
+		noTextStroke(button)
+		addTrueRoundedShadow(button, 14, 1.15, Color3.fromRGB(0, 0, 0))
+		setTargetTransparency(button, 0, 0)
+		return button
+	end
+
+	MobileCornerWalkButton = createFloatingMobileButton("CornerWalkButton", "Cwalk Off")
+	MobileBeastSlowButton = createFloatingMobileButton("BeastSlowButton", "Beast Slow Off")
+
 	local inset = GuiService:GetGuiInset()
 
 	MobileMenuButton = Instance.new("TextButton")
@@ -1080,7 +1161,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 282)
+	MobilePanel.Size = UDim2.new(0, 190, 0, 240)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1140,9 +1221,9 @@ local function buildMobileGui()
 	MobileFlicksPage.Parent = MobilePanel
 	MobileFlicksPage.Visible = false
 
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 4, "Beast Slow")
-	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
-	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 88, "Hide GUI")
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop button")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk button")
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow button")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Flick")
@@ -1164,8 +1245,28 @@ local function buildMobileGui()
 
 	local function placeMobileButtonDefault()
 		local insetNow = GuiService:GetGuiInset()
+
 		if not MobileButton:GetAttribute("CustomMoved") then
 			MobileButton.Position = UDim2.new(0, 150, 0, insetNow.Y - 58)
+		end
+
+		if MobileCornerWalkButton and not MobileCornerWalkButton:GetAttribute("CustomMoved") then
+			MobileCornerWalkButton.Position = UDim2.new(
+				MobileButton.Position.X.Scale,
+				MobileButton.Position.X.Offset,
+				MobileButton.Position.Y.Scale,
+				MobileButton.Position.Y.Offset + MobileButton.Size.Y.Offset + 8
+			)
+		end
+
+		if MobileBeastSlowButton and not MobileBeastSlowButton:GetAttribute("CustomMoved") then
+			local baseButton = MobileCornerWalkButton or MobileButton
+			MobileBeastSlowButton.Position = UDim2.new(
+				baseButton.Position.X.Scale,
+				baseButton.Position.X.Offset,
+				baseButton.Position.Y.Scale,
+				baseButton.Position.Y.Offset + baseButton.Size.Y.Offset + 8
+			)
 		end
 	end
 
@@ -1195,9 +1296,46 @@ local function buildMobileGui()
 
 	bindFreeDrag(MobileButton, MobileButton, function()
 		MobileButton:SetAttribute("CustomMoved", true)
+
+		if MobileCornerWalkButton and not MobileCornerWalkButton:GetAttribute("CustomMoved") then
+			MobileCornerWalkButton.Position = UDim2.new(
+				MobileButton.Position.X.Scale,
+				MobileButton.Position.X.Offset,
+				MobileButton.Position.Y.Scale,
+				MobileButton.Position.Y.Offset + MobileButton.Size.Y.Offset + 8
+			)
+		end
+
+		if MobileBeastSlowButton and not MobileBeastSlowButton:GetAttribute("CustomMoved") then
+			local baseButton = MobileCornerWalkButton or MobileButton
+			MobileBeastSlowButton.Position = UDim2.new(
+				baseButton.Position.X.Scale,
+				baseButton.Position.X.Offset,
+				baseButton.Position.Y.Scale,
+				baseButton.Position.Y.Offset + baseButton.Size.Y.Offset + 8
+			)
+		end
+
 		if not MobilePanel:GetAttribute("CustomMoved") then
 			placePanelToRightOfWallhop()
 		end
+	end, 0.5)
+
+	bindFreeDrag(MobileCornerWalkButton, MobileCornerWalkButton, function()
+		MobileCornerWalkButton:SetAttribute("CustomMoved", true)
+
+		if MobileBeastSlowButton and not MobileBeastSlowButton:GetAttribute("CustomMoved") then
+			MobileBeastSlowButton.Position = UDim2.new(
+				MobileCornerWalkButton.Position.X.Scale,
+				MobileCornerWalkButton.Position.X.Offset,
+				MobileCornerWalkButton.Position.Y.Scale,
+				MobileCornerWalkButton.Position.Y.Offset + MobileCornerWalkButton.Size.Y.Offset + 8
+			)
+		end
+	end, 0.5)
+
+	bindFreeDrag(MobileBeastSlowButton, MobileBeastSlowButton, function()
+		MobileBeastSlowButton:SetAttribute("CustomMoved", true)
 	end, 0.5)
 
 	bindFreeDrag(MobileMenuButton, MobileMenuButton)
@@ -1210,6 +1348,22 @@ local function buildMobileGui()
 			return
 		end
 		isWallHopEnabled = not isWallHopEnabled
+		updateToggleButton()
+	end)
+
+	MobileCornerWalkButton.Activated:Connect(function()
+		if not canUseMobileTap(MobileCornerWalkButton) then
+			return
+		end
+		setCornerWalkEnabled(not isCornerWalkEnabled)
+		updateToggleButton()
+	end)
+
+	MobileBeastSlowButton.Activated:Connect(function()
+		if not canUseMobileTap(MobileBeastSlowButton) then
+			return
+		end
+		setSlowEnabled(not isSlowEnabled)
 		updateToggleButton()
 	end)
 
@@ -1226,9 +1380,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 274)
+			MobilePanel.Size = UDim2.new(0, 184, 0, 232)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 282), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 240), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1242,16 +1396,16 @@ local function buildMobileGui()
 		switchMobileTab("Flicks")
 	end)
 
-	bindRowPress(MobileBeastSlowRow, function()
-		setSlowEnabled(not isSlowEnabled)
+	bindRowPress(MobileHideGuiRow, function()
+		setMobileGuiHidden(not mobileWallhopGuiHidden)
 	end)
 
 	bindRowPress(MobileCornerWalkRow, function()
-		setCornerWalkEnabled(not isCornerWalkEnabled)
+		setMobileCornerWalkButtonState(not mobileCornerWalkButtonVisible)
 	end)
 
-	bindRowPress(MobileHideGuiRow, function()
-		setMobileGuiHidden(not mobileWallhopGuiHidden)
+	bindRowPress(MobileBeastSlowRow, function()
+		setMobileBeastSlowButtonState(not mobileBeastSlowButtonVisible)
 	end)
 
 	bindRowPress(MobileNormalWallhopRow, function()
