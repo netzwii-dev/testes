@@ -169,6 +169,15 @@ local specialFirstFlickArmed = false
 local currentFlickMode = "Normal Wallhop"
 
 local function destroyOld()
+
+
+pcall(function()
+	local oldFloor = workspace:FindFirstChild("CornerWalkArtificialFloor")
+	if oldFloor then
+		oldFloor:Destroy()
+	end
+end)
+
 	for _, name in ipairs({
 		"AutoWallHopGui",
 		"AutoWallHopGuiMobile",
@@ -2487,15 +2496,16 @@ end
 
 
 local cornerWalkAirStart = 0
-local cornerWalkFloorY = nil
-local lastCornerWalkTime = 0
+local cornerWalkFloorPart = nil
+local lastCornerWalkTouch = 0
 
-local CORNER_WALK_AIR_TIME = 0.05
-local CORNER_WALK_WALL_DISTANCE = 1.10
+local CORNER_WALK_AIR_TIME = 0.03
+local CORNER_WALK_WALL_DISTANCE = 1.08
 local CORNER_WALK_MIN_MOVE = 0.08
 local CORNER_WALK_MIN_REAL_SPEED = 0.45
-local CORNER_WALK_FLOOR_HEIGHT = 2.45
-local CORNER_WALK_MAX_Y_CORRECTION = 0.55
+local CORNER_WALK_FLOOR_THICKNESS = 0.16
+local CORNER_WALK_FLOOR_LENGTH = 4.20
+local CORNER_WALK_FLOOR_WIDTH = 0.62
 
 local function flatUnit(vec)
 	if not vec or vec.Magnitude < 0.05 then
@@ -2504,9 +2514,36 @@ local function flatUnit(vec)
 	return vec.Unit
 end
 
-local function resetCornerWalkFloor()
-	cornerWalkFloorY = nil
-	lastCornerWalkTime = 0
+local function removeCornerWalkFloor()
+	if cornerWalkFloorPart then
+		pcall(function()
+			cornerWalkFloorPart:Destroy()
+		end)
+	end
+
+	cornerWalkFloorPart = nil
+	lastCornerWalkTouch = 0
+end
+
+local function getCornerWalkFloor()
+	if cornerWalkFloorPart and cornerWalkFloorPart.Parent then
+		return cornerWalkFloorPart
+	end
+
+	local part = Instance.new("Part")
+	part.Name = "CornerWalkArtificialFloor"
+	part.Anchored = true
+	part.CanCollide = true
+	part.CanTouch = false
+	part.CanQuery = false
+	part.Transparency = 1
+	part.CastShadow = false
+	part.Material = Enum.Material.SmoothPlastic
+	part.Size = Vector3.new(CORNER_WALK_FLOOR_LENGTH, CORNER_WALK_FLOOR_THICKNESS, CORNER_WALK_FLOOR_WIDTH)
+	part.Parent = workspace
+
+	cornerWalkFloorPart = part
+	return part
 end
 
 local function isCornerWalkStateAllowed(hum)
@@ -2522,6 +2559,7 @@ local function isCornerWalkStateAllowed(hum)
 		or state == Enum.HumanoidStateType.Swimming
 		or state == Enum.HumanoidStateType.Climbing
 		or state == Enum.HumanoidStateType.Jumping then
+		removeCornerWalkFloor()
 		return false
 	end
 
@@ -2530,7 +2568,12 @@ local function isCornerWalkStateAllowed(hum)
 			cornerWalkAirStart = tick()
 		end
 
-		return (tick() - cornerWalkAirStart) <= CORNER_WALK_AIR_TIME
+		if (tick() - cornerWalkAirStart) > CORNER_WALK_AIR_TIME then
+			removeCornerWalkFloor()
+			return false
+		end
+
+		return true
 	end
 
 	cornerWalkAirStart = 0
@@ -2564,21 +2607,6 @@ local function getCornerWalkDirections(hrp, hum)
 		end
 	end
 
-	if hrp then
-		local right = flatUnit(Vector3.new(hrp.CFrame.RightVector.X, 0, hrp.CFrame.RightVector.Z))
-		local look = flatUnit(Vector3.new(hrp.CFrame.LookVector.X, 0, hrp.CFrame.LookVector.Z))
-
-		if right then
-			table.insert(dirs, right)
-			table.insert(dirs, -right)
-		end
-
-		if look then
-			table.insert(dirs, look)
-			table.insert(dirs, -look)
-		end
-	end
-
 	return dirs
 end
 
@@ -2589,27 +2617,23 @@ local function findCornerWalkEdge(hrp, hum, params)
 
 	local dirs = getCornerWalkDirections(hrp, hum)
 
-	-- Apenas região do pé.
-	local offsets = {
-		Vector3.new(0, -2.35, 0)
-	}
+	-- Somente a região do pé. Não tem outro offset.
+	local footOffset = Vector3.new(0, -2.35, 0)
 
 	local bestRay = nil
 	local bestDist = math.huge
 
 	for _, dir in ipairs(dirs) do
-		for _, offset in ipairs(offsets) do
-			local origin = hrp.Position + offset
-			local ray = workspace:Raycast(origin, dir * CORNER_WALK_WALL_DISTANCE, params)
+		local origin = hrp.Position + footOffset
+		local ray = workspace:Raycast(origin, dir * CORNER_WALK_WALL_DISTANCE, params)
 
-			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-				-- Precisa ser parede E precisa ter dobra/edge, igual o wallhop.
-				if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
-					local dist = (ray.Position - origin).Magnitude
-					if dist < bestDist then
-						bestRay = ray
-						bestDist = dist
-					end
+		if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
+			-- Só aceita dobra/edge, não parede lisa.
+			if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
+				local dist = (ray.Position - origin).Magnitude
+				if dist < bestDist then
+					bestRay = ray
+					bestDist = dist
 				end
 			end
 		end
@@ -2618,66 +2642,69 @@ local function findCornerWalkEdge(hrp, hum, params)
 	return bestRay
 end
 
-local function applyCornerWalkGround(hrp, hum, edgeRay)
+local function updateCornerWalkFloor(hrp, hum, edgeRay)
 	if not hrp or not hum or not edgeRay then
+		removeCornerWalkFloor()
 		return
 	end
 
-	-- Se não tem input, solta imediatamente.
 	if hum.MoveDirection.Magnitude < CORNER_WALK_MIN_MOVE then
-		resetCornerWalkFloor()
+		removeCornerWalkFloor()
 		return
 	end
 
 	local vel = hrp.Velocity
 	local horizontalSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
 
-	-- Se está parado/quase parado, solta imediatamente.
 	if horizontalSpeed < CORNER_WALK_MIN_REAL_SPEED then
-		resetCornerWalkFloor()
+		removeCornerWalkFloor()
 		return
 	end
 
-	local desiredFloorY = edgeRay.Position.Y + CORNER_WALK_FLOOR_HEIGHT
-
-	if not cornerWalkFloorY or math.abs(desiredFloorY - cornerWalkFloorY) > 0.35 or (tick() - lastCornerWalkTime) > 0.20 then
-		cornerWalkFloorY = desiredFloorY
-	end
-
-	lastCornerWalkTime = tick()
-
-	local diffY = cornerWalkFloorY - hrp.Position.Y
-	local newY = hrp.Position.Y
-
-	if math.abs(diffY) <= CORNER_WALK_MAX_Y_CORRECTION then
-		newY = cornerWalkFloorY
-	else
-		-- Se a diferença de altura ficou grande, provavelmente saiu da dobra.
-		resetCornerWalkFloor()
+	local normal = Vector3.new(edgeRay.Normal.X, 0, edgeRay.Normal.Z)
+	normal = flatUnit(normal)
+	if not normal then
+		removeCornerWalkFloor()
 		return
 	end
 
-	local currentCFrame = hrp.CFrame
-	local rotationOnly = currentCFrame - currentCFrame.Position
-
-	-- Chão artificial: mantém a altura da dobra.
-	-- Não altera X/Z da posição e não altera X/Z da velocidade.
-	hrp.CFrame = CFrame.new(hrp.Position.X, newY, hrp.Position.Z) * rotationOnly
-	hrp.Velocity = Vector3.new(vel.X, 0, vel.Z)
-
-	local state = hum:GetState()
-	if state == Enum.HumanoidStateType.Freefall
-		or state == Enum.HumanoidStateType.FallingDown then
-		pcall(function()
-			hum:ChangeState(Enum.HumanoidStateType.Running)
-		end)
+	local tangent = flatUnit(normal:Cross(Vector3.new(0, 1, 0)))
+	if not tangent then
+		removeCornerWalkFloor()
+		return
 	end
+
+	local move = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)
+	move = flatUnit(move)
+	if move and tangent:Dot(move) < 0 then
+		tangent = -tangent
+	end
+
+	local floor = getCornerWalkFloor()
+
+	-- A superfície de cima do chão fica exatamente na linha detectada no pé.
+	local floorTopY = edgeRay.Position.Y
+	local floorCenterY = floorTopY - (CORNER_WALK_FLOOR_THICKNESS / 2)
+
+	-- Coloca o chão levemente para fora da parede, na direção do jogador.
+	local center = edgeRay.Position + (normal * (CORNER_WALK_FLOOR_WIDTH * 0.45))
+	center = Vector3.new(center.X, floorCenterY, center.Z)
+
+	floor.Size = Vector3.new(CORNER_WALK_FLOOR_LENGTH, CORNER_WALK_FLOOR_THICKNESS, CORNER_WALK_FLOOR_WIDTH)
+	floor.CFrame = CFrame.fromMatrix(
+		center,
+		tangent,
+		Vector3.new(0, 1, 0),
+		normal
+	)
+
+	lastCornerWalkTouch = tick()
 end
 
 local function runCornerWalk()
 	if not isCornerWalkEnabled then
 		cornerWalkAirStart = 0
-		resetCornerWalkFloor()
+		removeCornerWalkFloor()
 		return
 	end
 
@@ -2687,25 +2714,24 @@ local function runCornerWalk()
 
 	if not char or not hrp or not hum then
 		cornerWalkAirStart = 0
-		resetCornerWalkFloor()
+		removeCornerWalkFloor()
 		return
 	end
 
 	if hum.MoveDirection.Magnitude < CORNER_WALK_MIN_MOVE then
 		cornerWalkAirStart = 0
-		resetCornerWalkFloor()
+		removeCornerWalkFloor()
 		return
 	end
 
 	local realHorizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
 	if realHorizontalSpeed < CORNER_WALK_MIN_REAL_SPEED then
 		cornerWalkAirStart = 0
-		resetCornerWalkFloor()
+		removeCornerWalkFloor()
 		return
 	end
 
 	if not isCornerWalkStateAllowed(hum) then
-		resetCornerWalkFloor()
 		return
 	end
 
@@ -2715,15 +2741,16 @@ local function runCornerWalk()
 
 	local edgeRay = findCornerWalkEdge(hrp, hum, params)
 	if not edgeRay then
-		resetCornerWalkFloor()
+		removeCornerWalkFloor()
 		return
 	end
 
-	applyCornerWalkGround(hrp, hum, edgeRay)
+	updateCornerWalkFloor(hrp, hum, edgeRay)
 end
 
 RunService.Heartbeat:Connect(function()
 	if not isThisScriptActive() then
+		removeCornerWalkFloor()
 		return
 	end
 
