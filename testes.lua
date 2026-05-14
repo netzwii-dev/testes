@@ -2452,10 +2452,11 @@ end
 
 
 local cornerWalkAirStart = 0
-local CORNER_WALK_AIR_TIME = 0.30
+local CORNER_WALK_AIR_TIME = 0.05
 local CORNER_WALK_WALL_DISTANCE = 1.35
 local CORNER_WALK_STICK_DISTANCE = 0.52
 local CORNER_WALK_MIN_MOVE = 0.08
+local CORNER_WALK_MIN_REAL_SPEED = 2.0
 
 local function flatUnit(vec)
 	if not vec or vec.Magnitude < 0.05 then
@@ -2628,54 +2629,49 @@ local function applyCornerWalk(hrp, hum, wallRay, supportRay)
 		return
 	end
 
+	local vel = hrp.Velocity
+	local currentHorizontal = Vector3.new(vel.X, 0, vel.Z)
+	local horizontalSpeed = currentHorizontal.Magnitude
+
+	if horizontalSpeed < CORNER_WALK_MIN_REAL_SPEED then
+		return
+	end
+
 	local normal = Vector3.new(wallRay.Normal.X, 0, wallRay.Normal.Z)
 	normal = flatUnit(normal)
 	if not normal then
 		return
 	end
 
-	local tangent = normal:Cross(Vector3.new(0, 1, 0))
-	tangent = flatUnit(tangent)
-	if not tangent then
-		return
-	end
-
-	if tangent:Dot(move) < 0 then
-		tangent = -tangent
-	end
-
-	local vel = hrp.Velocity
-	local horizontalSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
-	local targetSpeed = math.clamp(math.max(horizontalSpeed, hum.WalkSpeed * 0.96), 8, 23)
-
-	local currentWallDistance = (Vector3.new(hrp.Position.X, wallRay.Position.Y, hrp.Position.Z) - wallRay.Position).Magnitude
-	local stickPower = 1.7
-
-	if currentWallDistance > CORNER_WALK_STICK_DISTANCE then
-		stickPower = 3.2
-	elseif currentWallDistance < 0.28 then
-		stickPower = 0.8
-	end
-
-	local newHorizontal = tangent * targetSpeed + normal * -stickPower
-
 	local yVel = vel.Y
+
 	if supportRay then
 		local targetY = supportRay.Position.Y + 2.45
 		local diffY = targetY - hrp.Position.Y
 
-		if math.abs(diffY) <= 0.85 then
-			yVel = math.clamp(diffY * 16, -1.5, 3.5)
+		if math.abs(diffY) <= 0.55 then
+			yVel = math.clamp(diffY * 12, -0.35, 1.65)
 		elseif vel.Y < 0 then
-			yVel = math.max(vel.Y, -0.7)
+			yVel = math.max(vel.Y, -0.25)
 		end
 	else
 		if vel.Y < 0 then
-			yVel = math.max(vel.Y, -0.65)
+			yVel = math.max(vel.Y, -0.25)
 		end
 	end
 
-	hrp.Velocity = Vector3.new(newHorizontal.X, yVel, newHorizontal.Z)
+	local state = hum:GetState()
+	if state == Enum.HumanoidStateType.Freefall then
+		pcall(function()
+			hum:ChangeState(Enum.HumanoidStateType.Running)
+		end)
+	end
+
+	local wallStick = normal * -0.18
+	local newX = vel.X + wallStick.X
+	local newZ = vel.Z + wallStick.Z
+
+	hrp.Velocity = Vector3.new(newX, yVel, newZ)
 end
 
 local function runCornerWalk()
@@ -2694,6 +2690,12 @@ local function runCornerWalk()
 	end
 
 	if hum.MoveDirection.Magnitude < CORNER_WALK_MIN_MOVE then
+		cornerWalkAirStart = 0
+		return
+	end
+
+	local realHorizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
+	if realHorizontalSpeed < CORNER_WALK_MIN_REAL_SPEED then
 		cornerWalkAirStart = 0
 		return
 	end
