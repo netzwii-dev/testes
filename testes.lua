@@ -1248,7 +1248,7 @@ local function buildMobileGui()
 	mobileFooter.Size = UDim2.new(1, -14, 0, 16)
 	mobileFooter.Position = UDim2.new(0, 7, 1, -18)
 	mobileFooter.BackgroundTransparency = 1
-	mobileFooter.Text = "the best wallhop"
+	mobileFooter.Text = "the best flee the facility wallhop script"
 	mobileFooter.TextColor3 = Color3.fromRGB(95,95,95)
 	mobileFooter.Font = Enum.Font.Gotham
 	mobileFooter.TextSize = 10
@@ -2799,7 +2799,7 @@ local function findCornerWalkEdge(hrp, hum, params)
 			-- Só aceita dobra/edge, não parede lisa.
 			if isWallLikeSurface(ray.Normal)
 				and hasValidHorizontalEdge(ray, params)
-				and isWithinWallhopAngle(Camera.CFrame.LookVector, ray.Normal, 25) then
+				and isWithinWallhopAngle(Camera.CFrame.LookVector, ray.Normal, 35) then
 
 				local dist = (ray.Position - origin).Magnitude
 				if dist < bestDist then
@@ -3000,8 +3000,8 @@ RunService.Heartbeat:Connect(function()
 
 	horizontal = horizontal.Unit
 
-	local forwardDirection = horizontal * 0.95
-	local backwardDirection = -horizontal * 0.65
+	local forwardDirection = horizontal * 1.55
+	local backwardDirection = -horizontal * 1.55
 
 	local result = findValidWall(hrp, params, {
 		forwardDirection,
