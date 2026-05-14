@@ -107,8 +107,10 @@ local PcConsoleWallhopButton
 
 local MobileTabFunctions
 local MobileTabFlicks
+local MobileTabSettings
 local MobileFunctionsPage
 local MobileFlicksPage
+local MobileSettingsPage
 local MobileCurrentUsingLabel
 local MobileNormalWallhopRow
 local MobileNoMoveWallhopRow
@@ -129,6 +131,15 @@ local mobileHideGuiSwitch
 local mobileHideGuiKnob
 local mobileDragHandle
 
+local MobileXrayOpacityLabel
+local MobileConfigNameBox
+local MobileConfigListButton
+local MobileConfigDropdown
+local MobileAutoloadLabel
+local MobileSettingsNotice
+local MobileSettingsNoticeStroke
+local MobileSettingsNoticeBar
+
 local dragConnections = {}
 local shadowRegistry = {}
 
@@ -146,6 +157,7 @@ local isWallHopEnabled = false
 local isSlowEnabled = false
 local isCornerWalkEnabled = false
 local isXrayEnabled = false
+local xrayOpacityValue = 60
 local isFlicking = false
 local lastFlickTime = 0
 
@@ -185,10 +197,63 @@ local specialFirstFlickArmed = false
 local currentFlickMode = "Normal Wallhop"
 local next360Direction = 1
 
+local CONFIGS_FILE = "nyhito_ftf_wallhop_configs.json"
+local configsData = {
+	configs = {},
+	autoload = nil
+}
+local selectedConfigName = nil
+local configDropdownOpen = false
+
 local function destroyOld()
 
 
 local function playIntroSound()
+	pcall(function()
+		local soundGui = PlayerGui:FindFirstChild("WallhopIntroSoundGui")
+		if soundGui then
+			soundGui:Destroy()
+		end
+
+		soundGui = Instance.new("ScreenGui")
+		soundGui.Name = "WallhopIntroSoundGui"
+		soundGui.ResetOnSpawn = false
+		soundGui.Parent = PlayerGui
+
+		local sound = Instance.new("Sound")
+		sound.Name = "WallhopIntroSound"
+		sound.SoundId = "rbxassetid://9118823102"
+		sound.Volume = 0.08
+		sound.PlaybackSpeed = 1
+		sound.Parent = soundGui
+
+		sound:Play()
+
+		TweenService:Create(
+			sound,
+			TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{Volume = 0.45}
+		):Play()
+
+		task.delay(1.6, function()
+			if sound and sound.Parent then
+				TweenService:Create(
+					sound,
+					TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+					{Volume = 0}
+				):Play()
+
+				task.delay(0.4, function()
+					if soundGui and soundGui.Parent then
+						soundGui:Destroy()
+					end
+				end)
+			end
+		end)
+	end)
+end
+
+playIntroSound()
 	task.spawn(function()
 		pcall(function()
 			local soundGui = PlayerGui:FindFirstChild("WallhopIntroSoundGui")
@@ -359,8 +424,12 @@ local function applyXrayToPart(part)
 	end
 
 	pcall(function()
-		part.Transparency = math.max(part.Transparency, 0.8)
-		part.LocalTransparencyModifier = math.max(part.LocalTransparencyModifier, 0.8)
+		local targetTransparency = math.clamp(xrayOpacityValue / 100, 0, 1)
+		local baseTransparency = xrayOriginalTransparency[part] or part.Transparency
+		local baseLocalTransparency = xrayOriginalLocalTransparency[part] or part.LocalTransparencyModifier
+
+		part.Transparency = math.max(baseTransparency, targetTransparency)
+		part.LocalTransparencyModifier = math.max(baseLocalTransparency, targetTransparency)
 	end)
 end
 
@@ -406,6 +475,18 @@ local function setXrayEnabled(state)
 		applyXray()
 	else
 		clearXray()
+	end
+
+	updateMobilePanelButtons()
+end
+
+local function setXrayOpacityValue(value)
+	xrayOpacityValue = math.clamp(tonumber(value) or 60, 0, 100)
+
+	if isXrayEnabled then
+		for part in pairs(xrayOriginalTransparency) do
+			applyXrayToPart(part)
+		end
 	end
 
 	updateMobilePanelButtons()
@@ -986,6 +1067,10 @@ updateMobilePanelButtons = function()
 	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
 
+	if MobileXrayOpacityLabel then
+		MobileXrayOpacityLabel.Text = "X-ray Opacity: " .. tostring(xrayOpacityValue)
+	end
+
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
 	setMobileCornerWalkButtonVisible(mobileCornerWalkButtonVisible)
 	setMobileBeastSlowButtonVisible(mobileBeastSlowButtonVisible)
@@ -1245,17 +1330,32 @@ switchPcTab = function(name)
 end
 
 switchMobileTab = function(name)
-	if not MobileFunctionsPage or not MobileFlicksPage or not MobileTabFunctions or not MobileTabFlicks then
+	if not MobileFunctionsPage or not MobileFlicksPage or not MobileSettingsPage
+		or not MobileTabFunctions or not MobileTabFlicks or not MobileTabSettings then
 		return
 	end
 
 	local isFunctions = name == "Functions"
+	local isFlicks = name == "Flicks"
+	local isSettings = name == "Settings"
 
 	MobileFunctionsPage.Visible = isFunctions
-	MobileFlicksPage.Visible = not isFunctions
+	MobileFlicksPage.Visible = isFlicks
+	MobileSettingsPage.Visible = isSettings
 
 	MobileTabFunctions.BackgroundColor3 = isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
-	MobileTabFlicks.BackgroundColor3 = not isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabFlicks.BackgroundColor3 = isFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabSettings.BackgroundColor3 = isSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+
+	if MobilePanel then
+		if isSettings then
+			MobilePanel.Size = UDim2.new(0, 220, 0, 560)
+		else
+			MobilePanel.Size = UDim2.new(0, 190, 0, 282)
+		end
+	end
+
+	refreshConfigDropdown()
 end
 
 local function setSlowEnabled(state)
@@ -1287,6 +1387,256 @@ end
 local function setMobileBeastSlowButtonState(state)
 	mobileBeastSlowButtonVisible = state and true or false
 	updateMobilePanelButtons()
+end
+
+
+local function copySimpleConfig(tbl)
+	local copy = {}
+	for k, v in pairs(tbl or {}) do
+		copy[k] = v
+	end
+	return copy
+end
+
+local function getCurrentConfigData()
+	return {
+		isWallHopEnabled = isWallHopEnabled,
+		isSlowEnabled = isSlowEnabled,
+		isCornerWalkEnabled = isCornerWalkEnabled,
+		isXrayEnabled = isXrayEnabled,
+		xrayOpacityValue = xrayOpacityValue,
+		currentFlickMode = currentFlickMode,
+		mobileWallhopGuiHidden = mobileWallhopGuiHidden,
+		mobileCornerWalkButtonVisible = mobileCornerWalkButtonVisible,
+		mobileBeastSlowButtonVisible = mobileBeastSlowButtonVisible,
+		toggleScriptKey = toggleScriptKey.Name,
+		toggleBeastSlowKey = toggleBeastSlowKey.Name,
+		toggleCornerWalkKey = toggleCornerWalkKey.Name,
+		toggleXrayKey = toggleXrayKey.Name,
+		hideGuiKey = hideGuiKey.Name
+	}
+end
+
+local function applyConfigData(cfg)
+	if type(cfg) ~= "table" then
+		return
+	end
+
+	if cfg.isWallHopEnabled ~= nil then
+		isWallHopEnabled = cfg.isWallHopEnabled and true or false
+	end
+	if cfg.isSlowEnabled ~= nil then
+		isSlowEnabled = cfg.isSlowEnabled and true or false
+	end
+	if cfg.isCornerWalkEnabled ~= nil then
+		isCornerWalkEnabled = cfg.isCornerWalkEnabled and true or false
+	end
+	if cfg.currentFlickMode ~= nil then
+		currentFlickMode = tostring(cfg.currentFlickMode)
+	end
+	if cfg.mobileWallhopGuiHidden ~= nil then
+		mobileWallhopGuiHidden = cfg.mobileWallhopGuiHidden and true or false
+	end
+	if cfg.mobileCornerWalkButtonVisible ~= nil then
+		mobileCornerWalkButtonVisible = cfg.mobileCornerWalkButtonVisible and true or false
+	end
+	if cfg.mobileBeastSlowButtonVisible ~= nil then
+		mobileBeastSlowButtonVisible = cfg.mobileBeastSlowButtonVisible and true or false
+	end
+
+	hideGuiKey = getKeyCodeFromName(cfg.hideGuiKey, hideGuiKey)
+	toggleScriptKey = getKeyCodeFromName(cfg.toggleScriptKey, toggleScriptKey)
+	toggleBeastSlowKey = getKeyCodeFromName(cfg.toggleBeastSlowKey, toggleBeastSlowKey)
+	toggleCornerWalkKey = getKeyCodeFromName(cfg.toggleCornerWalkKey, toggleCornerWalkKey)
+	toggleXrayKey = getKeyCodeFromName(cfg.toggleXrayKey, toggleXrayKey)
+
+	setXrayOpacityValue(cfg.xrayOpacityValue or xrayOpacityValue)
+	setXrayEnabled(cfg.isXrayEnabled and true or false)
+
+	updateToggleButton()
+	updateBindButtons()
+	updateMobilePanelButtons()
+	updateFlickButtons()
+	applyVisibility()
+end
+
+local function loadConfigsData()
+	if not readfile or not isfile then
+		return
+	end
+
+	if not isfile(CONFIGS_FILE) then
+		return
+	end
+
+	pcall(function()
+		local decoded = HttpService:JSONDecode(readfile(CONFIGS_FILE))
+		if type(decoded) == "table" then
+			configsData.configs = type(decoded.configs) == "table" and decoded.configs or {}
+			configsData.autoload = decoded.autoload
+		end
+	end)
+end
+
+local function saveConfigsData()
+	if not writefile then
+		return
+	end
+
+	pcall(function()
+		writefile(CONFIGS_FILE, HttpService:JSONEncode(configsData))
+	end)
+end
+
+local function getSortedConfigNames()
+	local names = {}
+
+	for name in pairs(configsData.configs or {}) do
+		table.insert(names, name)
+	end
+
+	table.sort(names, function(a, b)
+		return tostring(a):lower() < tostring(b):lower()
+	end)
+
+	return names
+end
+
+local function refreshConfigDropdown()
+	if not MobileConfigListButton then
+		return
+	end
+
+	if selectedConfigName and not configsData.configs[selectedConfigName] then
+		selectedConfigName = nil
+	end
+
+	MobileConfigListButton.Text = selectedConfigName or "---"
+
+	if MobileAutoloadLabel then
+		MobileAutoloadLabel.Text = "Currently autoload config: " .. (configsData.autoload or "Default")
+	end
+
+	if not MobileConfigDropdown then
+		return
+	end
+
+	for _, child in ipairs(MobileConfigDropdown:GetChildren()) do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+
+	local names = getSortedConfigNames()
+	local rowY = 0
+
+	for _, name in ipairs(names) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, 0, 0, 28)
+		btn.Position = UDim2.new(0, 0, 0, rowY)
+		btn.BackgroundColor3 = Color3.fromRGB(4, 4, 4)
+		btn.Text = name
+		btn.TextColor3 = Color3.fromRGB(255,255,255)
+		btn.Font = Enum.Font.Gotham
+		btn.TextSize = 12
+		btn.AutoButtonColor = false
+		btn.Parent = MobileConfigDropdown
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+		noTextStroke(btn)
+
+		btn.Activated:Connect(function()
+			selectedConfigName = name
+			configDropdownOpen = false
+			MobileConfigDropdown.Visible = false
+			refreshConfigDropdown()
+		end)
+
+		rowY += 30
+	end
+
+	MobileConfigDropdown.Size = UDim2.new(1, -14, 0, math.min(rowY, 120))
+end
+
+local activeMobileNoticeId = 0
+local function showMobileSettingsNotice(textMessage)
+	if not MobileSettingsNotice or not MobileSettingsNoticeStroke or not MobileSettingsNoticeBar then
+		return
+	end
+
+	activeMobileNoticeId += 1
+	local myId = activeMobileNoticeId
+
+	MobileSettingsNotice.Text = textMessage
+	MobileSettingsNotice.Visible = true
+	MobileSettingsNotice.Position = UDim2.new(1, -8, 0, 8)
+	MobileSettingsNotice.BackgroundTransparency = 1
+	MobileSettingsNotice.TextTransparency = 1
+	MobileSettingsNoticeStroke.Transparency = 1
+
+	MobileSettingsNoticeBar.Visible = true
+	MobileSettingsNoticeBar.Size = UDim2.new(1, -12, 0, 2)
+	MobileSettingsNoticeBar.Position = UDim2.new(1, -6, 1, -5)
+	MobileSettingsNoticeBar.AnchorPoint = Vector2.new(1, 0)
+	MobileSettingsNoticeBar.BackgroundTransparency = 0
+
+	TweenService:Create(MobileSettingsNotice, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 0.08,
+		TextTransparency = 0,
+		Position = UDim2.new(1, -8, 0, 8)
+	}):Play()
+
+	TweenService:Create(MobileSettingsNoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Transparency = 0.9
+	}):Play()
+
+	TweenService:Create(MobileSettingsNoticeBar, TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 0, 0, 2)
+	}):Play()
+
+	task.delay(3, function()
+		if myId ~= activeMobileNoticeId then
+			return
+		end
+
+		TweenService:Create(MobileSettingsNotice, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+			BackgroundTransparency = 1,
+			TextTransparency = 1,
+			Position = UDim2.new(1, 240, 0, 8)
+		}):Play()
+
+		TweenService:Create(MobileSettingsNoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Transparency = 1
+		}):Play()
+
+		TweenService:Create(MobileSettingsNoticeBar, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			BackgroundTransparency = 1
+		}):Play()
+
+		task.delay(0.24, function()
+			if myId == activeMobileNoticeId then
+				MobileSettingsNotice.Visible = false
+				MobileSettingsNoticeBar.Visible = false
+			end
+		end)
+	end)
+end
+
+local function requireSelectedConfig()
+	if not selectedConfigName or not configsData.configs[selectedConfigName] then
+		showMobileSettingsNotice("Please select a config first!")
+		return nil
+	end
+
+	return selectedConfigName
+end
+
+local function tryApplyAutoloadConfig()
+	loadConfigsData()
+
+	if configsData.autoload and configsData.configs and configsData.configs[configsData.autoload] then
+		selectedConfigName = configsData.autoload
+		applyConfigData(copySimpleConfig(configsData.configs[configsData.autoload]))
+	end
 end
 
 local function buildMobileGui()
@@ -1373,10 +1723,10 @@ local function buildMobileGui()
 	setTargetTransparency(mobileDragHandle, 0, nil)
 
 	MobileTabFunctions = Instance.new("TextButton")
-	MobileTabFunctions.Size = UDim2.new(0, 82, 0, 26)
+	MobileTabFunctions.Size = UDim2.new(0, 56, 0, 26)
 	MobileTabFunctions.Position = UDim2.new(0, 7, 0, 24)
 	MobileTabFunctions.BackgroundColor3 = Color3.fromRGB(20,20,20)
-	MobileTabFunctions.Text = "Functions"
+	MobileTabFunctions.Text = "Funcs"
 	MobileTabFunctions.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFunctions.Font = Enum.Font.GothamBold
 	MobileTabFunctions.TextSize = 12
@@ -1387,8 +1737,8 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFunctions)
 
 	MobileTabFlicks = Instance.new("TextButton")
-	MobileTabFlicks.Size = UDim2.new(0, 82, 0, 26)
-	MobileTabFlicks.Position = UDim2.new(0, 95, 0, 24)
+	MobileTabFlicks.Size = UDim2.new(0, 56, 0, 26)
+	MobileTabFlicks.Position = UDim2.new(0, 68, 0, 24)
 	MobileTabFlicks.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabFlicks.Text = "Flicks"
 	MobileTabFlicks.TextColor3 = Color3.fromRGB(255,255,255)
@@ -1399,6 +1749,20 @@ local function buildMobileGui()
 	Instance.new("UICorner", MobileTabFlicks).CornerRadius = UDim.new(0, 10)
 	setTargetTransparency(MobileTabFlicks, 0, 0)
 	noTextStroke(MobileTabFlicks)
+
+	MobileTabSettings = Instance.new("TextButton")
+	MobileTabSettings.Size = UDim2.new(0, 62, 0, 26)
+	MobileTabSettings.Position = UDim2.new(0, 129, 0, 24)
+	MobileTabSettings.BackgroundColor3 = Color3.fromRGB(8,8,8)
+	MobileTabSettings.Text = "Settings"
+	MobileTabSettings.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileTabSettings.Font = Enum.Font.GothamBold
+	MobileTabSettings.TextSize = 11
+	MobileTabSettings.Parent = MobilePanel
+	MobileTabSettings.AutoButtonColor = false
+	Instance.new("UICorner", MobileTabSettings).CornerRadius = UDim.new(0, 10)
+	setTargetTransparency(MobileTabSettings, 0, 0)
+	noTextStroke(MobileTabSettings)
 
 	MobileFunctionsPage = Instance.new("Frame")
 	MobileFunctionsPage.Size = UDim2.new(1, 0, 1, -58)
@@ -1412,6 +1776,13 @@ local function buildMobileGui()
 	MobileFlicksPage.BackgroundTransparency = 1
 	MobileFlicksPage.Parent = MobilePanel
 	MobileFlicksPage.Visible = false
+
+	MobileSettingsPage = Instance.new("Frame")
+	MobileSettingsPage.Size = UDim2.new(1, 0, 1, -58)
+	MobileSettingsPage.Position = UDim2.new(0, 0, 0, 58)
+	MobileSettingsPage.BackgroundTransparency = 1
+	MobileSettingsPage.Parent = MobilePanel
+	MobileSettingsPage.Visible = false
 
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
 	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
@@ -1450,6 +1821,265 @@ local function buildMobileGui()
 	mobileFooter.Parent = MobilePanel
 	noTextStroke(mobileFooter)
 	setTargetTransparency(mobileFooter, 1, 0)
+
+
+	local function createSettingsButton(parent, y, text)
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(1, -14, 0, 34)
+		button.Position = UDim2.new(0, 7, 0, y)
+		button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		button.Text = text
+		button.TextColor3 = Color3.fromRGB(220,220,220)
+		button.Font = Enum.Font.Gotham
+		button.TextSize = 13
+		button.AutoButtonColor = false
+		button.Parent = parent
+		Instance.new("UICorner", button).CornerRadius = UDim.new(0, 10)
+		noTextStroke(button)
+		setTargetTransparency(button, 0, 0)
+		return button
+	end
+
+	MobileXrayOpacityLabel = Instance.new("TextLabel")
+	MobileXrayOpacityLabel.Size = UDim2.new(1, -68, 0, 28)
+	MobileXrayOpacityLabel.Position = UDim2.new(0, 7, 0, 2)
+	MobileXrayOpacityLabel.BackgroundTransparency = 1
+	MobileXrayOpacityLabel.Text = "X-ray Opacity: " .. tostring(xrayOpacityValue)
+	MobileXrayOpacityLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileXrayOpacityLabel.Font = Enum.Font.GothamBold
+	MobileXrayOpacityLabel.TextSize = 13
+	MobileXrayOpacityLabel.TextXAlignment = Enum.TextXAlignment.Left
+	MobileXrayOpacityLabel.Parent = MobileSettingsPage
+	noTextStroke(MobileXrayOpacityLabel)
+	setTargetTransparency(MobileXrayOpacityLabel, 1, 0)
+
+	local minusOpacity = createSettingsButton(MobileSettingsPage, 0, "-")
+	minusOpacity.Size = UDim2.new(0, 26, 0, 28)
+	minusOpacity.Position = UDim2.new(1, -61, 0, 2)
+	minusOpacity.Font = Enum.Font.GothamBold
+	minusOpacity.TextSize = 18
+
+	local plusOpacity = createSettingsButton(MobileSettingsPage, 0, "+")
+	plusOpacity.Size = UDim2.new(0, 26, 0, 28)
+	plusOpacity.Position = UDim2.new(1, -33, 0, 2)
+	plusOpacity.Font = Enum.Font.GothamBold
+	plusOpacity.TextSize = 18
+
+	minusOpacity.Activated:Connect(function()
+		setXrayOpacityValue(xrayOpacityValue - 5)
+	end)
+
+	plusOpacity.Activated:Connect(function()
+		setXrayOpacityValue(xrayOpacityValue + 5)
+	end)
+
+	local cfgNameLabel = Instance.new("TextLabel")
+	cfgNameLabel.Size = UDim2.new(1, -14, 0, 20)
+	cfgNameLabel.Position = UDim2.new(0, 7, 0, 36)
+	cfgNameLabel.BackgroundTransparency = 1
+	cfgNameLabel.Text = "Config name:"
+	cfgNameLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	cfgNameLabel.Font = Enum.Font.Gotham
+	cfgNameLabel.TextSize = 12
+	cfgNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	cfgNameLabel.Parent = MobileSettingsPage
+	noTextStroke(cfgNameLabel)
+	setTargetTransparency(cfgNameLabel, 1, 0)
+
+	MobileConfigNameBox = Instance.new("TextBox")
+	MobileConfigNameBox.Size = UDim2.new(1, -14, 0, 30)
+	MobileConfigNameBox.Position = UDim2.new(0, 7, 0, 58)
+	MobileConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	MobileConfigNameBox.Text = ""
+	MobileConfigNameBox.PlaceholderText = ""
+	MobileConfigNameBox.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileConfigNameBox.PlaceholderColor3 = Color3.fromRGB(120,120,120)
+	MobileConfigNameBox.Font = Enum.Font.Gotham
+	MobileConfigNameBox.TextSize = 12
+	MobileConfigNameBox.ClearTextOnFocus = false
+	MobileConfigNameBox.Parent = MobileSettingsPage
+	Instance.new("UICorner", MobileConfigNameBox).CornerRadius = UDim.new(0, 9)
+	setTargetTransparency(MobileConfigNameBox, 0, 0)
+
+	local createConfigButton = createSettingsButton(MobileSettingsPage, 94, "Create config")
+
+	local separator = Instance.new("Frame")
+	separator.Size = UDim2.new(1, -14, 0, 2)
+	separator.Position = UDim2.new(0, 7, 0, 134)
+	separator.BackgroundColor3 = Color3.fromRGB(30,30,30)
+	separator.BorderSizePixel = 0
+	separator.Parent = MobileSettingsPage
+	setTargetTransparency(separator, 0, nil)
+
+	local cfgListLabel = Instance.new("TextLabel")
+	cfgListLabel.Size = UDim2.new(1, -14, 0, 20)
+	cfgListLabel.Position = UDim2.new(0, 7, 0, 144)
+	cfgListLabel.BackgroundTransparency = 1
+	cfgListLabel.Text = "Config list:"
+	cfgListLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	cfgListLabel.Font = Enum.Font.Gotham
+	cfgListLabel.TextSize = 12
+	cfgListLabel.TextXAlignment = Enum.TextXAlignment.Left
+	cfgListLabel.Parent = MobileSettingsPage
+	noTextStroke(cfgListLabel)
+	setTargetTransparency(cfgListLabel, 1, 0)
+
+	MobileConfigListButton = createSettingsButton(MobileSettingsPage, 168, "---")
+	MobileConfigListButton.TextXAlignment = Enum.TextXAlignment.Left
+	MobileConfigListButton.Text = "   ---"
+
+	MobileConfigDropdown = Instance.new("Frame")
+	MobileConfigDropdown.Size = UDim2.new(1, -14, 0, 0)
+	MobileConfigDropdown.Position = UDim2.new(0, 7, 0, 202)
+	MobileConfigDropdown.BackgroundTransparency = 1
+	MobileConfigDropdown.Visible = false
+	MobileConfigDropdown.Parent = MobileSettingsPage
+
+	local loadConfigButton = createSettingsButton(MobileSettingsPage, 206, "Load config")
+	local overwriteConfigButton = createSettingsButton(MobileSettingsPage, 244, "Overwrite config")
+	local deleteConfigButton = createSettingsButton(MobileSettingsPage, 282, "Delete config")
+	local refreshListButton = createSettingsButton(MobileSettingsPage, 320, "Refresh list")
+	local setAutoloadButton = createSettingsButton(MobileSettingsPage, 358, "Set as autoload")
+	local resetAutoloadButton = createSettingsButton(MobileSettingsPage, 396, "Reset autoload")
+
+	MobileAutoloadLabel = Instance.new("TextLabel")
+	MobileAutoloadLabel.Size = UDim2.new(1, -14, 0, 34)
+	MobileAutoloadLabel.Position = UDim2.new(0, 7, 0, 438)
+	MobileAutoloadLabel.BackgroundTransparency = 1
+	MobileAutoloadLabel.Text = "Currently autoload config: Default"
+	MobileAutoloadLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileAutoloadLabel.Font = Enum.Font.Gotham
+	MobileAutoloadLabel.TextSize = 12
+	MobileAutoloadLabel.TextWrapped = true
+	MobileAutoloadLabel.TextXAlignment = Enum.TextXAlignment.Left
+	MobileAutoloadLabel.Parent = MobileSettingsPage
+	noTextStroke(MobileAutoloadLabel)
+	setTargetTransparency(MobileAutoloadLabel, 1, 0)
+
+	MobileSettingsNotice = Instance.new("TextLabel")
+	MobileSettingsNotice.Size = UDim2.new(1, -16, 0, 52)
+	MobileSettingsNotice.Position = UDim2.new(1, -8, 0, 8)
+	MobileSettingsNotice.AnchorPoint = Vector2.new(1, 0)
+	MobileSettingsNotice.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobileSettingsNotice.BackgroundTransparency = 1
+	MobileSettingsNotice.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileSettingsNotice.TextTransparency = 1
+	MobileSettingsNotice.Font = Enum.Font.GothamBold
+	MobileSettingsNotice.TextSize = 10
+	MobileSettingsNotice.TextWrapped = true
+	MobileSettingsNotice.Visible = false
+	MobileSettingsNotice.ZIndex = 40
+	MobileSettingsNotice.Parent = MobilePanel
+	Instance.new("UICorner", MobileSettingsNotice).CornerRadius = UDim.new(0, 10)
+	noTextStroke(MobileSettingsNotice)
+
+	MobileSettingsNoticeStroke = Instance.new("UIStroke")
+	MobileSettingsNoticeStroke.Color = Color3.fromRGB(255,255,255)
+	MobileSettingsNoticeStroke.Thickness = 1
+	MobileSettingsNoticeStroke.Transparency = 1
+	MobileSettingsNoticeStroke.Parent = MobileSettingsNotice
+
+	MobileSettingsNoticeBar = Instance.new("Frame")
+	MobileSettingsNoticeBar.Size = UDim2.new(1, -12, 0, 2)
+	MobileSettingsNoticeBar.Position = UDim2.new(1, -6, 1, -5)
+	MobileSettingsNoticeBar.AnchorPoint = Vector2.new(1, 0)
+	MobileSettingsNoticeBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+	MobileSettingsNoticeBar.BorderSizePixel = 0
+	MobileSettingsNoticeBar.Visible = false
+	MobileSettingsNoticeBar.ZIndex = 41
+	MobileSettingsNoticeBar.Parent = MobileSettingsNotice
+
+	MobileConfigListButton.Activated:Connect(function()
+		configDropdownOpen = not configDropdownOpen
+		MobileConfigDropdown.Visible = configDropdownOpen
+		refreshConfigDropdown()
+	end)
+
+	createConfigButton.Activated:Connect(function()
+		local name = tostring(MobileConfigNameBox.Text or ""):gsub("^%s+", ""):gsub("%s+$", "")
+		if name == "" then
+			showMobileSettingsNotice("You need to give the config a name first!")
+			return
+		end
+
+		configsData.configs[name] = getCurrentConfigData()
+		selectedConfigName = name
+		saveConfigsData()
+		refreshConfigDropdown()
+		showMobileSettingsNotice("The configuration file " .. name .. " was created successfully.")
+	end)
+
+	loadConfigButton.Activated:Connect(function()
+		local name = requireSelectedConfig()
+		if not name then
+			return
+		end
+
+		applyConfigData(copySimpleConfig(configsData.configs[name]))
+		showMobileSettingsNotice("The " .. name .. " config was loaded successfully.")
+	end)
+
+	overwriteConfigButton.Activated:Connect(function()
+		local name = requireSelectedConfig()
+		if not name then
+			return
+		end
+
+		configsData.configs[name] = getCurrentConfigData()
+		saveConfigsData()
+		refreshConfigDropdown()
+		showMobileSettingsNotice("The " .. name .. " config was overwritten successfully.")
+	end)
+
+	deleteConfigButton.Activated:Connect(function()
+		local name = requireSelectedConfig()
+		if not name then
+			return
+		end
+
+		configsData.configs[name] = nil
+		if configsData.autoload == name then
+			configsData.autoload = nil
+		end
+		selectedConfigName = nil
+		saveConfigsData()
+		refreshConfigDropdown()
+		showMobileSettingsNotice("The " .. name .. " config was being deleted successfully.")
+	end)
+
+	refreshListButton.Activated:Connect(function()
+		loadConfigsData()
+		refreshConfigDropdown()
+		showMobileSettingsNotice("All the config list has been refreshed successfully.")
+	end)
+
+	setAutoloadButton.Activated:Connect(function()
+		local name = requireSelectedConfig()
+		if not name then
+			return
+		end
+
+		configsData.autoload = name
+		saveConfigsData()
+		refreshConfigDropdown()
+		showMobileSettingsNotice("The " .. name .. " config was being set as autoload successfully.")
+	end)
+
+	resetAutoloadButton.Activated:Connect(function()
+		if not configsData.autoload then
+			showMobileSettingsNotice("You dont have an autoload config yet!")
+			return
+		end
+
+		configsData.autoload = nil
+		saveConfigsData()
+		refreshConfigDropdown()
+		showMobileSettingsNotice("The autoload config has been reset successfully.")
+	end)
+
+	loadConfigsData()
+	refreshConfigDropdown()
+	tryApplyAutoloadConfig()
 
 	local function placeMobileButtonDefault()
 		local insetNow = GuiService:GetGuiInset()
@@ -1602,6 +2232,10 @@ local function buildMobileGui()
 
 	MobileTabFlicks.Activated:Connect(function()
 		switchMobileTab("Flicks")
+	end)
+
+	MobileTabSettings.Activated:Connect(function()
+		switchMobileTab("Settings")
 	end)
 
 	bindRowPress(MobileHideGuiRow, function()
