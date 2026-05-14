@@ -22,6 +22,33 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
+local GLOBAL_WALLHOP_TOKEN_NAME = "__nyhito_ftf_wallhop_active_token"
+local ACTIVE_SCRIPT_TOKEN = tostring(os.clock()) .. "_" .. tostring(math.random(100000, 999999))
+
+pcall(function()
+	if getgenv then
+		getgenv()[GLOBAL_WALLHOP_TOKEN_NAME] = ACTIVE_SCRIPT_TOKEN
+	else
+		_G[GLOBAL_WALLHOP_TOKEN_NAME] = ACTIVE_SCRIPT_TOKEN
+	end
+end)
+
+local function isThisScriptActive()
+	local ok, value = pcall(function()
+		if getgenv then
+			return getgenv()[GLOBAL_WALLHOP_TOKEN_NAME]
+		end
+		return _G[GLOBAL_WALLHOP_TOKEN_NAME]
+	end)
+
+	if not ok then
+		return true
+	end
+
+	return value == ACTIVE_SCRIPT_TOKEN
+end
+
+
 local DEFAULT_HIDE_GUI_KEY = Enum.KeyCode.RightShift
 local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Q
 local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.E
@@ -1140,6 +1167,10 @@ local function buildMobileGui()
 	end
 
 	RunService.RenderStepped:Connect(function()
+		if not isThisScriptActive() then
+			return
+		end
+
 		if selectedMode ~= "Mobile" then
 			return
 		end
@@ -1729,6 +1760,10 @@ end
 LocalPlayer.CharacterAdded:Connect(setupCharacter)
 
 UserInputService.JumpRequest:Connect(function()
+	if not isThisScriptActive() then
+		return
+	end
+
 	if not isWallHopEnabled or blockDoubleJump then
 		return
 	end
@@ -2452,16 +2487,26 @@ end
 
 
 local cornerWalkAirStart = 0
+local cornerWalkFloorY = nil
+local lastCornerWalkTime = 0
+
 local CORNER_WALK_AIR_TIME = 0.05
 local CORNER_WALK_WALL_DISTANCE = 1.10
 local CORNER_WALK_MIN_MOVE = 0.08
 local CORNER_WALK_MIN_REAL_SPEED = 0.45
+local CORNER_WALK_FLOOR_HEIGHT = 2.45
+local CORNER_WALK_MAX_Y_CORRECTION = 0.55
 
 local function flatUnit(vec)
 	if not vec or vec.Magnitude < 0.05 then
 		return nil
 	end
 	return vec.Unit
+end
+
+local function resetCornerWalkFloor()
+	cornerWalkFloorY = nil
+	lastCornerWalkTime = 0
 end
 
 local function isCornerWalkStateAllowed(hum)
@@ -2558,8 +2603,7 @@ local function findCornerWalkEdge(hrp, hum, params)
 			local ray = workspace:Raycast(origin, dir * CORNER_WALK_WALL_DISTANCE, params)
 
 			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-				-- Aqui está a diferença principal:
-				-- precisa ser parede E precisa ter dobra/edge, igual o wallhop.
+				-- Precisa ser parede E precisa ter dobra/edge, igual o wallhop.
 				if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
 					local dist = (ray.Position - origin).Magnitude
 					if dist < bestDist then
@@ -2579,40 +2623,61 @@ local function applyCornerWalkGround(hrp, hum, edgeRay)
 		return
 	end
 
-	-- Se não tem input, solta.
+	-- Se não tem input, solta imediatamente.
 	if hum.MoveDirection.Magnitude < CORNER_WALK_MIN_MOVE then
+		resetCornerWalkFloor()
 		return
 	end
 
 	local vel = hrp.Velocity
 	local horizontalSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
 
-	-- Se está parado/quase parado, solta.
+	-- Se está parado/quase parado, solta imediatamente.
 	if horizontalSpeed < CORNER_WALK_MIN_REAL_SPEED then
+		resetCornerWalkFloor()
 		return
 	end
 
-	local yVel = vel.Y
+	local desiredFloorY = edgeRay.Position.Y + CORNER_WALK_FLOOR_HEIGHT
 
-	-- Não mexe em X/Z.
-	-- Só segura a queda levemente para a dobra funcionar como chão.
-	if yVel < -0.03 then
-		yVel = -0.03
+	if not cornerWalkFloorY or math.abs(desiredFloorY - cornerWalkFloorY) > 0.35 or (tick() - lastCornerWalkTime) > 0.20 then
+		cornerWalkFloorY = desiredFloorY
 	end
 
+	lastCornerWalkTime = tick()
+
+	local diffY = cornerWalkFloorY - hrp.Position.Y
+	local newY = hrp.Position.Y
+
+	if math.abs(diffY) <= CORNER_WALK_MAX_Y_CORRECTION then
+		newY = cornerWalkFloorY
+	else
+		-- Se a diferença de altura ficou grande, provavelmente saiu da dobra.
+		resetCornerWalkFloor()
+		return
+	end
+
+	local currentCFrame = hrp.CFrame
+	local rotationOnly = currentCFrame - currentCFrame.Position
+
+	-- Chão artificial: mantém a altura da dobra.
+	-- Não altera X/Z da posição e não altera X/Z da velocidade.
+	hrp.CFrame = CFrame.new(hrp.Position.X, newY, hrp.Position.Z) * rotationOnly
+	hrp.Velocity = Vector3.new(vel.X, 0, vel.Z)
+
 	local state = hum:GetState()
-	if state == Enum.HumanoidStateType.Freefall then
+	if state == Enum.HumanoidStateType.Freefall
+		or state == Enum.HumanoidStateType.FallingDown then
 		pcall(function()
 			hum:ChangeState(Enum.HumanoidStateType.Running)
 		end)
 	end
-
-	hrp.Velocity = Vector3.new(vel.X, yVel, vel.Z)
 end
 
 local function runCornerWalk()
 	if not isCornerWalkEnabled then
 		cornerWalkAirStart = 0
+		resetCornerWalkFloor()
 		return
 	end
 
@@ -2622,21 +2687,25 @@ local function runCornerWalk()
 
 	if not char or not hrp or not hum then
 		cornerWalkAirStart = 0
+		resetCornerWalkFloor()
 		return
 	end
 
 	if hum.MoveDirection.Magnitude < CORNER_WALK_MIN_MOVE then
 		cornerWalkAirStart = 0
+		resetCornerWalkFloor()
 		return
 	end
 
 	local realHorizontalSpeed = Vector3.new(hrp.Velocity.X, 0, hrp.Velocity.Z).Magnitude
 	if realHorizontalSpeed < CORNER_WALK_MIN_REAL_SPEED then
 		cornerWalkAirStart = 0
+		resetCornerWalkFloor()
 		return
 	end
 
 	if not isCornerWalkStateAllowed(hum) then
+		resetCornerWalkFloor()
 		return
 	end
 
@@ -2646,6 +2715,7 @@ local function runCornerWalk()
 
 	local edgeRay = findCornerWalkEdge(hrp, hum, params)
 	if not edgeRay then
+		resetCornerWalkFloor()
 		return
 	end
 
@@ -2653,10 +2723,18 @@ local function runCornerWalk()
 end
 
 RunService.Heartbeat:Connect(function()
+	if not isThisScriptActive() then
+		return
+	end
+
 	runCornerWalk()
 end)
 
 RunService.Heartbeat:Connect(function()
+	if not isThisScriptActive() then
+		return
+	end
+
 	if not isWallHopEnabled then
 		local char = LocalPlayer.Character
 		local hum = char and char:FindFirstChild("Humanoid")
@@ -2758,6 +2836,10 @@ RunService.Heartbeat:Connect(function()
 end)
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if not isThisScriptActive() then
+		return
+	end
+
 	if gameProcessed then
 		return
 	end
