@@ -333,57 +333,38 @@ local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
 		targetBg = getTargetBG(root)
 	end
 
-	root.Size = UDim2.new(
-		targetSize.X.Scale * 0.72, math.floor(targetSize.X.Offset * 0.72),
-		targetSize.Y.Scale * 0.72, math.floor(targetSize.Y.Offset * 0.72)
-	)
+	root.Size = targetSize
 	root.Position = targetPos
-	root.BackgroundTransparency = 1
-	setHostShadowVisible(root, false)
+	root.BackgroundTransparency = targetBg
+	setHostShadowVisible(root, true)
 
 	for _, obj in ipairs(root:GetDescendants()) do
-		if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
+		if obj:IsA("Frame") or obj:IsA("TextButton") then
 			pcall(function()
-				obj.BackgroundTransparency = 1
+				obj.BackgroundTransparency = getTargetBG(obj)
 			end)
 		end
+
 		if obj:IsA("TextButton") or obj:IsA("TextLabel") then
 			pcall(function()
-				obj.TextTransparency = 1
+				obj.TextTransparency = getTargetText(obj)
+				obj.Visible = true
 			end)
 		end
+
 		if obj:IsA("UIStroke") then
 			pcall(function()
-				obj.Transparency = 1
+				obj.Transparency = 0
 			end)
 		end
 	end
 
-	TweenService:Create(root, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-		Size = targetSize,
-		Position = targetPos,
-		BackgroundTransparency = targetBg
-	}):Play()
-
-	task.delay(0.03, function()
-		setHostShadowVisible(root, true)
-
-		for _, obj in ipairs(root:GetDescendants()) do
-			if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
-				local goal = {}
-				if obj:IsA("Frame") or obj:IsA("TextButton") then
-					goal.BackgroundTransparency = getTargetBG(obj)
-				end
-				if obj:IsA("TextButton") or obj:IsA("TextLabel") then
-					goal.TextTransparency = getTargetText(obj)
-				end
-				TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal):Play()
-			elseif obj:IsA("UIStroke") then
-				TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					Transparency = 0
-				}):Play()
-			end
-		end
+	pcall(function()
+		TweenService:Create(root, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Size = targetSize,
+			Position = targetPos,
+			BackgroundTransparency = targetBg
+		}):Play()
 	end)
 end
 
@@ -951,6 +932,15 @@ local function createModeSelector(onPick)
 	setTargetTransparency(mobileButton, 0, 0)
 
 	elegantShow(frame, UDim2.new(0, 280, 0, 170), UDim2.new(0.5, 0, 0.5, 0), 0)
+
+	for _, obj in ipairs(frame:GetDescendants()) do
+		if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+			obj.TextTransparency = 0
+			obj.Visible = true
+		elseif obj:IsA("Frame") or obj:IsA("TextButton") then
+			obj.BackgroundTransparency = getTargetBG(obj)
+		end
+	end
 
 	pcButton.MouseButton1Click:Connect(function()
 		elegantHide(frame, function()
@@ -1881,6 +1871,16 @@ local function buildPCGui()
 	updateBindButtons()
 	updateFlickButtons()
 	elegantShow(MainFrame, UDim2.new(0, 335, 0, 300), MainFrame.Position, 0)
+
+	for _, obj in ipairs(MainFrame:GetDescendants()) do
+		if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+			obj.TextTransparency = getTargetText(obj)
+			obj.Visible = true
+		elseif obj:IsA("Frame") or obj:IsA("TextButton") then
+			obj.BackgroundTransparency = getTargetBG(obj)
+		end
+	end
+
 	showNotice("PC version loaded")
 end
 
