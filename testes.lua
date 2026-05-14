@@ -1571,9 +1571,9 @@ local function setMinimized(state)
 				setHostShadowVisible(MiniButton, false)
 
 				MainFrame.Position = restorePos
-				MainFrame.Size = UDim2.new(0, 335, 0, 270)
+				MainFrame.Size = UDim2.new(0, 335, 0, 320)
 
-				elegantShow(MainFrame, UDim2.new(0, 335, 0, 270), restorePos, 0)
+				elegantShow(MainFrame, UDim2.new(0, 335, 0, 320), restorePos, 0)
 			end)
 		end
 
@@ -1626,8 +1626,8 @@ local function buildPCGui()
 	ScreenGui.Parent = PlayerGui
 
 	MainFrame = Instance.new("Frame")
-	MainFrame.Size = UDim2.new(0, 335, 0, 270)
-	MainFrame.Position = UDim2.new(0.5, -167, 0.5, -135)
+	MainFrame.Size = UDim2.new(0, 335, 0, 320)
+	MainFrame.Position = UDim2.new(0.5, -167, 0.5, -160)
 	MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MainFrame.BorderSizePixel = 0
 	MainFrame.Parent = ScreenGui
@@ -1676,13 +1676,13 @@ local function buildPCGui()
 	setTargetTransparency(MinimizeButton, 0, 0)
 
 	ToggleButton = Instance.new("TextButton")
-	ToggleButton.Size = UDim2.new(1, -36, 0, 28)
-	ToggleButton.Position = UDim2.new(0, 18, 0, 88)
+	ToggleButton.Size = UDim2.new(1, -36, 0, 36)
+	ToggleButton.Position = UDim2.new(0, 18, 0, 90)
 	ToggleButton.BackgroundTransparency = 1
 	ToggleButton.Text = "Wall Hop Off"
 	ToggleButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleButton.Font = Enum.Font.GothamBold
-	ToggleButton.TextSize = 22
+	ToggleButton.TextSize = 26
 	ToggleButton.TextXAlignment = Enum.TextXAlignment.Left
 	ToggleButton.AutoButtonColor = false
 	ToggleButton.Parent = MainFrame
@@ -1693,25 +1693,25 @@ local function buildPCGui()
 	PcTabFlicks = createPcTabButton(MainFrame, 120, "Flicks")
 
 	PcFunctionsPage = Instance.new("Frame")
-	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -118)
-	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 114)
+	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -126)
+	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 124)
 	PcFunctionsPage.BackgroundTransparency = 1
 	PcFunctionsPage.Parent = MainFrame
 
 	PcFlicksPage = Instance.new("Frame")
-	PcFlicksPage.Size = UDim2.new(1, 0, 1, -118)
-	PcFlicksPage.Position = UDim2.new(0, 0, 0, 114)
+	PcFlicksPage.Size = UDim2.new(1, 0, 1, -126)
+	PcFlicksPage.Position = UDim2.new(0, 0, 0, 124)
 	PcFlicksPage.BackgroundTransparency = 1
 	PcFlicksPage.Visible = false
 	PcFlicksPage.Parent = MainFrame
 
 	HideGuiBindButton = Instance.new("TextButton")
-	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 18)
-	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 8)
+	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 24)
+	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 6)
 	HideGuiBindButton.BackgroundTransparency = 1
 	HideGuiBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	HideGuiBindButton.Font = Enum.Font.Gotham
-	HideGuiBindButton.TextSize = 13
+	HideGuiBindButton.TextSize = 17
 	HideGuiBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	HideGuiBindButton.AutoButtonColor = false
 	HideGuiBindButton.Parent = PcFunctionsPage
@@ -1719,12 +1719,12 @@ local function buildPCGui()
 	setTargetTransparency(HideGuiBindButton, 1, 0)
 
 	ToggleBindButton = Instance.new("TextButton")
-	ToggleBindButton.Size = UDim2.new(1, -36, 0, 18)
-	ToggleBindButton.Position = UDim2.new(0, 18, 0, 30)
+	ToggleBindButton.Size = UDim2.new(1, -36, 0, 24)
+	ToggleBindButton.Position = UDim2.new(0, 18, 0, 40)
 	ToggleBindButton.BackgroundTransparency = 1
 	ToggleBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleBindButton.Font = Enum.Font.Gotham
-	ToggleBindButton.TextSize = 13
+	ToggleBindButton.TextSize = 17
 	ToggleBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	ToggleBindButton.AutoButtonColor = false
 	ToggleBindButton.Parent = PcFunctionsPage
@@ -1732,12 +1732,12 @@ local function buildPCGui()
 	setTargetTransparency(ToggleBindButton, 1, 0)
 
 	BeastSlowBindButton = Instance.new("TextButton")
-	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 18)
-	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 52)
+	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 24)
+	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 74)
 	BeastSlowBindButton.BackgroundTransparency = 1
 	BeastSlowBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	BeastSlowBindButton.Font = Enum.Font.Gotham
-	BeastSlowBindButton.TextSize = 13
+	BeastSlowBindButton.TextSize = 17
 	BeastSlowBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	BeastSlowBindButton.AutoButtonColor = false
 	BeastSlowBindButton.Parent = PcFunctionsPage
@@ -1745,30 +1745,30 @@ local function buildPCGui()
 	setTargetTransparency(BeastSlowBindButton, 1, 0)
 
 	CornerWalkBindButton = Instance.new("TextButton")
-	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 18)
-	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 74)
+	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 24)
+	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 108)
 	CornerWalkBindButton.BackgroundTransparency = 1
 	CornerWalkBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	CornerWalkBindButton.Font = Enum.Font.Gotham
-	CornerWalkBindButton.TextSize = 13
+	CornerWalkBindButton.TextSize = 17
 	CornerWalkBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	CornerWalkBindButton.AutoButtonColor = false
 	CornerWalkBindButton.Parent = PcFunctionsPage
 	noTextStroke(CornerWalkBindButton)
 	setTargetTransparency(CornerWalkBindButton, 1, 0)
 
-	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 8, "Normal Wallhop")
-	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 46, "Visual Flick")
-	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 84, "360° Wallhop")
-	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 122, "Console Wallhop")
+	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 4, "Normal Wallhop")
+	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 38, "Visual Flick")
+	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 72, "360° Wallhop")
+	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 106, "Console Wallhop")
 
 	PcCurrentUsingLabel = Instance.new("TextLabel")
-	PcCurrentUsingLabel.Size = UDim2.new(1, -36, 0, 34)
-	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 164)
+	PcCurrentUsingLabel.Size = UDim2.new(1, -36, 0, 26)
+	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 146)
 	PcCurrentUsingLabel.BackgroundTransparency = 1
 	PcCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcCurrentUsingLabel.Font = Enum.Font.Gotham
-	PcCurrentUsingLabel.TextSize = 13
+	PcCurrentUsingLabel.TextSize = 14
 	PcCurrentUsingLabel.TextWrapped = true
 	PcCurrentUsingLabel.TextXAlignment = Enum.TextXAlignment.Left
 	PcCurrentUsingLabel.TextYAlignment = Enum.TextYAlignment.Top
@@ -1778,12 +1778,12 @@ local function buildPCGui()
 
 	local footer = Instance.new("TextLabel")
 	footer.Size = UDim2.new(1, -36, 0, 14)
-	footer.Position = UDim2.new(0, 18, 1, -16)
+	footer.Position = UDim2.new(0, 18, 1, -22)
 	footer.BackgroundTransparency = 1
 	footer.Text = "the best ftf wallhop ever - nyhito panel"
 	footer.TextColor3 = Color3.fromRGB(95,95,95)
 	footer.Font = Enum.Font.Gotham
-	footer.TextSize = 10
+	footer.TextSize = 11
 	footer.TextXAlignment = Enum.TextXAlignment.Left
 	footer.Parent = MainFrame
 	noTextStroke(footer)
@@ -1904,7 +1904,7 @@ local function buildPCGui()
 	switchPcTab("Functions")
 	updateBindButtons()
 	updateFlickButtons()
-	elegantShow(MainFrame, UDim2.new(0, 335, 0, 270), MainFrame.Position, 0)
+	elegantShow(MainFrame, UDim2.new(0, 335, 0, 320), MainFrame.Position, 0)
 	showNotice("PC version loaded")
 end
 
@@ -2429,6 +2429,28 @@ local function performNormalWallhop()
 	isFlicking = false
 end
 
+
+local function get360FlickProfile()
+	local flickRoll = math.random()
+
+	if flickRoll < 0.10 then
+		return {
+			steps = 8,
+			stepDelay = 0.0038
+		}
+	elseif flickRoll < 0.40 then
+		return {
+			steps = 9,
+			stepDelay = 0.0042
+		}
+	else
+		return {
+			steps = 10,
+			stepDelay = 0.0045
+		}
+	end
+end
+
 local function perform360Wallhop()
 	if isFlicking then
 		return
@@ -2476,8 +2498,9 @@ local function perform360Wallhop()
 	local direction = next360Direction
 	next360Direction = -next360Direction
 
-	local steps = 10
-	local stepDelay = 0.0045
+	local profile360 = get360FlickProfile()
+	local steps = profile360.steps
+	local stepDelay = profile360.stepDelay
 
 	for i = 1, steps do
 		if not hrp or not hrp.Parent then
