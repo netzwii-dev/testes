@@ -134,9 +134,11 @@ local shadowRegistry = {}
 
 local clearScriptSlowInstant
 local updateMobilePanelButtons
+local updateToggleButton
 local setMobileWallhopVisualHidden
 local applyVisibility
 local updateFlickButtons
+local setFlickMode
 local switchPcTab
 local switchMobileTab
 local setSlowEnabled
@@ -326,13 +328,13 @@ end
 local function setXrayOpacity(value)
 	xrayOpacity = math.clamp(tonumber(value) or 80, 0, 100)
 	refreshXray()
-	updateMobilePanelButtons()
+	if updateMobilePanelButtons then updateMobilePanelButtons() end
 end
 
 local function setXrayEnabled(state)
 	isXrayEnabled = state and true or false
 	if isXrayEnabled then applyXray() else clearXray() end
-	updateMobilePanelButtons()
+	if updateMobilePanelButtons then updateMobilePanelButtons() end
 end
 
 workspace.DescendantAdded:Connect(function(obj)
@@ -401,9 +403,12 @@ local function applyConfigData(data)
 	if setXrayOpacity then setXrayOpacity(tonumber(data.xrayOpacity) or 80) end
 	if setXrayEnabled then setXrayEnabled(data.isXrayEnabled and true or false) end
 	if setMobileGuiHidden then setMobileGuiHidden(data.mobileWallhopGuiHidden and true or false) end
-	if typeof(data.currentFlickMode) == "string" then setFlickMode(data.currentFlickMode) end
-	updateToggleButton()
-	updateMobilePanelButtons()
+	if typeof(data.currentFlickMode) == "string" then
+		currentFlickMode = data.currentFlickMode
+	end
+	if updateToggleButton then updateToggleButton() end
+	if updateMobilePanelButtons then updateMobilePanelButtons() end
+	if updateFlickButtons then updateFlickButtons() end
 end
 
 local function saveMobileConfig(name)
@@ -887,7 +892,7 @@ local function createSimpleRow(parent, yOffset, labelText)
 	return row
 end
 
-local function updateToggleButton()
+updateToggleButton = function()
 	if selectedMode == "PC" and ToggleButton then
 		ToggleButton.Text = isWallHopEnabled and "Wall Hop On" or "Wall Hop Off"
 	elseif selectedMode == "Mobile" and MobileButton then
@@ -1028,7 +1033,7 @@ local function setGuiVisible(state)
 	showNotice(state and "GUI shown" or "GUI hidden")
 end
 
-local function setFlickMode(name)
+setFlickMode = function(name)
 	currentFlickMode = name
 	updateFlickButtons()
 	if selectedMode == "PC" then
