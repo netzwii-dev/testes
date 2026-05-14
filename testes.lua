@@ -694,10 +694,10 @@ local function updateToggleButton()
 			MobileButton.Text = isWallHopEnabled and "Wallhop On" or "Wallhop Off"
 		end
 		if MobileCornerWalkButton then
-			MobileCornerWalkButton.Text = isCornerWalkEnabled and "Cwalk On" or "Cwalk Off"
+			MobileCornerWalkButton.Text = isCornerWalkEnabled and "C-walk On" or "C-walk Off"
 		end
 		if MobileBeastSlowButton then
-			MobileBeastSlowButton.Text = isSlowEnabled and "Beast Slow On" or "Beast Slow Off"
+			MobileBeastSlowButton.Text = isSlowEnabled and "Slow On" or "Slow Off"
 		end
 	end
 end
@@ -775,13 +775,13 @@ end
 
 updateMobilePanelButtons = function()
 	if MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("Label") then
-		MobileHideGuiRow.Label.Text = "Wallhop button"
+		MobileHideGuiRow.Label.Text = "Wallhop"
 	end
 	if MobileCornerWalkRow and MobileCornerWalkRow:FindFirstChild("Label") then
-		MobileCornerWalkRow.Label.Text = "Corner Walk button"
+		MobileCornerWalkRow.Label.Text = "Corner Walk"
 	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
-		MobileBeastSlowRow.Label.Text = "Beast Slow button"
+		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
 	if MobileNormalWallhopRow and MobileNormalWallhopRow:FindFirstChild("Label") then
 		MobileNormalWallhopRow.Label.Text = "Normal Wallhop"
@@ -1141,8 +1141,8 @@ local function buildMobileGui()
 		return button
 	end
 
-	MobileCornerWalkButton = createFloatingMobileButton("CornerWalkButton", "Cwalk Off")
-	MobileBeastSlowButton = createFloatingMobileButton("BeastSlowButton", "Beast Slow Off")
+	MobileCornerWalkButton = createFloatingMobileButton("CornerWalkButton", "C-walk Off")
+	MobileBeastSlowButton = createFloatingMobileButton("BeastSlowButton", "Slow Off")
 
 	local inset = GuiService:GetGuiInset()
 
@@ -1221,9 +1221,9 @@ local function buildMobileGui()
 	MobileFlicksPage.Parent = MobilePanel
 	MobileFlicksPage.Visible = false
 
-	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop button")
-	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk button")
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow button")
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Flick")
@@ -1242,6 +1242,20 @@ local function buildMobileGui()
 	MobileCurrentUsingLabel.Parent = MobileFlicksPage
 	noTextStroke(MobileCurrentUsingLabel)
 	setTargetTransparency(MobileCurrentUsingLabel, 1, 0)
+
+	local mobileFooter = Instance.new("TextLabel")
+	mobileFooter.Name = "MobileFooter"
+	mobileFooter.Size = UDim2.new(1, -14, 0, 16)
+	mobileFooter.Position = UDim2.new(0, 7, 1, -18)
+	mobileFooter.BackgroundTransparency = 1
+	mobileFooter.Text = "the best wallhop"
+	mobileFooter.TextColor3 = Color3.fromRGB(95,95,95)
+	mobileFooter.Font = Enum.Font.Gotham
+	mobileFooter.TextSize = 10
+	mobileFooter.TextXAlignment = Enum.TextXAlignment.Left
+	mobileFooter.Parent = MobilePanel
+	noTextStroke(mobileFooter)
+	setTargetTransparency(mobileFooter, 1, 0)
 
 	local function placeMobileButtonDefault()
 		local insetNow = GuiService:GetGuiInset()
