@@ -180,6 +180,59 @@ local next360Direction = 1
 local function destroyOld()
 
 
+local function playIntroSound()
+	task.spawn(function()
+		pcall(function()
+			local soundGui = PlayerGui:FindFirstChild("WallhopIntroSoundGui")
+			if soundGui then
+				soundGui:Destroy()
+			end
+
+			soundGui = Instance.new("ScreenGui")
+			soundGui.Name = "WallhopIntroSoundGui"
+			soundGui.ResetOnSpawn = false
+			soundGui.Parent = PlayerGui
+
+			local sound = Instance.new("Sound")
+			sound.Name = "WallhopIntroSound"
+			sound.SoundId = "rbxassetid://9118823102"
+			sound.Volume = 0
+			sound.PlaybackSpeed = 1
+			sound.Parent = soundGui
+
+			sound:Play()
+
+			local fadeIn = TweenService:Create(
+				sound,
+				TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{Volume = 0.45}
+			)
+			fadeIn:Play()
+
+			task.delay(1.6, function()
+				if sound and sound.Parent then
+					local fadeOut = TweenService:Create(
+						sound,
+						TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+						{Volume = 0}
+					)
+					fadeOut:Play()
+
+					task.delay(0.4, function()
+						if soundGui and soundGui.Parent then
+							soundGui:Destroy()
+						end
+					end)
+				end
+			end)
+		end)
+	end)
+end
+
+playIntroSound()
+
+
+
 pcall(function()
 	local oldFloor = workspace:FindFirstChild("CornerWalkArtificialFloor")
 	if oldFloor then
@@ -2411,85 +2464,42 @@ local function perform360Wallhop()
 
 	forceWallhopJump(hum)
 	lockBodyRotation(hum, 0.36)
-	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
+	pcall(function()
+		hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+	end)
 
-	local baseYaw = hrp.Orientation.Y
+	local baseYaw = math.rad(hrp.Orientation.Y)
+
+	-- Alterna a direção:
+	-- 1 = começa girando para a direita
+	-- -1 = começa girando para a esquerda
 	local direction = next360Direction
 	next360Direction = -next360Direction
 
-	local angle = math.rad(360) * direction
-	local profile = getFlickProfile(useSpecialFirst)
+	local steps = 10
+	local stepDelay = 0.0045
 
-	local goSteps = math.max(profile.goSteps, 8)
-	local goDelayMin = profile.goDelayMin
-	local goDelayMax = profile.goDelayMax
-	local holdTime = profile.holdTime
-	local returnSteps = math.max(profile.returnSteps, 8)
-	local returnDelayMin = profile.returnDelayMin
-	local returnDelayMax = profile.returnDelayMax
+	for i = 1, steps do
+		if not hrp or not hrp.Parent then
+			break
+		end
 
-	local overshoot = math.rad(math.random(profile.overshootMin, profile.overshootMax) + 5)
-	local overshootBaseDelay = profile.overshootBaseDelay
-	local useOvershoot = false
+		local alpha = i / steps
+		local spin = math.rad(360) * alpha * direction
 
-	for i = 1, goSteps do
-		local alpha = i / goSteps
-		local offset = angle * alpha
-		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
+		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, baseYaw + spin, 0)
 
-		if i < goSteps then
+		if i < steps then
 			RunService.RenderStepped:Wait()
-			task.wait(goDelayMin + math.random() * (goDelayMax - goDelayMin))
+			task.wait(stepDelay)
 		end
 	end
 
-	task.wait(holdTime)
-
-	for i = 1, returnSteps do
-		local alpha = i / returnSteps
-		local offset = angle * (1 - alpha)
-		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
-
-		if i < returnSteps then
-			RunService.RenderStepped:Wait()
-			task.wait(returnDelayMin + math.random() * (returnDelayMax - returnDelayMin))
-		end
+	-- Para exatamente no centro/yaw inicial, sem dar outro giro.
+	if hrp and hrp.Parent then
+		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, baseYaw, 0)
 	end
 
-	if useOvershoot then
-		task.delay(0.018, function()
-			if not hrp or not hrp.Parent then
-				return
-			end
-
-			local smallSteps = math.random(2, 3)
-			local localDelay = overshootBaseDelay * (math.random(88, 102) / 100)
-
-			for i = 1, smallSteps do
-				local alpha = i / smallSteps
-				local offset = overshoot * alpha
-				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
-				if i < smallSteps then
-					RunService.RenderStepped:Wait()
-					task.wait(localDelay)
-				end
-			end
-
-			for i = 1, smallSteps do
-				local alpha = i / smallSteps
-				local offset = overshoot * (1 - alpha)
-				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw) + offset, 0)
-				if i < smallSteps then
-					RunService.RenderStepped:Wait()
-					task.wait(localDelay)
-				end
-			end
-
-			hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
-		end)
-	end
-
-	hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, math.rad(baseYaw), 0)
 	restoreCharacterRotate(hum, hrp, myRotateToken)
 
 	if isSlowEnabled then
