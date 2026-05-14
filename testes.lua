@@ -25,6 +25,7 @@ local Camera = workspace.CurrentCamera
 local DEFAULT_HIDE_GUI_KEY = Enum.KeyCode.RightShift
 local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Q
 local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.E
+local DEFAULT_TOGGLE_CORNER_WALK_KEY = Enum.KeyCode.R
 
 local KEYBINDS_FILE = "nyhito_ftf_wallhop_keybinds.json"
 
@@ -33,10 +34,12 @@ local selectedMode = nil
 local hideGuiKey = DEFAULT_HIDE_GUI_KEY
 local toggleScriptKey = DEFAULT_TOGGLE_SCRIPT_KEY
 local toggleBeastSlowKey = DEFAULT_TOGGLE_BEAST_SLOW_KEY
+local toggleCornerWalkKey = DEFAULT_TOGGLE_CORNER_WALK_KEY
 
 local waitingForHideKey = false
 local waitingForToggleKey = false
 local waitingForBeastSlowKey = false
+local waitingForCornerWalkKey = false
 
 local guiVisible = true
 local guiMinimized = false
@@ -53,6 +56,7 @@ local ToggleButton
 local HideGuiBindButton
 local ToggleBindButton
 local BeastSlowBindButton
+local CornerWalkBindButton
 local Notice
 local NoticeStroke
 
@@ -74,10 +78,13 @@ local MobileNormalWallhopRow
 local MobileNoMoveWallhopRow
 local MobileConsoleWallhopRow
 local MobileBeastSlowRow
+local MobileCornerWalkRow
 local MobileHideGuiRow
 
 local mobileBeastSlowSwitch
 local mobileBeastSlowKnob
+local mobileCornerWalkSwitch
+local mobileCornerWalkKnob
 local mobileHideGuiSwitch
 local mobileHideGuiKnob
 local mobileDragHandle
@@ -95,6 +102,7 @@ local switchMobileTab
 
 local isWallHopEnabled = false
 local isSlowEnabled = false
+local isCornerWalkEnabled = false
 local isFlicking = false
 local lastFlickTime = 0
 
@@ -172,7 +180,8 @@ local function savePCKeybinds()
 	local payload = {
 		hideGuiKey = hideGuiKey.Name,
 		toggleScriptKey = toggleScriptKey.Name,
-		toggleBeastSlowKey = toggleBeastSlowKey.Name
+		toggleBeastSlowKey = toggleBeastSlowKey.Name,
+		toggleCornerWalkKey = toggleCornerWalkKey.Name
 	}
 
 	pcall(function()
@@ -196,6 +205,7 @@ local function loadPCKeybinds()
 		hideGuiKey = getKeyCodeFromName(decoded.hideGuiKey, DEFAULT_HIDE_GUI_KEY)
 		toggleScriptKey = getKeyCodeFromName(decoded.toggleScriptKey, DEFAULT_TOGGLE_SCRIPT_KEY)
 		toggleBeastSlowKey = getKeyCodeFromName(decoded.toggleBeastSlowKey, DEFAULT_TOGGLE_BEAST_SLOW_KEY)
+		toggleCornerWalkKey = getKeyCodeFromName(decoded.toggleCornerWalkKey, DEFAULT_TOGGLE_CORNER_WALK_KEY)
 	end)
 end
 
@@ -695,6 +705,9 @@ updateMobilePanelButtons = function()
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
+	if MobileCornerWalkRow and MobileCornerWalkRow:FindFirstChild("Label") then
+		MobileCornerWalkRow.Label.Text = "Corner Walk"
+	end
 	if MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("Label") then
 		MobileHideGuiRow.Label.Text = "Hide GUI"
 	end
@@ -709,6 +722,7 @@ updateMobilePanelButtons = function()
 	end
 
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, isSlowEnabled)
+	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, isCornerWalkEnabled)
 	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, mobileWallhopGuiHidden)
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
 	updateFlickButtons()
@@ -727,6 +741,9 @@ local function updateBindButtons()
 	end
 	if BeastSlowBindButton then
 		BeastSlowBindButton.Text = waitingForBeastSlowKey and "Press any key..." or ("Keybind Toggle Beast Slow: " .. toggleBeastSlowKey.Name)
+	end
+	if CornerWalkBindButton then
+		CornerWalkBindButton.Text = waitingForCornerWalkKey and "Press any key..." or ("Keybind Toggle Corner Walk: " .. toggleCornerWalkKey.Name)
 	end
 end
 
@@ -975,6 +992,11 @@ local function setSlowEnabled(state)
 	updateMobilePanelButtons()
 end
 
+local function setCornerWalkEnabled(state)
+	isCornerWalkEnabled = state and true or false
+	updateMobilePanelButtons()
+end
+
 local function setMobileGuiHidden(state)
 	mobileWallhopGuiHidden = state and true or false
 	updateMobilePanelButtons()
@@ -1021,7 +1043,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 240)
+	MobilePanel.Size = UDim2.new(0, 190, 0, 282)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1082,7 +1104,8 @@ local function buildMobileGui()
 	MobileFlicksPage.Visible = false
 
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 4, "Beast Slow")
-	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 46, "Hide GUI")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 88, "Hide GUI")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Flick")
@@ -1162,9 +1185,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 232)
+			MobilePanel.Size = UDim2.new(0, 184, 0, 274)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 240), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 282), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1180,6 +1203,10 @@ local function buildMobileGui()
 
 	bindRowPress(MobileBeastSlowRow, function()
 		setSlowEnabled(not isSlowEnabled)
+	end)
+
+	bindRowPress(MobileCornerWalkRow, function()
+		setCornerWalkEnabled(not isCornerWalkEnabled)
 	end)
 
 	bindRowPress(MobileHideGuiRow, function()
@@ -1434,6 +1461,19 @@ local function buildPCGui()
 	noTextStroke(BeastSlowBindButton)
 	setTargetTransparency(BeastSlowBindButton, 1, 0)
 
+	CornerWalkBindButton = Instance.new("TextButton")
+	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 18)
+	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 74)
+	CornerWalkBindButton.BackgroundTransparency = 1
+	CornerWalkBindButton.TextColor3 = Color3.fromRGB(255,255,255)
+	CornerWalkBindButton.Font = Enum.Font.Gotham
+	CornerWalkBindButton.TextSize = 13
+	CornerWalkBindButton.TextXAlignment = Enum.TextXAlignment.Left
+	CornerWalkBindButton.AutoButtonColor = false
+	CornerWalkBindButton.Parent = PcFunctionsPage
+	noTextStroke(CornerWalkBindButton)
+	setTargetTransparency(CornerWalkBindButton, 1, 0)
+
 	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 8, "Normal Wallhop")
 	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 46, "Visual Flick")
 	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 84, "Console Wallhop")
@@ -1523,6 +1563,7 @@ local function buildPCGui()
 		waitingForHideKey = true
 		waitingForToggleKey = false
 		waitingForBeastSlowKey = false
+		waitingForCornerWalkKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -1531,6 +1572,7 @@ local function buildPCGui()
 		waitingForToggleKey = true
 		waitingForHideKey = false
 		waitingForBeastSlowKey = false
+		waitingForCornerWalkKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -1539,6 +1581,16 @@ local function buildPCGui()
 		waitingForBeastSlowKey = true
 		waitingForHideKey = false
 		waitingForToggleKey = false
+		waitingForCornerWalkKey = false
+		updateBindButtons()
+		showNotice("Press a key...")
+	end)
+
+	CornerWalkBindButton.MouseButton1Click:Connect(function()
+		waitingForCornerWalkKey = true
+		waitingForHideKey = false
+		waitingForToggleKey = false
+		waitingForBeastSlowKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -2396,6 +2448,118 @@ local function isWithinWallhopAngle(cameraLook, wallNormal, maxAngleDeg)
 	return frontAngle <= maxAngleDeg or backAngle <= maxAngleDeg
 end
 
+
+local function isGroundedForCornerWalk(hum)
+	if not hum then
+		return false
+	end
+
+	local state = hum:GetState()
+	return state == Enum.HumanoidStateType.Running
+		or state == Enum.HumanoidStateType.RunningNoPhysics
+		or state == Enum.HumanoidStateType.Landed
+end
+
+local function getCornerWalkWall(hrp, hum, params)
+	if not hrp or not hum then
+		return nil
+	end
+
+	local moveDir = hum.MoveDirection
+	if moveDir.Magnitude < 0.08 then
+		return nil
+	end
+
+	moveDir = Vector3.new(moveDir.X, 0, moveDir.Z)
+	if moveDir.Magnitude < 0.08 then
+		return nil
+	end
+	moveDir = moveDir.Unit
+
+	local right = moveDir:Cross(Vector3.new(0, 1, 0))
+	if right.Magnitude < 0.05 then
+		return nil
+	end
+	right = right.Unit
+
+	local dirs = {
+		moveDir * 1.15,
+		-right * 1.05,
+		right * 1.05,
+		(moveDir - right).Unit * 1.10,
+		(moveDir + right).Unit * 1.10
+	}
+
+	local offsets = {
+		Vector3.new(0, -2.45, 0),
+		Vector3.new(0, -2.25, 0),
+		Vector3.new(0, -2.05, 0)
+	}
+
+	for _, dir in ipairs(dirs) do
+		for _, offset in ipairs(offsets) do
+			local origin = hrp.Position + offset
+			local ray = workspace:Raycast(origin, dir, params)
+
+			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
+				if isWallLikeSurface(ray.Normal) then
+					return ray
+				end
+			end
+		end
+	end
+
+	return nil
+end
+
+local function applyCornerWalkAssist(hrp, hum, ray)
+	if not hrp or not hum or not ray then
+		return
+	end
+
+	local moveDir = hum.MoveDirection
+	local flatMove = Vector3.new(moveDir.X, 0, moveDir.Z)
+
+	if flatMove.Magnitude < 0.08 then
+		return
+	end
+
+	flatMove = flatMove.Unit
+
+	local normal = Vector3.new(ray.Normal.X, 0, ray.Normal.Z)
+	if normal.Magnitude < 0.05 then
+		return
+	end
+	normal = normal.Unit
+
+	local tangent = normal:Cross(Vector3.new(0, 1, 0))
+	if tangent.Magnitude < 0.05 then
+		return
+	end
+	tangent = tangent.Unit
+
+	if tangent:Dot(flatMove) < 0 then
+		tangent = -tangent
+	end
+
+	local currentVel = hrp.Velocity
+	local horizontalSpeed = Vector3.new(currentVel.X, 0, currentVel.Z).Magnitude
+	local targetSpeed = math.clamp(math.max(horizontalSpeed, hum.WalkSpeed * 0.92), 8, 22)
+
+	local stickStrength = 2.4
+	local wallDistance = (ray.Position - hrp.Position).Magnitude
+	local desiredPush = normal * -stickStrength
+
+	if wallDistance < 0.75 then
+		desiredPush = normal * -1.4
+	elseif wallDistance > 1.35 then
+		desiredPush = normal * -3.0
+	end
+
+	local newHorizontal = tangent * targetSpeed + desiredPush
+	hrp.Velocity = Vector3.new(newHorizontal.X, currentVel.Y, newHorizontal.Z)
+end
+
 RunService.Heartbeat:Connect(function()
 	if not isWallHopEnabled then
 		local char = LocalPlayer.Character
@@ -2418,6 +2582,24 @@ RunService.Heartbeat:Connect(function()
 
 	if isCrouching(hum, hrp) then
 		return
+	end
+
+	if isCornerWalkEnabled then
+		local stateForCorner = hum:GetState()
+		local movingForCorner = hum.MoveDirection.Magnitude > 0.08
+		local jumpingForCorner = stateForCorner == Enum.HumanoidStateType.Jumping
+			or stateForCorner == Enum.HumanoidStateType.Freefall
+
+		if movingForCorner and not jumpingForCorner and isGroundedForCornerWalk(hum) then
+			local cornerParams = RaycastParams.new()
+			cornerParams.FilterDescendantsInstances = {char}
+			cornerParams.FilterType = Enum.RaycastFilterType.Exclude
+
+			local cornerRay = getCornerWalkWall(hrp, hum, cornerParams)
+			if cornerRay then
+				applyCornerWalkAssist(hrp, hum, cornerRay)
+			end
+		end
 	end
 
 	local state = hum:GetState()
@@ -2509,7 +2691,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 	if selectedMode == "PC" then
 		if waitingForHideKey then
-			if key ~= toggleScriptKey and key ~= toggleBeastSlowKey then
+			if key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey then
 				hideGuiKey = key
 				waitingForHideKey = false
 				savePCKeybinds()
@@ -2522,7 +2704,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForToggleKey then
-			if key ~= hideGuiKey and key ~= toggleBeastSlowKey then
+			if key ~= hideGuiKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey then
 				toggleScriptKey = key
 				waitingForToggleKey = false
 				savePCKeybinds()
@@ -2535,7 +2717,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForBeastSlowKey then
-			if key ~= hideGuiKey and key ~= toggleScriptKey then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleCornerWalkKey then
 				toggleBeastSlowKey = key
 				waitingForBeastSlowKey = false
 				savePCKeybinds()
@@ -2547,39 +2729,17 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			return
 		end
 
-		if key == hideGuiKey then
-			setGuiVisible(not guiVisible)
+		if waitingForCornerWalkKey then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey then
+				toggleCornerWalkKey = key
+				waitingForCornerWalkKey = false
+				savePCKeybinds()
+				updateBindButtons()
+				showNotice("Corner Walk key updated")
+			else
+				showNotice("Key already in use")
+			end
 			return
 		end
 
-		if key == toggleScriptKey then
-			isWallHopEnabled = not isWallHopEnabled
-			updateToggleButton()
-			showNotice(isWallHopEnabled and "Wallhop enabled" or "Wallhop disabled")
-			return
-		end
-
-		if key == toggleBeastSlowKey then
-			setSlowEnabled(not isSlowEnabled)
-			showNotice(isSlowEnabled and "Beast Slow enabled" or "Beast Slow disabled")
-			return
-		end
-	end
-end)
-
-createModeSelector(function(mode)
-	selectedMode = mode
-
-	if mode == "PC" then
-		buildPCGui()
-	else
-		buildMobileGui()
-	end
-
-	updateToggleButton()
-	updateMobilePanelButtons()
-	updateFlickButtons()
-	applyVisibility()
-end)
-
-print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+			print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
