@@ -359,8 +359,8 @@ local function applyXrayToPart(part)
 	end
 
 	pcall(function()
-		part.Transparency = math.max(part.Transparency, 0.8)
-		part.LocalTransparencyModifier = math.max(part.LocalTransparencyModifier, 0.8)
+		part.Transparency = math.max(part.Transparency, 0.4)
+		part.LocalTransparencyModifier = math.max(part.LocalTransparencyModifier, 0.4)
 	end)
 end
 
