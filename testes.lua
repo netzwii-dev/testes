@@ -53,6 +53,7 @@ local DEFAULT_HIDE_GUI_KEY = Enum.KeyCode.RightShift
 local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Q
 local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.E
 local DEFAULT_TOGGLE_CORNER_WALK_KEY = Enum.KeyCode.R
+local DEFAULT_TOGGLE_XRAY_KEY = Enum.KeyCode.X
 
 local KEYBINDS_FILE = "nyhito_ftf_wallhop_keybinds.json"
 
@@ -62,11 +63,13 @@ local hideGuiKey = DEFAULT_HIDE_GUI_KEY
 local toggleScriptKey = DEFAULT_TOGGLE_SCRIPT_KEY
 local toggleBeastSlowKey = DEFAULT_TOGGLE_BEAST_SLOW_KEY
 local toggleCornerWalkKey = DEFAULT_TOGGLE_CORNER_WALK_KEY
+local toggleXrayKey = DEFAULT_TOGGLE_XRAY_KEY
 
 local waitingForHideKey = false
 local waitingForToggleKey = false
 local waitingForBeastSlowKey = false
 local waitingForCornerWalkKey = false
+local waitingForXrayKey = false
 
 local guiVisible = true
 local guiMinimized = false
@@ -88,6 +91,7 @@ local HideGuiBindButton
 local ToggleBindButton
 local BeastSlowBindButton
 local CornerWalkBindButton
+local XrayBindButton
 local Notice
 local NoticeStroke
 
@@ -112,12 +116,15 @@ local Mobile360WallhopRow
 local MobileConsoleWallhopRow
 local MobileBeastSlowRow
 local MobileCornerWalkRow
+local MobileXrayRow
 local MobileHideGuiRow
 
 local mobileBeastSlowSwitch
 local mobileBeastSlowKnob
 local mobileCornerWalkSwitch
 local mobileCornerWalkKnob
+local mobileXraySwitch
+local mobileXrayKnob
 local mobileHideGuiSwitch
 local mobileHideGuiKnob
 local mobileDragHandle
@@ -138,6 +145,7 @@ local switchMobileTab
 local isWallHopEnabled = false
 local isSlowEnabled = false
 local isCornerWalkEnabled = false
+local isXrayEnabled = false
 local isFlicking = false
 local lastFlickTime = 0
 
@@ -279,7 +287,8 @@ local function savePCKeybinds()
 		hideGuiKey = hideGuiKey.Name,
 		toggleScriptKey = toggleScriptKey.Name,
 		toggleBeastSlowKey = toggleBeastSlowKey.Name,
-		toggleCornerWalkKey = toggleCornerWalkKey.Name
+		toggleCornerWalkKey = toggleCornerWalkKey.Name,
+		toggleXrayKey = toggleXrayKey.Name
 	}
 
 	pcall(function()
@@ -304,8 +313,115 @@ local function loadPCKeybinds()
 		toggleScriptKey = getKeyCodeFromName(decoded.toggleScriptKey, DEFAULT_TOGGLE_SCRIPT_KEY)
 		toggleBeastSlowKey = getKeyCodeFromName(decoded.toggleBeastSlowKey, DEFAULT_TOGGLE_BEAST_SLOW_KEY)
 		toggleCornerWalkKey = getKeyCodeFromName(decoded.toggleCornerWalkKey, DEFAULT_TOGGLE_CORNER_WALK_KEY)
+		toggleXrayKey = getKeyCodeFromName(decoded.toggleXrayKey, DEFAULT_TOGGLE_XRAY_KEY)
 	end)
 end
+
+
+local xrayOriginalTransparency = {}
+local xrayOriginalLocalTransparency = {}
+
+local function shouldXrayPart(part)
+	if not part or not part:IsA("BasePart") then
+		return false
+	end
+
+	if part:IsDescendantOf(PlayerGui) then
+		return false
+	end
+
+	local char = LocalPlayer.Character
+	if char and part:IsDescendantOf(char) then
+		return false
+	end
+
+	if part.Name == "HumanoidRootPart" then
+		return false
+	end
+
+	if isPlayerCharacter and isPlayerCharacter(part) then
+		return false
+	end
+
+	return part.CanCollide
+end
+
+local function applyXrayToPart(part)
+	if not shouldXrayPart(part) then
+		return
+	end
+
+	if xrayOriginalTransparency[part] == nil then
+		xrayOriginalTransparency[part] = part.Transparency
+	end
+	if xrayOriginalLocalTransparency[part] == nil then
+		xrayOriginalLocalTransparency[part] = part.LocalTransparencyModifier
+	end
+
+	pcall(function()
+		part.Transparency = math.max(part.Transparency, 0.8)
+		part.LocalTransparencyModifier = math.max(part.LocalTransparencyModifier, 0.8)
+	end)
+end
+
+local function restoreXrayPart(part)
+	local originalTransparency = xrayOriginalTransparency[part]
+	local originalLocalTransparency = xrayOriginalLocalTransparency[part]
+
+	if part and part.Parent then
+		pcall(function()
+			if originalTransparency ~= nil then
+				part.Transparency = originalTransparency
+			end
+			if originalLocalTransparency ~= nil then
+				part.LocalTransparencyModifier = originalLocalTransparency
+			end
+		end)
+	end
+
+	xrayOriginalTransparency[part] = nil
+	xrayOriginalLocalTransparency[part] = nil
+end
+
+local function applyXray()
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			applyXrayToPart(obj)
+		end
+	end
+end
+
+local function clearXray()
+	for part in pairs(xrayOriginalTransparency) do
+		restoreXrayPart(part)
+	end
+	table.clear(xrayOriginalTransparency)
+	table.clear(xrayOriginalLocalTransparency)
+end
+
+local function setXrayEnabled(state)
+	isXrayEnabled = state and true or false
+
+	if isXrayEnabled then
+		applyXray()
+	else
+		clearXray()
+	end
+
+	updateMobilePanelButtons()
+end
+
+workspace.DescendantAdded:Connect(function(obj)
+	if not isThisScriptActive or not isThisScriptActive() then
+		return
+	end
+
+	if isXrayEnabled and obj:IsA("BasePart") then
+		task.defer(function()
+			applyXrayToPart(obj)
+		end)
+	end
+end)
 
 local function noTextStroke(obj)
 	obj.TextStrokeTransparency = 1
@@ -846,6 +962,9 @@ updateMobilePanelButtons = function()
 	if MobileCornerWalkRow and MobileCornerWalkRow:FindFirstChild("Label") then
 		MobileCornerWalkRow.Label.Text = "Corner Walk"
 	end
+	if MobileXrayRow and MobileXrayRow:FindFirstChild("Label") then
+		MobileXrayRow.Label.Text = "X-ray"
+	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
@@ -864,6 +983,7 @@ updateMobilePanelButtons = function()
 
 	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, not mobileWallhopGuiHidden)
 	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
+	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
@@ -889,6 +1009,9 @@ local function updateBindButtons()
 	end
 	if CornerWalkBindButton then
 		CornerWalkBindButton.Text = waitingForCornerWalkKey and "Press any key..." or ("Keybind Toggle Corner Walk: " .. toggleCornerWalkKey.Name)
+	end
+	if XrayBindButton then
+		XrayBindButton.Text = waitingForXrayKey and "Press any key..." or ("Keybind Toggle X-ray: " .. toggleXrayKey.Name)
 	end
 end
 
@@ -1293,6 +1416,7 @@ local function buildMobileGui()
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
 	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow")
+	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 130, "X-ray")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Flick")
@@ -1492,6 +1616,10 @@ local function buildMobileGui()
 		setMobileBeastSlowButtonState(not mobileBeastSlowButtonVisible)
 	end)
 
+	bindRowPress(MobileXrayRow, function()
+		setXrayEnabled(not isXrayEnabled)
+	end)
+
 	bindRowPress(MobileNormalWallhopRow, function()
 		setFlickMode("Normal Wallhop")
 	end)
@@ -1571,9 +1699,9 @@ local function setMinimized(state)
 				setHostShadowVisible(MiniButton, false)
 
 				MainFrame.Position = restorePos
-				MainFrame.Size = UDim2.new(0, 335, 0, 320)
+				MainFrame.Size = UDim2.new(0, 335, 0, 300)
 
-				elegantShow(MainFrame, UDim2.new(0, 335, 0, 320), restorePos, 0)
+				elegantShow(MainFrame, UDim2.new(0, 335, 0, 300), restorePos, 0)
 			end)
 		end
 
@@ -1626,8 +1754,8 @@ local function buildPCGui()
 	ScreenGui.Parent = PlayerGui
 
 	MainFrame = Instance.new("Frame")
-	MainFrame.Size = UDim2.new(0, 335, 0, 320)
-	MainFrame.Position = UDim2.new(0.5, -167, 0.5, -160)
+	MainFrame.Size = UDim2.new(0, 335, 0, 300)
+	MainFrame.Position = UDim2.new(0.5, -167, 0.5, -150)
 	MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MainFrame.BorderSizePixel = 0
 	MainFrame.Parent = ScreenGui
@@ -1676,13 +1804,13 @@ local function buildPCGui()
 	setTargetTransparency(MinimizeButton, 0, 0)
 
 	ToggleButton = Instance.new("TextButton")
-	ToggleButton.Size = UDim2.new(1, -36, 0, 36)
+	ToggleButton.Size = UDim2.new(1, -36, 0, 32)
 	ToggleButton.Position = UDim2.new(0, 18, 0, 90)
 	ToggleButton.BackgroundTransparency = 1
 	ToggleButton.Text = "Wall Hop Off"
 	ToggleButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleButton.Font = Enum.Font.GothamBold
-	ToggleButton.TextSize = 26
+	ToggleButton.TextSize = 24
 	ToggleButton.TextXAlignment = Enum.TextXAlignment.Left
 	ToggleButton.AutoButtonColor = false
 	ToggleButton.Parent = MainFrame
@@ -1693,25 +1821,25 @@ local function buildPCGui()
 	PcTabFlicks = createPcTabButton(MainFrame, 120, "Flicks")
 
 	PcFunctionsPage = Instance.new("Frame")
-	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -126)
-	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 124)
+	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -120)
+	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 118)
 	PcFunctionsPage.BackgroundTransparency = 1
 	PcFunctionsPage.Parent = MainFrame
 
 	PcFlicksPage = Instance.new("Frame")
-	PcFlicksPage.Size = UDim2.new(1, 0, 1, -126)
-	PcFlicksPage.Position = UDim2.new(0, 0, 0, 124)
+	PcFlicksPage.Size = UDim2.new(1, 0, 1, -120)
+	PcFlicksPage.Position = UDim2.new(0, 0, 0, 118)
 	PcFlicksPage.BackgroundTransparency = 1
 	PcFlicksPage.Visible = false
 	PcFlicksPage.Parent = MainFrame
 
 	HideGuiBindButton = Instance.new("TextButton")
-	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 24)
-	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 6)
+	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 22)
+	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 4)
 	HideGuiBindButton.BackgroundTransparency = 1
 	HideGuiBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	HideGuiBindButton.Font = Enum.Font.Gotham
-	HideGuiBindButton.TextSize = 17
+	HideGuiBindButton.TextSize = 15
 	HideGuiBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	HideGuiBindButton.AutoButtonColor = false
 	HideGuiBindButton.Parent = PcFunctionsPage
@@ -1719,12 +1847,12 @@ local function buildPCGui()
 	setTargetTransparency(HideGuiBindButton, 1, 0)
 
 	ToggleBindButton = Instance.new("TextButton")
-	ToggleBindButton.Size = UDim2.new(1, -36, 0, 24)
-	ToggleBindButton.Position = UDim2.new(0, 18, 0, 40)
+	ToggleBindButton.Size = UDim2.new(1, -36, 0, 22)
+	ToggleBindButton.Position = UDim2.new(0, 18, 0, 31)
 	ToggleBindButton.BackgroundTransparency = 1
 	ToggleBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleBindButton.Font = Enum.Font.Gotham
-	ToggleBindButton.TextSize = 17
+	ToggleBindButton.TextSize = 15
 	ToggleBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	ToggleBindButton.AutoButtonColor = false
 	ToggleBindButton.Parent = PcFunctionsPage
@@ -1732,12 +1860,12 @@ local function buildPCGui()
 	setTargetTransparency(ToggleBindButton, 1, 0)
 
 	BeastSlowBindButton = Instance.new("TextButton")
-	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 24)
-	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 74)
+	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 22)
+	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 58)
 	BeastSlowBindButton.BackgroundTransparency = 1
 	BeastSlowBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	BeastSlowBindButton.Font = Enum.Font.Gotham
-	BeastSlowBindButton.TextSize = 17
+	BeastSlowBindButton.TextSize = 15
 	BeastSlowBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	BeastSlowBindButton.AutoButtonColor = false
 	BeastSlowBindButton.Parent = PcFunctionsPage
@@ -1745,26 +1873,39 @@ local function buildPCGui()
 	setTargetTransparency(BeastSlowBindButton, 1, 0)
 
 	CornerWalkBindButton = Instance.new("TextButton")
-	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 24)
-	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 108)
+	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 22)
+	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 85)
 	CornerWalkBindButton.BackgroundTransparency = 1
 	CornerWalkBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	CornerWalkBindButton.Font = Enum.Font.Gotham
-	CornerWalkBindButton.TextSize = 17
+	CornerWalkBindButton.TextSize = 15
 	CornerWalkBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	CornerWalkBindButton.AutoButtonColor = false
 	CornerWalkBindButton.Parent = PcFunctionsPage
 	noTextStroke(CornerWalkBindButton)
 	setTargetTransparency(CornerWalkBindButton, 1, 0)
 
-	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 4, "Normal Wallhop")
-	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 38, "Visual Flick")
-	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 72, "360° Wallhop")
-	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 106, "Console Wallhop")
+	XrayBindButton = Instance.new("TextButton")
+	XrayBindButton.Size = UDim2.new(1, -36, 0, 22)
+	XrayBindButton.Position = UDim2.new(0, 18, 0, 112)
+	XrayBindButton.BackgroundTransparency = 1
+	XrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
+	XrayBindButton.Font = Enum.Font.Gotham
+	XrayBindButton.TextSize = 15
+	XrayBindButton.TextXAlignment = Enum.TextXAlignment.Left
+	XrayBindButton.AutoButtonColor = false
+	XrayBindButton.Parent = PcFunctionsPage
+	noTextStroke(XrayBindButton)
+	setTargetTransparency(XrayBindButton, 1, 0)
+
+	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 2, "Normal Wallhop")
+	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 34, "Visual Flick")
+	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 66, "360° Wallhop")
+	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 98, "Console Wallhop")
 
 	PcCurrentUsingLabel = Instance.new("TextLabel")
 	PcCurrentUsingLabel.Size = UDim2.new(1, -36, 0, 26)
-	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 146)
+	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 134)
 	PcCurrentUsingLabel.BackgroundTransparency = 1
 	PcCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcCurrentUsingLabel.Font = Enum.Font.Gotham
@@ -1778,7 +1919,7 @@ local function buildPCGui()
 
 	local footer = Instance.new("TextLabel")
 	footer.Size = UDim2.new(1, -36, 0, 14)
-	footer.Position = UDim2.new(0, 18, 1, -22)
+	footer.Position = UDim2.new(0, 18, 1, -20)
 	footer.BackgroundTransparency = 1
 	footer.Text = "the best ftf wallhop ever - nyhito panel"
 	footer.TextColor3 = Color3.fromRGB(95,95,95)
@@ -1848,6 +1989,7 @@ local function buildPCGui()
 		waitingForToggleKey = false
 		waitingForBeastSlowKey = false
 		waitingForCornerWalkKey = false
+		waitingForXrayKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -1857,6 +1999,7 @@ local function buildPCGui()
 		waitingForHideKey = false
 		waitingForBeastSlowKey = false
 		waitingForCornerWalkKey = false
+		waitingForXrayKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -1866,6 +2009,7 @@ local function buildPCGui()
 		waitingForHideKey = false
 		waitingForToggleKey = false
 		waitingForCornerWalkKey = false
+		waitingForXrayKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -1875,6 +2019,18 @@ local function buildPCGui()
 		waitingForHideKey = false
 		waitingForToggleKey = false
 		waitingForBeastSlowKey = false
+		waitingForXrayKey = false
+		updateBindButtons()
+		showNotice("Press a key...")
+	end)
+
+	XrayBindButton.MouseButton1Click:Connect(function()
+		waitingForXrayKey = true
+		waitingForHideKey = false
+		waitingForToggleKey = false
+		waitingForBeastSlowKey = false
+		waitingForCornerWalkKey = false
+		waitingForXrayKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -1904,7 +2060,7 @@ local function buildPCGui()
 	switchPcTab("Functions")
 	updateBindButtons()
 	updateFlickButtons()
-	elegantShow(MainFrame, UDim2.new(0, 335, 0, 320), MainFrame.Position, 0)
+	elegantShow(MainFrame, UDim2.new(0, 335, 0, 300), MainFrame.Position, 0)
 	showNotice("PC version loaded")
 end
 
@@ -3267,7 +3423,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 	if selectedMode == "PC" then
 		if waitingForHideKey then
-			if key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey then
+			if key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey then
 				hideGuiKey = key
 				waitingForHideKey = false
 				savePCKeybinds()
@@ -3280,7 +3436,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForToggleKey then
-			if key ~= hideGuiKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey then
+			if key ~= hideGuiKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey then
 				toggleScriptKey = key
 				waitingForToggleKey = false
 				savePCKeybinds()
@@ -3293,7 +3449,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForBeastSlowKey then
-			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleCornerWalkKey then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey then
 				toggleBeastSlowKey = key
 				waitingForBeastSlowKey = false
 				savePCKeybinds()
@@ -3306,12 +3462,25 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForCornerWalkKey then
-			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleXrayKey then
 				toggleCornerWalkKey = key
 				waitingForCornerWalkKey = false
 				savePCKeybinds()
 				updateBindButtons()
 				showNotice("Corner Walk key updated")
+			else
+				showNotice("Key already in use")
+			end
+			return
+		end
+
+		if waitingForXrayKey then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey then
+				toggleXrayKey = key
+				waitingForXrayKey = false
+				savePCKeybinds()
+				updateBindButtons()
+				showNotice("X-ray key updated")
 			else
 				showNotice("Key already in use")
 			end
@@ -3339,6 +3508,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if key == toggleCornerWalkKey then
 			setCornerWalkEnabled(not isCornerWalkEnabled)
 			showNotice(isCornerWalkEnabled and "Corner Walk enabled" or "Corner Walk disabled")
+			return
+		end
+
+		if key == toggleXrayKey then
+			setXrayEnabled(not isXrayEnabled)
+			showNotice(isXrayEnabled and "X-ray enabled" or "X-ray disabled")
 			return
 		end
 	end
