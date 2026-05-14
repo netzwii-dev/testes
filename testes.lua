@@ -2,7 +2,7 @@
 -- All Credits: nyhito (tester, config and uploader)
 -- The Best
 -- Edited:
--- Added 3 flick modes: Normal Wallhop / Visual Flick / Console Wallhop
+-- Added 3 flick modes: Normal Wallhop / Visual Wallhop / Console Wallhop
 -- WALLHOP_COOLDOWN = 0.22
 -- MIN_HIT_DISTANCE = 0.1
 -- Normal flick: ida mais lenta e volta igual
@@ -921,7 +921,7 @@ updateFlickButtons = function()
 
 	if PcNoMoveWallhopButton then
 		PcNoMoveWallhopButton.BackgroundColor3 =
-			currentFlickMode == "Visual Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
+			currentFlickMode == "Visual Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
 	end
 
 	if Pc360WallhopButton then
@@ -941,7 +941,7 @@ updateFlickButtons = function()
 
 	if MobileNoMoveWallhopRow then
 		MobileNoMoveWallhopRow.BackgroundColor3 =
-			currentFlickMode == "Visual Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
+			currentFlickMode == "Visual Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
 	end
 
 	if Mobile360WallhopRow then
@@ -972,7 +972,7 @@ updateMobilePanelButtons = function()
 		MobileNormalWallhopRow.Label.Text = "Normal Wallhop"
 	end
 	if MobileNoMoveWallhopRow and MobileNoMoveWallhopRow:FindFirstChild("Label") then
-		MobileNoMoveWallhopRow.Label.Text = "Visual Flick"
+		MobileNoMoveWallhopRow.Label.Text = "Visual Wallhop"
 	end
 	if Mobile360WallhopRow and Mobile360WallhopRow:FindFirstChild("Label") then
 		Mobile360WallhopRow.Label.Text = "360° Wallhop"
@@ -1419,7 +1419,7 @@ local function buildMobileGui()
 	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 130, "X-ray")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
-	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Flick")
+	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
 	Mobile360WallhopRow = createSimpleRow(MobileFlicksPage, 88, "360° Wallhop")
 	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 130, "Console Wallhop")
 
@@ -1625,7 +1625,7 @@ local function buildMobileGui()
 	end)
 
 	bindRowPress(MobileNoMoveWallhopRow, function()
-		setFlickMode("Visual Flick")
+		setFlickMode("Visual Wallhop")
 	end)
 
 	bindRowPress(Mobile360WallhopRow, function()
@@ -1899,7 +1899,7 @@ local function buildPCGui()
 	setTargetTransparency(XrayBindButton, 1, 0)
 
 	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 2, "Normal Wallhop")
-	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 34, "Visual Flick")
+	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 34, "Visual Wallhop")
 	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 66, "360° Wallhop")
 	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 98, "Console Wallhop")
 
@@ -2046,7 +2046,7 @@ local function buildPCGui()
 	end)
 
 	PcNoMoveWallhopButton.MouseButton1Click:Connect(function()
-		setFlickMode("Visual Flick")
+		setFlickMode("Visual Wallhop")
 	end)
 
 	Pc360WallhopButton.MouseButton1Click:Connect(function()
@@ -2933,7 +2933,7 @@ end
 local function performSelectedWallhop()
 	if currentFlickMode == "Console Wallhop" then
 		performConsoleWallhop()
-	elseif currentFlickMode == "Visual Flick" then
+	elseif currentFlickMode == "Visual Wallhop" then
 		performNoMoveWallhop()
 	elseif currentFlickMode == "360° Wallhop" then
 		perform360Wallhop()
