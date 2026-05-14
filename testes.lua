@@ -2618,7 +2618,7 @@ local function findCornerWalkEdge(hrp, hum, params)
 	local dirs = getCornerWalkDirections(hrp, hum)
 
 	-- Somente a região do pé. Não tem outro offset.
-	local footOffset = Vector3.new(0, -2.0, 0)
+	local footOffset = Vector3.new(0, -2.45, 0)
 
 	local bestRay = nil
 	local bestDist = math.huge
