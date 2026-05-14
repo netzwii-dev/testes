@@ -2618,7 +2618,7 @@ local function findCornerWalkEdge(hrp, hum, params)
 	local dirs = getCornerWalkDirections(hrp, hum)
 
 	-- Somente a região do pé. Não tem outro offset.
-	local footOffset = Vector3.new(0, -2.35, 0)
+	local footOffset = Vector3.new(0, -2.3, 0)
 
 	local bestRay = nil
 	local bestDist = math.huge
@@ -2629,7 +2629,10 @@ local function findCornerWalkEdge(hrp, hum, params)
 
 		if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
 			-- Só aceita dobra/edge, não parede lisa.
-			if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
+			if isWallLikeSurface(ray.Normal)
+				and hasValidHorizontalEdge(ray, params)
+				and isWithinWallhopAngle(Camera.CFrame.LookVector, ray.Normal, 25) then
+
 				local dist = (ray.Position - origin).Magnitude
 				if dist < bestDist then
 					bestRay = ray
