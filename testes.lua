@@ -23,22 +23,30 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
 local GLOBAL_WALLHOP_TOKEN_NAME = "__nyhito_ftf_wallhop_active_token"
-local ACTIVE_SCRIPT_TOKEN = tostring(os.clock()) .. "_" .. tostring(math.random(100000, 999999))
+local ACTIVE_SCRIPT_TOKEN = tostring(math.random(100000, 999999)) .. "_" .. tostring(tick())
+
+local function getGlobalEnvSafe()
+	local ok, env = pcall(function()
+		if typeof(getgenv) == "function" then
+			return getgenv()
+		end
+		return _G
+	end)
+
+	if ok and type(env) == "table" then
+		return env
+	end
+
+	return _G
+end
 
 pcall(function()
-	if getgenv then
-		getgenv()[GLOBAL_WALLHOP_TOKEN_NAME] = ACTIVE_SCRIPT_TOKEN
-	else
-		_G[GLOBAL_WALLHOP_TOKEN_NAME] = ACTIVE_SCRIPT_TOKEN
-	end
+	getGlobalEnvSafe()[GLOBAL_WALLHOP_TOKEN_NAME] = ACTIVE_SCRIPT_TOKEN
 end)
 
 local function isThisScriptActive()
 	local ok, value = pcall(function()
-		if getgenv then
-			return getgenv()[GLOBAL_WALLHOP_TOKEN_NAME]
-		end
-		return _G[GLOBAL_WALLHOP_TOKEN_NAME]
+		return getGlobalEnvSafe()[GLOBAL_WALLHOP_TOKEN_NAME]
 	end)
 
 	if not ok then
@@ -48,242 +56,7 @@ local function isThisScriptActive()
 	return value == ACTIVE_SCRIPT_TOKEN
 end
 
-
-local DEFAULT_HIDE_GUI_KEY = Enum.KeyCode.RightShift
-local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Q
-local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.E
-local DEFAULT_TOGGLE_CORNER_WALK_KEY = Enum.KeyCode.R
-local DEFAULT_TOGGLE_XRAY_KEY = Enum.KeyCode.X
-
-local KEYBINDS_FILE = "nyhito_ftf_wallhop_keybinds.json"
-
-local selectedMode = nil
-
-local hideGuiKey = DEFAULT_HIDE_GUI_KEY
-local toggleScriptKey = DEFAULT_TOGGLE_SCRIPT_KEY
-local toggleBeastSlowKey = DEFAULT_TOGGLE_BEAST_SLOW_KEY
-local toggleCornerWalkKey = DEFAULT_TOGGLE_CORNER_WALK_KEY
-local toggleXrayKey = DEFAULT_TOGGLE_XRAY_KEY
-
-local waitingForHideKey = false
-local waitingForToggleKey = false
-local waitingForBeastSlowKey = false
-local waitingForCornerWalkKey = false
-local waitingForXrayKey = false
-
-local guiVisible = true
-local guiMinimized = false
-local mobileMenuOpen = false
-local mobileWallhopGuiHidden = false
-local mobileCornerWalkButtonVisible = false
-local mobileBeastSlowButtonVisible = false
-
-local ScreenGui
-local MainFrame
-local MiniButton
-local MobileButton
-local MobileCornerWalkButton
-local MobileBeastSlowButton
-local MobileMenuButton
-local MobilePanel
-local ToggleButton
-local HideGuiBindButton
-local ToggleBindButton
-local BeastSlowBindButton
-local CornerWalkBindButton
-local XrayBindButton
-local Notice
-local NoticeStroke
-
-local PcTabFunctions
-local PcTabFlicks
-local PcFunctionsPage
-local PcFlicksPage
-local PcCurrentUsingLabel
-local PcNormalWallhopButton
-local PcNoMoveWallhopButton
-local Pc360WallhopButton
-local PcConsoleWallhopButton
-
-local MobileTabFunctions
-local MobileTabFlicks
-local MobileFunctionsPage
-local MobileFlicksPage
-local MobileCurrentUsingLabel
-local MobileNormalWallhopRow
-local MobileNoMoveWallhopRow
-local Mobile360WallhopRow
-local MobileConsoleWallhopRow
-local MobileBeastSlowRow
-local MobileCornerWalkRow
-local MobileXrayRow
-local MobileHideGuiRow
-
-local mobileBeastSlowSwitch
-local mobileBeastSlowKnob
-local mobileCornerWalkSwitch
-local mobileCornerWalkKnob
-local mobileXraySwitch
-local mobileXrayKnob
-local mobileHideGuiSwitch
-local mobileHideGuiKnob
-local mobileDragHandle
-
-local dragConnections = {}
-local shadowRegistry = {}
-
-local clearScriptSlowInstant
-local updateMobilePanelButtons
-local setMobileWallhopVisualHidden
-local setMobileCornerWalkButtonVisible
-local setMobileBeastSlowButtonVisible
-local applyVisibility
-local updateFlickButtons
-local switchPcTab
-local switchMobileTab
-
-local isWallHopEnabled = false
-local isSlowEnabled = false
-local isCornerWalkEnabled = false
-local isXrayEnabled = false
-local isFlicking = false
-local lastFlickTime = 0
-
-local isWallHopping = false
-local lastWallHopTime = 0
-local WALLHOP_GRACE_TIME = 1.5
-local WALLHOP_COOLDOWN = 0.22
-
-local canDoubleJump = false
-local lastDoubleJump = 0
-local DOUBLE_JUMP_COOLDOWN = 3
-local blockDoubleJump = false
-
-local lastHitPosition = nil
-local MIN_HIT_DISTANCE = 0.1
-local lastFlickAngle = nil
-
-local airborneSource = nil
-local airborneStartY = nil
-local airborneStartTime = 0
-local jumpedRecently = false
-
-local LEDGE_BLOCK_DISTANCE = 6.0
-local LEDGE_BLOCK_TIME = 0.20
-
-local SLOW_DURATION = 0.8
-local SLOW_WALKSPEED = 9
-local DEFAULT_WALKSPEED = 16
-local slowToken = 0
-local scriptSlowActive = false
-
-local FIRST_FLICK_RESET_GROUND_TIME = 3
-local lastLandedTime = 0
-local hasWallhoppedSinceLanding = false
-local specialFirstFlickArmed = false
-
-local currentFlickMode = "Normal Wallhop"
-local next360Direction = 1
-
 local function destroyOld()
-
-
-local function playIntroSound()
-	pcall(function()
-		local soundGui = PlayerGui:FindFirstChild("WallhopIntroSoundGui")
-		if soundGui then
-			soundGui:Destroy()
-		end
-
-		soundGui = Instance.new("ScreenGui")
-		soundGui.Name = "WallhopIntroSoundGui"
-		soundGui.ResetOnSpawn = false
-		soundGui.Parent = PlayerGui
-
-		local sound = Instance.new("Sound")
-		sound.Name = "WallhopIntroSound"
-		sound.SoundId = "rbxassetid://9118823102"
-		sound.Volume = 0.08
-		sound.PlaybackSpeed = 1
-		sound.Parent = soundGui
-
-		sound:Play()
-
-		TweenService:Create(
-			sound,
-			TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{Volume = 0.45}
-		):Play()
-
-		task.delay(1.6, function()
-			if sound and sound.Parent then
-				TweenService:Create(
-					sound,
-					TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-					{Volume = 0}
-				):Play()
-
-				task.delay(0.4, function()
-					if soundGui and soundGui.Parent then
-						soundGui:Destroy()
-					end
-				end)
-			end
-		end)
-	end)
-end
-
-playIntroSound()
-	task.spawn(function()
-		pcall(function()
-			local soundGui = PlayerGui:FindFirstChild("WallhopIntroSoundGui")
-			if soundGui then
-				soundGui:Destroy()
-			end
-
-			soundGui = Instance.new("ScreenGui")
-			soundGui.Name = "WallhopIntroSoundGui"
-			soundGui.ResetOnSpawn = false
-			soundGui.Parent = PlayerGui
-
-			local sound = Instance.new("Sound")
-			sound.Name = "WallhopIntroSound"
-			sound.SoundId = "rbxassetid://9118823102"
-			sound.Volume = 0
-			sound.PlaybackSpeed = 1
-			sound.Parent = soundGui
-
-			sound:Play()
-
-			local fadeIn = TweenService:Create(
-				sound,
-				TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{Volume = 0.45}
-			)
-			fadeIn:Play()
-
-			task.delay(1.6, function()
-				if sound and sound.Parent then
-					local fadeOut = TweenService:Create(
-						sound,
-						TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-						{Volume = 0}
-					)
-					fadeOut:Play()
-
-					task.delay(0.4, function()
-						if soundGui and soundGui.Parent then
-							soundGui:Destroy()
-						end
-					end)
-				end
-			end)
-		end)
-	end)
-end
-
-playIntroSound()
-
 
 
 pcall(function()
@@ -457,13 +230,15 @@ local function setXrayEnabled(state)
 end
 
 workspace.DescendantAdded:Connect(function(obj)
-	if not isThisScriptActive or not isThisScriptActive() then
+	if not isThisScriptActive() then
 		return
 	end
 
 	if isXrayEnabled and obj:IsA("BasePart") then
-		task.defer(function()
-			applyXrayToPart(obj)
+		pcall(function()
+			task.spawn(function()
+				applyXrayToPart(obj)
+			end)
 		end)
 	end
 end)
