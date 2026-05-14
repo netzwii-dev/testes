@@ -2457,8 +2457,14 @@ local function isGroundedForCornerWalk(hum)
 
 	local state = hum:GetState()
 	return state == Enum.HumanoidStateType.Running
-		or state == Enum.HumanoidStateType.RunningNoPhysics
 		or state == Enum.HumanoidStateType.Landed
+end
+
+local function safeUnit(vec)
+	if not vec or vec.Magnitude < 0.05 then
+		return nil
+	end
+	return vec.Unit
 end
 
 local function getCornerWalkWall(hrp, hum, params)
@@ -2466,30 +2472,33 @@ local function getCornerWalkWall(hrp, hum, params)
 		return nil
 	end
 
-	local moveDir = hum.MoveDirection
-	if moveDir.Magnitude < 0.08 then
+	local moveDir = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)
+	moveDir = safeUnit(moveDir)
+	if not moveDir then
 		return nil
 	end
-
-	moveDir = Vector3.new(moveDir.X, 0, moveDir.Z)
-	if moveDir.Magnitude < 0.08 then
-		return nil
-	end
-	moveDir = moveDir.Unit
 
 	local right = moveDir:Cross(Vector3.new(0, 1, 0))
-	if right.Magnitude < 0.05 then
+	right = safeUnit(right)
+	if not right then
 		return nil
 	end
-	right = right.Unit
+
+	local diagLeft = safeUnit(moveDir - right)
+	local diagRight = safeUnit(moveDir + right)
 
 	local dirs = {
 		moveDir * 1.15,
 		-right * 1.05,
-		right * 1.05,
-		(moveDir - right).Unit * 1.10,
-		(moveDir + right).Unit * 1.10
+		right * 1.05
 	}
+
+	if diagLeft then
+		table.insert(dirs, diagLeft * 1.10)
+	end
+	if diagRight then
+		table.insert(dirs, diagRight * 1.10)
+	end
 
 	local offsets = {
 		Vector3.new(0, -2.45, 0),
@@ -2518,26 +2527,23 @@ local function applyCornerWalkAssist(hrp, hum, ray)
 		return
 	end
 
-	local moveDir = hum.MoveDirection
-	local flatMove = Vector3.new(moveDir.X, 0, moveDir.Z)
-
-	if flatMove.Magnitude < 0.08 then
+	local flatMove = Vector3.new(hum.MoveDirection.X, 0, hum.MoveDirection.Z)
+	flatMove = safeUnit(flatMove)
+	if not flatMove then
 		return
 	end
-
-	flatMove = flatMove.Unit
 
 	local normal = Vector3.new(ray.Normal.X, 0, ray.Normal.Z)
-	if normal.Magnitude < 0.05 then
+	normal = safeUnit(normal)
+	if not normal then
 		return
 	end
-	normal = normal.Unit
 
 	local tangent = normal:Cross(Vector3.new(0, 1, 0))
-	if tangent.Magnitude < 0.05 then
+	tangent = safeUnit(tangent)
+	if not tangent then
 		return
 	end
-	tangent = tangent.Unit
 
 	if tangent:Dot(flatMove) < 0 then
 		tangent = -tangent
@@ -2547,17 +2553,16 @@ local function applyCornerWalkAssist(hrp, hum, ray)
 	local horizontalSpeed = Vector3.new(currentVel.X, 0, currentVel.Z).Magnitude
 	local targetSpeed = math.clamp(math.max(horizontalSpeed, hum.WalkSpeed * 0.92), 8, 22)
 
-	local stickStrength = 2.4
 	local wallDistance = (ray.Position - hrp.Position).Magnitude
-	local desiredPush = normal * -stickStrength
+	local stickStrength = 2.2
 
 	if wallDistance < 0.75 then
-		desiredPush = normal * -1.4
+		stickStrength = 1.2
 	elseif wallDistance > 1.35 then
-		desiredPush = normal * -3.0
+		stickStrength = 2.8
 	end
 
-	local newHorizontal = tangent * targetSpeed + desiredPush
+	local newHorizontal = tangent * targetSpeed + (normal * -stickStrength)
 	hrp.Velocity = Vector3.new(newHorizontal.X, currentVel.Y, newHorizontal.Z)
 end
 
