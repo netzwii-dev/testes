@@ -80,7 +80,6 @@ local MobileBeastSlowButton
 local MobileMenuButton
 local MobilePanel
 local ToggleButton
-local NonSpamToggleButton
 local HideGuiBindButton
 local ToggleBindButton
 local BeastSlowBindButton
@@ -873,10 +872,6 @@ local function updateToggleButton()
 			MobileBeastSlowButton.Text = isSlowEnabled and "Slow On" or "Slow Off"
 		end
 	end
-
-	if NonSpamToggleButton then
-		NonSpamToggleButton.Text = isNonSpamEnabled and "Non-spam On" or "Non-spam Off"
-	end
 end
 
 setMobileWallhopVisualHidden = function(hidden)
@@ -1279,8 +1274,6 @@ end
 
 local function setNonSpamEnabled(state)
 	isNonSpamEnabled = state and true or false
-
-	updateToggleButton()
 
 	if updateMobilePanelButtons then
 		updateMobilePanelButtons()
@@ -1841,20 +1834,6 @@ local function buildPCGui()
 	noTextStroke(ToggleButton)
 	setTargetTransparency(ToggleButton, 1, 0)
 
-	NonSpamToggleButton = Instance.new("TextButton")
-	NonSpamToggleButton.Size = UDim2.new(1, -36, 0, 22)
-	NonSpamToggleButton.Position = UDim2.new(0, 18, 0, 118)
-	NonSpamToggleButton.BackgroundTransparency = 1
-	NonSpamToggleButton.Text = "Non-spam Off"
-	NonSpamToggleButton.TextColor3 = Color3.fromRGB(220,220,220)
-	NonSpamToggleButton.Font = Enum.Font.GothamBold
-	NonSpamToggleButton.TextSize = 16
-	NonSpamToggleButton.TextXAlignment = Enum.TextXAlignment.Left
-	NonSpamToggleButton.AutoButtonColor = false
-	NonSpamToggleButton.Parent = MainFrame
-	noTextStroke(NonSpamToggleButton)
-	setTargetTransparency(NonSpamToggleButton, 1, 0)
-
 	PcTabFunctions = createPcTabButton(MainFrame, 18, "Functions")
 	PcTabFlicks = createPcTabButton(MainFrame, 120, "Flicks")
 
@@ -2077,11 +2056,6 @@ local function buildPCGui()
 		isWallHopEnabled = not isWallHopEnabled
 		updateToggleButton()
 		showNotice(isWallHopEnabled and "Wallhop enabled" or "Wallhop disabled")
-	end)
-
-	NonSpamToggleButton.MouseButton1Click:Connect(function()
-		setNonSpamEnabled(not isNonSpamEnabled)
-		showNotice(isNonSpamEnabled and "Non-spam enabled" or "Non-spam disabled")
 	end)
 
 	PcNormalWallhopButton.MouseButton1Click:Connect(function()
