@@ -1318,134 +1318,120 @@ end
 
 
 function showSettingsNotice(message)
-	pcall(function()
-		if not ScreenGui then
+	if not ScreenGui then
+		return
+	end
+
+	SettingsNoticeId = (SettingsNoticeId or 0) + 1
+	local thisNoticeId = SettingsNoticeId
+
+	local oldFrame = SettingsNoticeFrame
+	if oldFrame and oldFrame.Parent then
+		SettingsNoticeFrame = nil
+		pcall(function()
+			TweenService:Create(oldFrame, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				BackgroundTransparency = 1,
+				Position = UDim2.new(1, oldFrame.AbsoluteSize.X + 20, 0, oldFrame.Position.Y.Offset)
+			}):Play()
+
+			for _, child in ipairs(oldFrame:GetDescendants()) do
+				if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+					TweenService:Create(child, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {TextTransparency = 1}):Play()
+				elseif child:IsA("Frame") then
+					TweenService:Create(child, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundTransparency = 1}):Play()
+				elseif child:IsA("UIStroke") then
+					TweenService:Create(child, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 1}):Play()
+				end
+			end
+		end)
+		task.delay(0.09, function()
+			if oldFrame and oldFrame.Parent then
+				oldFrame:Destroy()
+			end
+		end)
+	end
+
+	local msg = tostring(message)
+	local longMsg = #msg > 38
+	local noticeHeight = longMsg and 48 or 30
+	local noticeWidth = longMsg and 330 or 230
+
+	local currentFrame = Instance.new("Frame")
+	currentFrame.Size = UDim2.new(0, noticeWidth, 0, noticeHeight)
+	currentFrame.Position = UDim2.new(1, noticeWidth + 20, 0, 14)
+	currentFrame.AnchorPoint = Vector2.new(1, 0)
+	currentFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	currentFrame.BackgroundTransparency = 1
+	currentFrame.BorderSizePixel = 0
+	currentFrame.ZIndex = 90
+	currentFrame.Parent = ScreenGui
+	SettingsNoticeFrame = currentFrame
+	Instance.new("UICorner", currentFrame).CornerRadius = UDim.new(0, 10)
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(255,255,255)
+	stroke.Thickness = 1
+	stroke.Transparency = 1
+	stroke.Parent = currentFrame
+
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Size = UDim2.new(1, -14, 1, -10)
+	textLabel.Position = UDim2.new(0, 7, 0, 3)
+	textLabel.BackgroundTransparency = 1
+	textLabel.Text = msg
+	textLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	textLabel.TextTransparency = 1
+	textLabel.Font = Enum.Font.GothamBold
+	textLabel.TextSize = longMsg and 10 or 11
+	textLabel.TextWrapped = true
+	textLabel.TextXAlignment = Enum.TextXAlignment.Left
+	textLabel.TextYAlignment = Enum.TextYAlignment.Center
+	textLabel.ZIndex = 91
+	textLabel.Parent = currentFrame
+	noTextStroke(textLabel)
+
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1, -12, 0, 2)
+	bar.Position = UDim2.new(0, 6, 1, -4)
+	bar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+	bar.BackgroundTransparency = 0
+	bar.BorderSizePixel = 0
+	bar.ZIndex = 91
+	bar.Parent = currentFrame
+	Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+
+	TweenService:Create(currentFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 0.08,
+		Position = UDim2.new(1, -14, 0, 14)
+	}):Play()
+	TweenService:Create(textLabel, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {TextTransparency = 0}):Play()
+	TweenService:Create(stroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Transparency = 0.9}):Play()
+	TweenService:Create(bar, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 0, 0, 2),
+		Position = UDim2.new(1, -6, 1, -4)
+	}):Play()
+
+	task.delay(2, function()
+		if thisNoticeId ~= SettingsNoticeId or SettingsNoticeFrame ~= currentFrame then
 			return
 		end
 
-		SettingsNoticeId = (SettingsNoticeId or 0) + 1
-		mySettingsNoticeId = SettingsNoticeId
+		if currentFrame and currentFrame.Parent then
+			TweenService:Create(currentFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+				BackgroundTransparency = 1,
+				Position = UDim2.new(1, noticeWidth + 20, 0, 14)
+			}):Play()
+			TweenService:Create(textLabel, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {TextTransparency = 1}):Play()
+			TweenService:Create(stroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Transparency = 1}):Play()
+			TweenService:Create(bar, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {BackgroundTransparency = 1}):Play()
 
-		if SettingsNoticeFrame and SettingsNoticeFrame.Parent then
-			oldNoticeFrame = SettingsNoticeFrame
-			pcall(function()
-				TweenService:Create(oldNoticeFrame, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					BackgroundTransparency = 1,
-					Position = UDim2.new(1, 250, 0, oldNoticeFrame.Position.Y.Offset)
-				}):Play()
-
-				for _, child in ipairs(oldNoticeFrame:GetDescendants()) do
-					if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
-						TweenService:Create(child, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-							TextTransparency = 1
-						}):Play()
-					elseif child:IsA("Frame") then
-						TweenService:Create(child, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-							BackgroundTransparency = 1
-						}):Play()
-					elseif child:IsA("UIStroke") then
-						TweenService:Create(child, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-							Transparency = 1
-						}):Play()
-					end
-				end
-			end)
-
-			task.delay(0.09, function()
-				if oldNoticeFrame then
-					oldNoticeFrame:Destroy()
+			task.delay(0.25, function()
+				if thisNoticeId == SettingsNoticeId and SettingsNoticeFrame == currentFrame then
+					currentFrame:Destroy()
+					SettingsNoticeFrame = nil
 				end
 			end)
 		end
-
-		SettingsNoticeFrame = Instance.new("Frame")
-		SettingsNoticeFrame.Size = UDim2.new(0, 230, 0, 30)
-		SettingsNoticeFrame.Position = UDim2.new(1, 250, 0, 14)
-		SettingsNoticeFrame.AnchorPoint = Vector2.new(1, 0)
-		SettingsNoticeFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		SettingsNoticeFrame.BackgroundTransparency = 1
-		SettingsNoticeFrame.BorderSizePixel = 0
-		SettingsNoticeFrame.ZIndex = 90
-		SettingsNoticeFrame.Parent = ScreenGui
-		Instance.new("UICorner", SettingsNoticeFrame).CornerRadius = UDim.new(0, 10)
-
-		SettingsNoticeStroke = Instance.new("UIStroke")
-		SettingsNoticeStroke.Color = Color3.fromRGB(255,255,255)
-		SettingsNoticeStroke.Thickness = 1
-		SettingsNoticeStroke.Transparency = 1
-		SettingsNoticeStroke.Parent = SettingsNoticeFrame
-
-		SettingsNoticeText = Instance.new("TextLabel")
-		SettingsNoticeText.Size = UDim2.new(1, -14, 0, 21)
-		SettingsNoticeText.Position = UDim2.new(0, 7, 0, 3)
-		SettingsNoticeText.BackgroundTransparency = 1
-		SettingsNoticeText.Text = tostring(message)
-		SettingsNoticeText.TextColor3 = Color3.fromRGB(255,255,255)
-		SettingsNoticeText.TextTransparency = 1
-		SettingsNoticeText.Font = Enum.Font.GothamBold
-		SettingsNoticeText.TextSize = 11
-		SettingsNoticeText.TextWrapped = true
-		SettingsNoticeText.TextXAlignment = Enum.TextXAlignment.Left
-		SettingsNoticeText.ZIndex = 91
-		SettingsNoticeText.Parent = SettingsNoticeFrame
-		noTextStroke(SettingsNoticeText)
-
-		SettingsNoticeBar = Instance.new("Frame")
-		SettingsNoticeBar.Size = UDim2.new(1, -12, 0, 2)
-		SettingsNoticeBar.Position = UDim2.new(0, 6, 1, -4)
-		SettingsNoticeBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
-		SettingsNoticeBar.BackgroundTransparency = 0
-		SettingsNoticeBar.BorderSizePixel = 0
-		SettingsNoticeBar.ZIndex = 91
-		SettingsNoticeBar.Parent = SettingsNoticeFrame
-		Instance.new("UICorner", SettingsNoticeBar).CornerRadius = UDim.new(1, 0)
-
-		TweenService:Create(SettingsNoticeFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-			BackgroundTransparency = 0.08,
-			Position = UDim2.new(1, -14, 0, 14)
-		}):Play()
-
-		TweenService:Create(SettingsNoticeText, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-			TextTransparency = 0
-		}):Play()
-
-		TweenService:Create(SettingsNoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Transparency = 0.9
-		}):Play()
-
-		TweenService:Create(SettingsNoticeBar, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 0, 0, 2),
-			Position = UDim2.new(1, -6, 1, -4)
-		}):Play()
-
-		task.delay(2, function()
-			if mySettingsNoticeId ~= SettingsNoticeId then
-				return
-			end
-
-			if SettingsNoticeFrame and SettingsNoticeFrame.Parent then
-				TweenService:Create(SettingsNoticeFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-					BackgroundTransparency = 1,
-					Position = UDim2.new(1, 250, 0, 14)
-				}):Play()
-				TweenService:Create(SettingsNoticeText, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-					TextTransparency = 1
-				}):Play()
-				TweenService:Create(SettingsNoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-					Transparency = 1
-				}):Play()
-				TweenService:Create(SettingsNoticeBar, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-					BackgroundTransparency = 1
-				}):Play()
-
-				task.delay(0.25, function()
-					if mySettingsNoticeId == SettingsNoticeId and SettingsNoticeFrame then
-						SettingsNoticeFrame:Destroy()
-						SettingsNoticeFrame = nil
-					end
-				end)
-			end
-		end)
 	end)
 end
 
@@ -1471,7 +1457,27 @@ end
 function getCurrentConfigPayload()
 	return {
 		xrayOpacityValue = tonumber(xrayOpacityValue) or 60,
-		nonSpamValue = tonumber(nonSpamValue) or 50
+		nonSpamValue = tonumber(nonSpamValue) or 50,
+
+		currentFlickMode = currentFlickMode,
+		isWallHopEnabled = isWallHopEnabled,
+		isSlowEnabled = isSlowEnabled,
+		isCornerWalkEnabled = isCornerWalkEnabled,
+		realXrayEnabled = realXrayEnabled,
+		isNonSpamEnabled = isXrayEnabled,
+
+		guiVisible = guiVisible,
+		guiMinimized = guiMinimized,
+		mobileMenuOpen = mobileMenuOpen,
+		mobileWallhopGuiHidden = mobileWallhopGuiHidden,
+		mobileCornerWalkButtonVisible = mobileCornerWalkButtonVisible,
+		mobileBeastSlowButtonVisible = mobileBeastSlowButtonVisible,
+
+		hideGuiKey = hideGuiKey and hideGuiKey.Name or DEFAULT_HIDE_GUI_KEY.Name,
+		toggleScriptKey = toggleScriptKey and toggleScriptKey.Name or DEFAULT_TOGGLE_SCRIPT_KEY.Name,
+		toggleBeastSlowKey = toggleBeastSlowKey and toggleBeastSlowKey.Name or DEFAULT_TOGGLE_BEAST_SLOW_KEY.Name,
+		toggleCornerWalkKey = toggleCornerWalkKey and toggleCornerWalkKey.Name or DEFAULT_TOGGLE_CORNER_WALK_KEY.Name,
+		toggleXrayKey = toggleXrayKey and toggleXrayKey.Name or DEFAULT_TOGGLE_XRAY_KEY.Name
 	}
 end
 
@@ -1487,15 +1493,68 @@ function applyConfigPayload(payload)
 		nonSpamValue = math.clamp(math.floor(tonumber(payload.nonSpamValue)), 10, 99)
 	end
 
-	if isXrayEnabled then
-		WALLHOP_COOLDOWN = (tonumber(nonSpamValue) or 50) / 100
+	if type(payload.currentFlickMode) == "string" then
+		setFlickMode(payload.currentFlickMode)
 	end
 
-	if realXrayEnabled then
+	if type(payload.isWallHopEnabled) == "boolean" then
+		isWallHopEnabled = payload.isWallHopEnabled
+	end
+	if type(payload.guiVisible) == "boolean" then
+		guiVisible = payload.guiVisible
+	end
+	if type(payload.guiMinimized) == "boolean" then
+		guiMinimized = payload.guiMinimized
+	end
+	if type(payload.mobileMenuOpen) == "boolean" then
+		mobileMenuOpen = payload.mobileMenuOpen
+	end
+	if type(payload.hideGuiKey) == "string" then
+		hideGuiKey = getKeyCodeFromName(payload.hideGuiKey, DEFAULT_HIDE_GUI_KEY)
+	end
+	if type(payload.toggleScriptKey) == "string" then
+		toggleScriptKey = getKeyCodeFromName(payload.toggleScriptKey, DEFAULT_TOGGLE_SCRIPT_KEY)
+	end
+	if type(payload.toggleBeastSlowKey) == "string" then
+		toggleBeastSlowKey = getKeyCodeFromName(payload.toggleBeastSlowKey, DEFAULT_TOGGLE_BEAST_SLOW_KEY)
+	end
+	if type(payload.toggleCornerWalkKey) == "string" then
+		toggleCornerWalkKey = getKeyCodeFromName(payload.toggleCornerWalkKey, DEFAULT_TOGGLE_CORNER_WALK_KEY)
+	end
+	if type(payload.toggleXrayKey) == "string" then
+		toggleXrayKey = getKeyCodeFromName(payload.toggleXrayKey, DEFAULT_TOGGLE_XRAY_KEY)
+	end
+	if type(payload.isSlowEnabled) == "boolean" then
+		setSlowEnabled(payload.isSlowEnabled)
+	end
+	if type(payload.isCornerWalkEnabled) == "boolean" then
+		setCornerWalkEnabled(payload.isCornerWalkEnabled)
+	end
+	if type(payload.mobileWallhopGuiHidden) == "boolean" then
+		setMobileGuiHidden(payload.mobileWallhopGuiHidden)
+	end
+	if type(payload.mobileCornerWalkButtonVisible) == "boolean" then
+		setMobileCornerWalkButtonState(payload.mobileCornerWalkButtonVisible)
+	end
+	if type(payload.mobileBeastSlowButtonVisible) == "boolean" then
+		setMobileBeastSlowButtonState(payload.mobileBeastSlowButtonVisible)
+	end
+
+	if type(payload.isNonSpamEnabled) == "boolean" then
+		isXrayEnabled = payload.isNonSpamEnabled
+	end
+	WALLHOP_COOLDOWN = isXrayEnabled and ((tonumber(nonSpamValue) or 50) / 100) or 0
+
+	if type(payload.realXrayEnabled) == "boolean" then
+		setXrayEnabled(payload.realXrayEnabled)
+	elseif realXrayEnabled then
 		clearXray()
 		applyXray()
 	end
 
+	updateToggleButton()
+	updateMobilePanelButtons()
+	updateFlickButtons()
 	updateSettingsInputs()
 end
 
@@ -1640,38 +1699,85 @@ function refreshConfigList(showMessage)
 		end
 
 		configY = 0
-		configCount = 0
+
+		ConfigNoneButton = Instance.new("TextButton")
+		ConfigNoneButton.Size = UDim2.new(1, 0, 0, 30)
+		ConfigNoneButton.Position = UDim2.new(0, 0, 0, configY)
+		ConfigNoneButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+		ConfigNoneButton.Text = "---"
+		ConfigNoneButton.TextColor3 = Color3.fromRGB(130,130,130)
+		ConfigNoneButton.Font = Enum.Font.GothamBold
+		ConfigNoneButton.TextSize = 12
+		ConfigNoneButton.AutoButtonColor = false
+		ConfigNoneButton.ZIndex = 90
+		ConfigNoneButton.Parent = ConfigDropdownFrame
+		Instance.new("UICorner", ConfigNoneButton).CornerRadius = UDim.new(0, 9)
+		ConfigNoneStroke = Instance.new("UIStroke")
+		ConfigNoneStroke.Color = Color3.fromRGB(35,35,35)
+		ConfigNoneStroke.Thickness = 1
+		ConfigNoneStroke.Transparency = 0.08
+		ConfigNoneStroke.Parent = ConfigNoneButton
+		noTextStroke(ConfigNoneButton)
+		ConfigNoneButton.MouseButton1Click:Connect(function()
+			selectedConfigName = "---"
+			if ConfigSelectedButton then
+				ConfigSelectedButton.Text = "---"
+				ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+			end
+			configDropdownOpen = false
+			ConfigDropdownFrame.Visible = false
+			if ConfigArrowButton then
+				ConfigArrowButton.Text = "▲"
+			end
+		end)
+
+		configY += 32
+
 		for name, _ in pairs(wallhopConfigs) do
-			configCount += 1
 			ConfigOptionButton = Instance.new("TextButton")
-			ConfigOptionButton.Size = UDim2.new(1, 0, 0, 26)
+			ConfigOptionButton.Size = UDim2.new(1, 0, 0, 30)
 			ConfigOptionButton.Position = UDim2.new(0, 0, 0, configY)
-			ConfigOptionButton.BackgroundColor3 = Color3.fromRGB(8,8,8)
+			ConfigOptionButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
 			ConfigOptionButton.Text = name
 			ConfigOptionButton.TextColor3 = Color3.fromRGB(255,255,255)
 			ConfigOptionButton.Font = Enum.Font.GothamBold
 			ConfigOptionButton.TextSize = 12
 			ConfigOptionButton.AutoButtonColor = false
+			ConfigOptionButton.ZIndex = 90
 			ConfigOptionButton.Parent = ConfigDropdownFrame
+			Instance.new("UICorner", ConfigOptionButton).CornerRadius = UDim.new(0, 9)
+			ConfigOptionStroke = Instance.new("UIStroke")
+			ConfigOptionStroke.Color = Color3.fromRGB(35,35,35)
+			ConfigOptionStroke.Thickness = 1
+			ConfigOptionStroke.Transparency = 0.08
+			ConfigOptionStroke.Parent = ConfigOptionButton
 			noTextStroke(ConfigOptionButton)
 
 			ConfigOptionButton.MouseButton1Click:Connect(function()
 				selectedConfigName = name
 				if ConfigSelectedButton then
 					ConfigSelectedButton.Text = selectedConfigName
+					ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 				end
 				configDropdownOpen = false
 				ConfigDropdownFrame.Visible = false
+				if ConfigArrowButton then
+					ConfigArrowButton.Text = "▲"
+				end
 			end)
 
-			configY += 28
+			configY += 32
 		end
 
-		ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, math.max(28, math.min(configY, 112)))
+		ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, math.max(32, math.min(configY, 190)))
 	end
 
 	if ConfigSelectedButton then
 		ConfigSelectedButton.Text = selectedConfigName or "---"
+		ConfigSelectedButton.TextColor3 = (selectedConfigName and selectedConfigName ~= "---") and Color3.fromRGB(255,255,255) or Color3.fromRGB(130,130,130)
+	end
+	if ConfigArrowButton then
+		ConfigArrowButton.Text = configDropdownOpen and "▼" or "▲"
 	end
 
 	if showMessage then
@@ -1747,7 +1853,6 @@ function createSettingsLabel(parent, y, textValue)
 	SettingsLabel.ZIndex = 30
 	SettingsLabel.Parent = parent
 	noTextStroke(SettingsLabel)
-	setTargetTransparency(SettingsLabel, 1, 0)
 	return SettingsLabel
 end
 
@@ -1821,10 +1926,40 @@ function buildMobileSettingsPage()
 	noTextStroke(SettingsNonSpamBox)
 	SettingsNonSpamBox.FocusLost:Connect(applyNonSpamSettingFromBox)
 
-	createSettingsLabel(MobileSettingsPage, 82, "Config name")
+	SettingsXrayTitle = Instance.new("TextLabel")
+	SettingsXrayTitle.Size = UDim2.new(1, -82, 0, 26)
+	SettingsXrayTitle.Position = UDim2.new(0, 12, 0, 4)
+	SettingsXrayTitle.BackgroundTransparency = 1
+	SettingsXrayTitle.Text = "X-ray Opacity"
+	SettingsXrayTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsXrayTitle.TextTransparency = 0
+	SettingsXrayTitle.Font = Enum.Font.GothamBold
+	SettingsXrayTitle.TextSize = 14
+	SettingsXrayTitle.TextXAlignment = Enum.TextXAlignment.Left
+	SettingsXrayTitle.TextYAlignment = Enum.TextYAlignment.Center
+	SettingsXrayTitle.ZIndex = 120
+	SettingsXrayTitle.Parent = MobileSettingsPage
+	noTextStroke(SettingsXrayTitle)
+
+	SettingsNonSpamTitle = Instance.new("TextLabel")
+	SettingsNonSpamTitle.Size = UDim2.new(1, -82, 0, 26)
+	SettingsNonSpamTitle.Position = UDim2.new(0, 12, 0, 40)
+	SettingsNonSpamTitle.BackgroundTransparency = 1
+	SettingsNonSpamTitle.Text = "Non-spam Settings"
+	SettingsNonSpamTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsNonSpamTitle.TextTransparency = 0
+	SettingsNonSpamTitle.Font = Enum.Font.GothamBold
+	SettingsNonSpamTitle.TextSize = 14
+	SettingsNonSpamTitle.TextXAlignment = Enum.TextXAlignment.Left
+	SettingsNonSpamTitle.TextYAlignment = Enum.TextYAlignment.Center
+	SettingsNonSpamTitle.ZIndex = 120
+	SettingsNonSpamTitle.Parent = MobileSettingsPage
+	noTextStroke(SettingsNonSpamTitle)
+
+	createSettingsLabel(MobileSettingsPage, 74, "Config name")
 	ConfigNameBox = Instance.new("TextBox")
 	ConfigNameBox.Size = UDim2.new(1, -14, 0, 30)
-	ConfigNameBox.Position = UDim2.new(0, 7, 0, 110)
+	ConfigNameBox.Position = UDim2.new(0, 7, 0, 100)
 	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigNameBox.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigNameBox.PlaceholderText = "name config"
@@ -1843,7 +1978,7 @@ function buildMobileSettingsPage()
 	ConfigNameStroke.Parent = ConfigNameBox
 	noTextStroke(ConfigNameBox)
 
-	CreateConfigButton = createSettingsButton(MobileSettingsPage, 148, "Create config")
+	CreateConfigButton = createSettingsButton(MobileSettingsPage, 136, "Create config")
 	CreateConfigButton.MouseButton1Click:Connect(function()
 		name = configSafeName(ConfigNameBox.Text)
 		if name == "" then
@@ -1858,25 +1993,60 @@ function buildMobileSettingsPage()
 		showSettingsNotice("The configuration file " .. name .. " was created successfully.")
 	end)
 
-	createSettingsLabel(MobileSettingsPage, 192, "Config list")
-	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 220, "---")
+	createSettingsLabel(MobileSettingsPage, 178, "Config list")
+	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 206, "---")
+	ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+	ConfigSelectedButton.ZIndex = 45
+	ConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Center
+	ConfigSelectedButton.AutoButtonColor = false
 	ConfigSelectedButton.MouseButton1Click:Connect(function()
+		return
+	end)
+
+	ConfigSelectedStroke = Instance.new("UIStroke")
+	ConfigSelectedStroke.Color = Color3.fromRGB(35,35,35)
+	ConfigSelectedStroke.Thickness = 1
+	ConfigSelectedStroke.Transparency = 0.08
+	ConfigSelectedStroke.Parent = ConfigSelectedButton
+
+	ConfigArrowButton = Instance.new("TextButton")
+	ConfigArrowButton.Size = UDim2.new(0, 34, 1, 0)
+	ConfigArrowButton.Position = UDim2.new(1, -38, 0, 0)
+	ConfigArrowButton.BackgroundTransparency = 1
+	ConfigArrowButton.Text = "▲"
+	ConfigArrowButton.TextColor3 = Color3.fromRGB(180,180,180)
+	ConfigArrowButton.Font = Enum.Font.GothamBold
+	ConfigArrowButton.TextSize = 16
+	ConfigArrowButton.ZIndex = 92
+	ConfigArrowButton.AutoButtonColor = false
+	ConfigArrowButton.Parent = ConfigSelectedButton
+	noTextStroke(ConfigArrowButton)
+
+	ConfigArrowButton.MouseButton1Click:Connect(function()
 		configDropdownOpen = not configDropdownOpen
 		if ConfigDropdownFrame then
 			ConfigDropdownFrame.Visible = configDropdownOpen
 		end
+		ConfigArrowButton.Text = configDropdownOpen and "▼" or "▲"
 	end)
 
 	ConfigDropdownFrame = Instance.new("Frame")
 	ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 28)
-	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 256)
+	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 240)
 	ConfigDropdownFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigDropdownFrame.BorderSizePixel = 0
 	ConfigDropdownFrame.Visible = false
+	ConfigDropdownFrame.ZIndex = 85
+	ConfigDropdownFrame.Active = true
 	ConfigDropdownFrame.Parent = MobileSettingsPage
 	Instance.new("UICorner", ConfigDropdownFrame).CornerRadius = UDim.new(0, 9)
+	ConfigDropdownStroke = Instance.new("UIStroke")
+	ConfigDropdownStroke.Color = Color3.fromRGB(35,35,35)
+	ConfigDropdownStroke.Thickness = 1
+	ConfigDropdownStroke.Transparency = 0.08
+	ConfigDropdownStroke.Parent = ConfigDropdownFrame
 
-	LoadConfigButton = createSettingsButton(MobileSettingsPage, 286, "Load config")
+	LoadConfigButton = createSettingsButton(MobileSettingsPage, 270, "Load config")
 	LoadConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -1887,7 +2057,7 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	OverwriteConfigButton = createSettingsButton(MobileSettingsPage, 324, "Overwrite config")
+	OverwriteConfigButton = createSettingsButton(MobileSettingsPage, 306, "Overwrite config")
 	OverwriteConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -1897,7 +2067,7 @@ function buildMobileSettingsPage()
 		showSettingsNotice("The " .. selectedConfigName .. " config was overwritten successfully.")
 	end)
 
-	DeleteConfigButton = createSettingsButton(MobileSettingsPage, 362, "Delete config")
+	DeleteConfigButton = createSettingsButton(MobileSettingsPage, 342, "Delete config")
 	DeleteConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -1909,12 +2079,12 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	RefreshConfigButton = createSettingsButton(MobileSettingsPage, 400, "Refresh list")
+	RefreshConfigButton = createSettingsButton(MobileSettingsPage, 378, "Refresh list")
 	RefreshConfigButton.MouseButton1Click:Connect(function()
 		refreshConfigList(true)
 	end)
 
-	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 438, "Set as autoload")
+	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 414, "Set as autoload")
 	SetAutoloadButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -1925,7 +2095,7 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	ResetAutoloadButton = createSettingsButton(MobileSettingsPage, 476, "Reset autoload")
+	ResetAutoloadButton = createSettingsButton(MobileSettingsPage, 450, "Reset autoload")
 	ResetAutoloadButton.MouseButton1Click:Connect(function()
 		if resetAutoloadConfig() then
 			showSettingsNotice("The autoload config has been reset successfully.")
@@ -1936,7 +2106,7 @@ function buildMobileSettingsPage()
 
 	ConfigAutoloadLabel = Instance.new("TextLabel")
 	ConfigAutoloadLabel.Size = UDim2.new(1, -14, 0, 42)
-	ConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 516)
+	ConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 490)
 	ConfigAutoloadLabel.BackgroundTransparency = 1
 	ConfigAutoloadLabel.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigAutoloadLabel.Font = Enum.Font.GothamBold
@@ -1946,9 +2116,11 @@ function buildMobileSettingsPage()
 	ConfigAutoloadLabel.Parent = MobileSettingsPage
 	noTextStroke(ConfigAutoloadLabel)
 
-	refreshConfigList(false)
+	task.defer(function()
+		refreshConfigList(false)
+	end)
 	updateSettingsInputs()
-	loadAutoloadConfig()
+	task.defer(loadAutoloadConfig)
 end
 
 
@@ -2119,14 +2291,16 @@ local function buildMobileGui()
 
 	local mobileFooter = Instance.new("TextLabel")
 	mobileFooter.Name = "MobileFooter"
-	mobileFooter.Size = UDim2.new(1, -14, 0, 16)
-	mobileFooter.Position = UDim2.new(0, 7, 1, -18)
-	mobileFooter.BackgroundTransparency = 1
+	mobileFooter.Size = UDim2.new(1, 0, 0, 34)
+	mobileFooter.Position = UDim2.new(0, 0, 1, -34)
+	mobileFooter.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	mobileFooter.BackgroundTransparency = 0
 	mobileFooter.Text = "the best flee the facility wallhop script"
 	mobileFooter.TextColor3 = Color3.fromRGB(95,95,95)
 	mobileFooter.Font = Enum.Font.Gotham
 	mobileFooter.TextSize = 10
 	mobileFooter.TextXAlignment = Enum.TextXAlignment.Left
+	mobileFooter.ZIndex = 80
 	mobileFooter.Parent = MobilePanel
 	noTextStroke(mobileFooter)
 	setTargetTransparency(mobileFooter, 1, 0)
