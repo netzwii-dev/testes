@@ -48,133 +48,133 @@ local DEFAULT_TOGGLE_XRAY_KEY = Enum.KeyCode.X
 
 local KEYBINDS_FILE = "nyhito_ftf_wallhop_keybinds.json"
 
-local selectedMode = nil
+selectedMode = nil
 
-local hideGuiKey = DEFAULT_HIDE_GUI_KEY
-local toggleScriptKey = DEFAULT_TOGGLE_SCRIPT_KEY
-local toggleBeastSlowKey = DEFAULT_TOGGLE_BEAST_SLOW_KEY
-local toggleCornerWalkKey = DEFAULT_TOGGLE_CORNER_WALK_KEY
-local toggleXrayKey = DEFAULT_TOGGLE_XRAY_KEY
+hideGuiKey = DEFAULT_HIDE_GUI_KEY
+toggleScriptKey = DEFAULT_TOGGLE_SCRIPT_KEY
+toggleBeastSlowKey = DEFAULT_TOGGLE_BEAST_SLOW_KEY
+toggleCornerWalkKey = DEFAULT_TOGGLE_CORNER_WALK_KEY
+toggleXrayKey = DEFAULT_TOGGLE_XRAY_KEY
 
-local waitingForHideKey = false
-local waitingForToggleKey = false
-local waitingForBeastSlowKey = false
-local waitingForCornerWalkKey = false
-local waitingForXrayKey = false
+waitingForHideKey = false
+waitingForToggleKey = false
+waitingForBeastSlowKey = false
+waitingForCornerWalkKey = false
+waitingForXrayKey = false
 
-local guiVisible = true
-local guiMinimized = false
-local mobileMenuOpen = false
-local mobileWallhopGuiHidden = false
-local mobileCornerWalkButtonVisible = false
-local mobileBeastSlowButtonVisible = false
+guiVisible = true
+guiMinimized = false
+mobileMenuOpen = false
+mobileWallhopGuiHidden = false
+mobileCornerWalkButtonVisible = false
+mobileBeastSlowButtonVisible = false
 
-local ScreenGui
-local MainFrame
-local MiniButton
-local MobileButton
-local MobileCornerWalkButton
-local MobileBeastSlowButton
-local MobileMenuButton
-local MobilePanel
-local ToggleButton
-local HideGuiBindButton
-local ToggleBindButton
-local BeastSlowBindButton
-local CornerWalkBindButton
-local XrayBindButton
-local Notice
-local NoticeStroke
+ScreenGui = nil
+MainFrame = nil
+MiniButton = nil
+MobileButton = nil
+MobileCornerWalkButton = nil
+MobileBeastSlowButton = nil
+MobileMenuButton = nil
+MobilePanel = nil
+ToggleButton = nil
+HideGuiBindButton = nil
+ToggleBindButton = nil
+BeastSlowBindButton = nil
+CornerWalkBindButton = nil
+XrayBindButton = nil
+Notice = nil
+NoticeStroke = nil
 
-local PcTabFunctions
-local PcTabFlicks
-local PcFunctionsPage
-local PcFlicksPage
-local PcCurrentUsingLabel
-local PcNormalWallhopButton
-local PcNoMoveWallhopButton
-local Pc360WallhopButton
-local PcConsoleWallhopButton
+PcTabFunctions = nil
+PcTabFlicks = nil
+PcFunctionsPage = nil
+PcFlicksPage = nil
+PcCurrentUsingLabel = nil
+PcNormalWallhopButton = nil
+PcNoMoveWallhopButton = nil
+Pc360WallhopButton = nil
+PcConsoleWallhopButton = nil
 
-local MobileTabFunctions
-local MobileTabFlicks
-local MobileFunctionsPage
-local MobileFlicksPage
-local MobileCurrentUsingLabel
-local MobileNormalWallhopRow
-local MobileNoMoveWallhopRow
-local Mobile360WallhopRow
-local MobileConsoleWallhopRow
-local MobileBeastSlowRow
-local MobileCornerWalkRow
-local MobileXrayRow
-local MobileHideGuiRow
+MobileTabFunctions = nil
+MobileTabFlicks = nil
+MobileFunctionsPage = nil
+MobileFlicksPage = nil
+MobileCurrentUsingLabel = nil
+MobileNormalWallhopRow = nil
+MobileNoMoveWallhopRow = nil
+Mobile360WallhopRow = nil
+MobileConsoleWallhopRow = nil
+MobileBeastSlowRow = nil
+MobileCornerWalkRow = nil
+MobileXrayRow = nil
+MobileHideGuiRow = nil
 
-local mobileBeastSlowSwitch
-local mobileBeastSlowKnob
-local mobileCornerWalkSwitch
-local mobileCornerWalkKnob
-local mobileXraySwitch
-local mobileXrayKnob
-local mobileHideGuiSwitch
-local mobileHideGuiKnob
-local mobileDragHandle
+mobileBeastSlowSwitch = nil
+mobileBeastSlowKnob = nil
+mobileCornerWalkSwitch = nil
+mobileCornerWalkKnob = nil
+mobileXraySwitch = nil
+mobileXrayKnob = nil
+mobileHideGuiSwitch = nil
+mobileHideGuiKnob = nil
+mobileDragHandle = nil
 
 local dragConnections = {}
 local shadowRegistry = {}
 
-local clearScriptSlowInstant
-local updateMobilePanelButtons
-local setMobileWallhopVisualHidden
-local setMobileCornerWalkButtonVisible
-local setMobileBeastSlowButtonVisible
-local applyVisibility
-local updateFlickButtons
-local switchPcTab
-local switchMobileTab
+clearScriptSlowInstant = nil
+updateMobilePanelButtons = nil
+setMobileWallhopVisualHidden = nil
+setMobileCornerWalkButtonVisible = nil
+setMobileBeastSlowButtonVisible = nil
+applyVisibility = nil
+updateFlickButtons = nil
+switchPcTab = nil
+switchMobileTab = nil
 
-local isWallHopEnabled = false
-local isSlowEnabled = false
-local isCornerWalkEnabled = false
-local isXrayEnabled = false
-local isFlicking = false
-local lastFlickTime = 0
+isWallHopEnabled = false
+isSlowEnabled = false
+isCornerWalkEnabled = false
+isXrayEnabled = false
+isFlicking = false
+lastFlickTime = 0
 
-local isWallHopping = false
-local lastWallHopTime = 0
-local WALLHOP_GRACE_TIME = 1.5
-local WALLHOP_COOLDOWN = 0
+isWallHopping = false
+lastWallHopTime = 0
+WALLHOP_GRACE_TIME = 1.5
+WALLHOP_COOLDOWN = 0
 
-local canDoubleJump = false
-local lastDoubleJump = 0
-local DOUBLE_JUMP_COOLDOWN = 3
-local blockDoubleJump = false
+canDoubleJump = false
+lastDoubleJump = 0
+DOUBLE_JUMP_COOLDOWN = 3
+blockDoubleJump = false
 
-local lastHitPosition = nil
-local MIN_HIT_DISTANCE = 0.1
-local lastFlickAngle = nil
+lastHitPosition = nil
+MIN_HIT_DISTANCE = 0.1
+lastFlickAngle = nil
 
-local airborneSource = nil
-local airborneStartY = nil
-local airborneStartTime = 0
-local jumpedRecently = false
+airborneSource = nil
+airborneStartY = nil
+airborneStartTime = 0
+jumpedRecently = false
 
-local LEDGE_BLOCK_DISTANCE = 6.0
-local LEDGE_BLOCK_TIME = 0.20
+LEDGE_BLOCK_DISTANCE = 6.0
+LEDGE_BLOCK_TIME = 0.20
 
-local SLOW_DURATION = 0.8
-local SLOW_WALKSPEED = 9
-local DEFAULT_WALKSPEED = 16
-local slowToken = 0
-local scriptSlowActive = false
+SLOW_DURATION = 0.8
+SLOW_WALKSPEED = 9
+DEFAULT_WALKSPEED = 16
+slowToken = 0
+scriptSlowActive = false
 
-local FIRST_FLICK_RESET_GROUND_TIME = 3
-local lastLandedTime = 0
-local hasWallhoppedSinceLanding = false
-local specialFirstFlickArmed = false
+FIRST_FLICK_RESET_GROUND_TIME = 3
+lastLandedTime = 0
+hasWallhoppedSinceLanding = false
+specialFirstFlickArmed = false
 
-local currentFlickMode = "Normal Wallhop"
-local next360Direction = 1
+currentFlickMode = "Normal Wallhop"
+next360Direction = 1
 
 local function destroyOld()
 
