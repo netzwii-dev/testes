@@ -1283,6 +1283,10 @@ switchMobileTab = function(name)
 	MobileTabFunctions.BackgroundColor3 = mobileIsFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	MobileTabFlicks.BackgroundColor3 = mobileIsFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	MobileTabSettings.BackgroundColor3 = mobileIsSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+
+	if MobilePanel and MobilePanel:FindFirstChild("MobileFooter") then
+		MobilePanel.MobileFooter.Visible = not mobileIsSettings
+	end
 end
 
 local function setSlowEnabled(state)
@@ -1693,35 +1697,57 @@ function refreshConfigList(showMessage)
 
 	if ConfigDropdownFrame then
 		for _, obj in ipairs(ConfigDropdownFrame:GetChildren()) do
-			if obj:IsA("TextButton") then
+			if obj:IsA("TextButton") or obj:IsA("UIListLayout") or obj:IsA("UIPadding") then
 				obj:Destroy()
 			end
 		end
 
-		configY = 0
+		ConfigDropdownFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+		ConfigDropdownFrame.BackgroundTransparency = 0
+		ConfigDropdownFrame.ClipsDescendants = true
 
-		ConfigNoneButton = Instance.new("TextButton")
-		ConfigNoneButton.Size = UDim2.new(1, 0, 0, 30)
-		ConfigNoneButton.Position = UDim2.new(0, 0, 0, configY)
-		ConfigNoneButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
-		ConfigNoneButton.Text = "---"
-		ConfigNoneButton.TextColor3 = Color3.fromRGB(130,130,130)
-		ConfigNoneButton.Font = Enum.Font.GothamBold
-		ConfigNoneButton.TextSize = 12
-		ConfigNoneButton.AutoButtonColor = false
-		ConfigNoneButton.ZIndex = 90
-		ConfigNoneButton.Parent = ConfigDropdownFrame
-		Instance.new("UICorner", ConfigNoneButton).CornerRadius = UDim.new(0, 9)
-		ConfigNoneStroke = Instance.new("UIStroke")
-		ConfigNoneStroke.Color = Color3.fromRGB(35,35,35)
-		ConfigNoneStroke.Thickness = 1
-		ConfigNoneStroke.Transparency = 0.08
-		ConfigNoneStroke.Parent = ConfigNoneButton
-		noTextStroke(ConfigNoneButton)
-		ConfigNoneButton.MouseButton1Click:Connect(function()
+		ConfigDropdownPadding = Instance.new("UIPadding")
+		ConfigDropdownPadding.PaddingTop = UDim.new(0, 6)
+		ConfigDropdownPadding.PaddingBottom = UDim.new(0, 6)
+		ConfigDropdownPadding.PaddingLeft = UDim.new(0, 6)
+		ConfigDropdownPadding.PaddingRight = UDim.new(0, 6)
+		ConfigDropdownPadding.Parent = ConfigDropdownFrame
+
+		ConfigDropdownLayout = Instance.new("UIListLayout")
+		ConfigDropdownLayout.FillDirection = Enum.FillDirection.Vertical
+		ConfigDropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+		ConfigDropdownLayout.Padding = UDim.new(0, 6)
+		ConfigDropdownLayout.Parent = ConfigDropdownFrame
+
+		function newConfigOption(optionText, optionColor, optionOrder, onClick)
+			ConfigOption = Instance.new("TextButton")
+			ConfigOption.Size = UDim2.new(1, 0, 0, 32)
+			ConfigOption.BackgroundColor3 = Color3.fromRGB(0,0,0)
+			ConfigOption.Text = optionText
+			ConfigOption.TextColor3 = optionColor or Color3.fromRGB(255,255,255)
+			ConfigOption.Font = Enum.Font.GothamBold
+			ConfigOption.TextSize = 12
+			ConfigOption.TextXAlignment = Enum.TextXAlignment.Left
+			ConfigOption.AutoButtonColor = false
+			ConfigOption.LayoutOrder = optionOrder or 0
+			ConfigOption.ZIndex = 92
+			ConfigOption.Parent = ConfigDropdownFrame
+			ConfigOption.Text = "   " .. tostring(optionText)
+			Instance.new("UICorner", ConfigOption).CornerRadius = UDim.new(0, 9)
+			ConfigOptionStroke = Instance.new("UIStroke")
+			ConfigOptionStroke.Color = Color3.fromRGB(35,35,35)
+			ConfigOptionStroke.Thickness = 1
+			ConfigOptionStroke.Transparency = 0.08
+			ConfigOptionStroke.Parent = ConfigOption
+			noTextStroke(ConfigOption)
+			ConfigOption.MouseButton1Click:Connect(onClick)
+			return ConfigOption
+		end
+
+		newConfigOption("---", Color3.fromRGB(130,130,130), 1, function()
 			selectedConfigName = "---"
 			if ConfigSelectedButton then
-				ConfigSelectedButton.Text = "---"
+				ConfigSelectedButton.Text = "   ---"
 				ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
 			end
 			configDropdownOpen = false
@@ -1731,32 +1757,19 @@ function refreshConfigList(showMessage)
 			end
 		end)
 
-		configY += 32
-
+		configNames = {}
 		for name, _ in pairs(wallhopConfigs) do
-			ConfigOptionButton = Instance.new("TextButton")
-			ConfigOptionButton.Size = UDim2.new(1, 0, 0, 30)
-			ConfigOptionButton.Position = UDim2.new(0, 0, 0, configY)
-			ConfigOptionButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
-			ConfigOptionButton.Text = name
-			ConfigOptionButton.TextColor3 = Color3.fromRGB(255,255,255)
-			ConfigOptionButton.Font = Enum.Font.GothamBold
-			ConfigOptionButton.TextSize = 12
-			ConfigOptionButton.AutoButtonColor = false
-			ConfigOptionButton.ZIndex = 90
-			ConfigOptionButton.Parent = ConfigDropdownFrame
-			Instance.new("UICorner", ConfigOptionButton).CornerRadius = UDim.new(0, 9)
-			ConfigOptionStroke = Instance.new("UIStroke")
-			ConfigOptionStroke.Color = Color3.fromRGB(35,35,35)
-			ConfigOptionStroke.Thickness = 1
-			ConfigOptionStroke.Transparency = 0.08
-			ConfigOptionStroke.Parent = ConfigOptionButton
-			noTextStroke(ConfigOptionButton)
+			table.insert(configNames, name)
+		end
+		table.sort(configNames, function(a, b)
+			return tostring(a):lower() < tostring(b):lower()
+		end)
 
-			ConfigOptionButton.MouseButton1Click:Connect(function()
+		for index, name in ipairs(configNames) do
+			newConfigOption(name, Color3.fromRGB(255,255,255), index + 1, function()
 				selectedConfigName = name
 				if ConfigSelectedButton then
-					ConfigSelectedButton.Text = selectedConfigName
+					ConfigSelectedButton.Text = "   " .. tostring(selectedConfigName)
 					ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 				end
 				configDropdownOpen = false
@@ -1765,16 +1778,21 @@ function refreshConfigList(showMessage)
 					ConfigArrowButton.Text = "▲"
 				end
 			end)
-
-			configY += 32
 		end
 
-		ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, math.max(32, math.min(configY, 190)))
+		visibleRows = math.max(1, math.min(#configNames + 1, 4))
+		ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 12 + (visibleRows * 32) + ((visibleRows - 1) * 6))
+		ConfigDropdownFrame.CanvasSize = nil
 	end
 
 	if ConfigSelectedButton then
-		ConfigSelectedButton.Text = selectedConfigName or "---"
-		ConfigSelectedButton.TextColor3 = (selectedConfigName and selectedConfigName ~= "---") and Color3.fromRGB(255,255,255) or Color3.fromRGB(130,130,130)
+		if selectedConfigName and selectedConfigName ~= "---" then
+			ConfigSelectedButton.Text = "   " .. tostring(selectedConfigName)
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
+		else
+			ConfigSelectedButton.Text = "   ---"
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+		end
 	end
 	if ConfigArrowButton then
 		ConfigArrowButton.Text = configDropdownOpen and "▼" or "▲"
@@ -1784,7 +1802,6 @@ function refreshConfigList(showMessage)
 		showSettingsNotice("All the config list has been refreshed successfully.")
 	end
 end
-
 function updateAutoloadLabel()
 	if ConfigAutoloadLabel then
 		ConfigAutoloadLabel.Text = "Currently autoload config: " .. tostring(autoloadConfigName or "Default")
@@ -1866,8 +1883,14 @@ function createSettingsButton(parent, y, textValue)
 	SettingsButton.Font = Enum.Font.GothamBold
 	SettingsButton.TextSize = 13
 	SettingsButton.AutoButtonColor = false
+	SettingsButton.ZIndex = 36
 	SettingsButton.Parent = parent
 	Instance.new("UICorner", SettingsButton).CornerRadius = UDim.new(0, 10)
+	SettingsButtonStroke = Instance.new("UIStroke")
+	SettingsButtonStroke.Color = Color3.fromRGB(35,35,35)
+	SettingsButtonStroke.Thickness = 1
+	SettingsButtonStroke.Transparency = 0.08
+	SettingsButtonStroke.Parent = SettingsButton
 	noTextStroke(SettingsButton)
 	setTargetTransparency(SettingsButton, 0, 0)
 	return SettingsButton
@@ -1880,105 +1903,83 @@ function buildMobileSettingsPage()
 	MobileSettingsPage.BackgroundTransparency = 1
 	MobileSettingsPage.BorderSizePixel = 0
 	MobileSettingsPage.ScrollBarThickness = 3
-	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 590)
+	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 610)
 	MobileSettingsPage.Visible = false
 	MobileSettingsPage.Parent = MobilePanel
 
-	createSettingsLabel(MobileSettingsPage, 4, "X-ray Opacity")
+	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 6, "X-ray Opacity")
+	SettingsXrayTitle.ZIndex = 40
+
 	SettingsXrayBox = Instance.new("TextBox")
-	SettingsXrayBox.Size = UDim2.new(0, 54, 0, 26)
-	SettingsXrayBox.Position = UDim2.new(1, -68, 0, 4)
+	SettingsXrayBox.Size = UDim2.new(0, 58, 0, 28)
+	SettingsXrayBox.Position = UDim2.new(1, -65, 0, 4)
 	SettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsXrayBox.Font = Enum.Font.GothamBold
 	SettingsXrayBox.TextSize = 12
 	SettingsXrayBox.Text = tostring(xrayOpacityValue)
 	SettingsXrayBox.ClearTextOnFocus = false
-	SettingsXrayBox.ZIndex = 8
+	SettingsXrayBox.ZIndex = 41
 	SettingsXrayBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", SettingsXrayBox).CornerRadius = UDim.new(0, 8)
 	SettingsXrayStroke = Instance.new("UIStroke")
 	SettingsXrayStroke.Color = Color3.fromRGB(35,35,35)
 	SettingsXrayStroke.Thickness = 1
-	SettingsXrayStroke.Transparency = 0.15
+	SettingsXrayStroke.Transparency = 0.08
 	SettingsXrayStroke.Parent = SettingsXrayBox
 	noTextStroke(SettingsXrayBox)
 	SettingsXrayBox.FocusLost:Connect(applyXraySettingFromBox)
 
-	createSettingsLabel(MobileSettingsPage, 40, "Non-spam Settings")
+	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam Settings")
+	SettingsNonSpamTitle.ZIndex = 40
+
 	SettingsNonSpamBox = Instance.new("TextBox")
-	SettingsNonSpamBox.Size = UDim2.new(0, 54, 0, 26)
-	SettingsNonSpamBox.Position = UDim2.new(1, -68, 0, 40)
+	SettingsNonSpamBox.Size = UDim2.new(0, 58, 0, 28)
+	SettingsNonSpamBox.Position = UDim2.new(1, -65, 0, 40)
 	SettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsNonSpamBox.Font = Enum.Font.GothamBold
 	SettingsNonSpamBox.TextSize = 12
 	SettingsNonSpamBox.Text = tostring(nonSpamValue)
 	SettingsNonSpamBox.ClearTextOnFocus = false
-	SettingsNonSpamBox.ZIndex = 8
+	SettingsNonSpamBox.ZIndex = 41
 	SettingsNonSpamBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", SettingsNonSpamBox).CornerRadius = UDim.new(0, 8)
 	SettingsNonSpamStroke = Instance.new("UIStroke")
 	SettingsNonSpamStroke.Color = Color3.fromRGB(35,35,35)
 	SettingsNonSpamStroke.Thickness = 1
-	SettingsNonSpamStroke.Transparency = 0.15
+	SettingsNonSpamStroke.Transparency = 0.08
 	SettingsNonSpamStroke.Parent = SettingsNonSpamBox
 	noTextStroke(SettingsNonSpamBox)
 	SettingsNonSpamBox.FocusLost:Connect(applyNonSpamSettingFromBox)
 
-	SettingsXrayTitle = Instance.new("TextLabel")
-	SettingsXrayTitle.Size = UDim2.new(1, -82, 0, 26)
-	SettingsXrayTitle.Position = UDim2.new(0, 12, 0, 4)
-	SettingsXrayTitle.BackgroundTransparency = 1
-	SettingsXrayTitle.Text = "X-ray Opacity"
-	SettingsXrayTitle.TextColor3 = Color3.fromRGB(255,255,255)
-	SettingsXrayTitle.TextTransparency = 0
-	SettingsXrayTitle.Font = Enum.Font.GothamBold
-	SettingsXrayTitle.TextSize = 14
-	SettingsXrayTitle.TextXAlignment = Enum.TextXAlignment.Left
-	SettingsXrayTitle.TextYAlignment = Enum.TextYAlignment.Center
-	SettingsXrayTitle.ZIndex = 120
-	SettingsXrayTitle.Parent = MobileSettingsPage
-	noTextStroke(SettingsXrayTitle)
+	ConfigNameTitle = createSettingsLabel(MobileSettingsPage, 80, "Config name")
+	ConfigNameTitle.ZIndex = 40
 
-	SettingsNonSpamTitle = Instance.new("TextLabel")
-	SettingsNonSpamTitle.Size = UDim2.new(1, -82, 0, 26)
-	SettingsNonSpamTitle.Position = UDim2.new(0, 12, 0, 40)
-	SettingsNonSpamTitle.BackgroundTransparency = 1
-	SettingsNonSpamTitle.Text = "Non-spam Settings"
-	SettingsNonSpamTitle.TextColor3 = Color3.fromRGB(255,255,255)
-	SettingsNonSpamTitle.TextTransparency = 0
-	SettingsNonSpamTitle.Font = Enum.Font.GothamBold
-	SettingsNonSpamTitle.TextSize = 14
-	SettingsNonSpamTitle.TextXAlignment = Enum.TextXAlignment.Left
-	SettingsNonSpamTitle.TextYAlignment = Enum.TextYAlignment.Center
-	SettingsNonSpamTitle.ZIndex = 120
-	SettingsNonSpamTitle.Parent = MobileSettingsPage
-	noTextStroke(SettingsNonSpamTitle)
-
-	createSettingsLabel(MobileSettingsPage, 74, "Config name")
 	ConfigNameBox = Instance.new("TextBox")
-	ConfigNameBox.Size = UDim2.new(1, -14, 0, 30)
-	ConfigNameBox.Position = UDim2.new(0, 7, 0, 100)
+	ConfigNameBox.Size = UDim2.new(1, -14, 0, 34)
+	ConfigNameBox.Position = UDim2.new(0, 7, 0, 106)
 	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	ConfigNameBox.TextColor3 = Color3.fromRGB(255,255,255)
-	ConfigNameBox.PlaceholderText = "name config"
+	ConfigNameBox.TextColor3 = Color3.fromRGB(130,130,130)
+	ConfigNameBox.PlaceholderText = "---"
 	ConfigNameBox.PlaceholderColor3 = Color3.fromRGB(130,130,130)
 	ConfigNameBox.Font = Enum.Font.Gotham
 	ConfigNameBox.TextSize = 12
+	ConfigNameBox.TextXAlignment = Enum.TextXAlignment.Left
 	ConfigNameBox.Text = ""
 	ConfigNameBox.ClearTextOnFocus = false
-	ConfigNameBox.ZIndex = 8
+	ConfigNameBox.ZIndex = 41
 	ConfigNameBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", ConfigNameBox).CornerRadius = UDim.new(0, 9)
 	ConfigNameStroke = Instance.new("UIStroke")
 	ConfigNameStroke.Color = Color3.fromRGB(35,35,35)
 	ConfigNameStroke.Thickness = 1
-	ConfigNameStroke.Transparency = 0.15
+	ConfigNameStroke.Transparency = 0.08
 	ConfigNameStroke.Parent = ConfigNameBox
 	noTextStroke(ConfigNameBox)
 
-	CreateConfigButton = createSettingsButton(MobileSettingsPage, 136, "Create config")
+	CreateConfigButton = createSettingsButton(MobileSettingsPage, 148, "Create config")
+	CreateConfigButton.ZIndex = 41
 	CreateConfigButton.MouseButton1Click:Connect(function()
 		name = configSafeName(ConfigNameBox.Text)
 		if name == "" then
@@ -1988,65 +1989,60 @@ function buildMobileSettingsPage()
 		saveNamedConfig(name)
 		selectedConfigName = name
 		if ConfigSelectedButton then
-			ConfigSelectedButton.Text = name
+			ConfigSelectedButton.Text = "   " .. name
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 		end
 		showSettingsNotice("The configuration file " .. name .. " was created successfully.")
 	end)
 
-	createSettingsLabel(MobileSettingsPage, 178, "Config list")
-	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 206, "---")
+	ConfigListTitle = createSettingsLabel(MobileSettingsPage, 190, "Config list")
+	ConfigListTitle.ZIndex = 40
+
+	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 218, "   ---")
 	ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+	ConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Left
 	ConfigSelectedButton.ZIndex = 45
-	ConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Center
-	ConfigSelectedButton.AutoButtonColor = false
-	ConfigSelectedButton.MouseButton1Click:Connect(function()
-		return
-	end)
 
-	ConfigSelectedStroke = Instance.new("UIStroke")
-	ConfigSelectedStroke.Color = Color3.fromRGB(35,35,35)
-	ConfigSelectedStroke.Thickness = 1
-	ConfigSelectedStroke.Transparency = 0.08
-	ConfigSelectedStroke.Parent = ConfigSelectedButton
-
-	ConfigArrowButton = Instance.new("TextButton")
-	ConfigArrowButton.Size = UDim2.new(0, 34, 1, 0)
-	ConfigArrowButton.Position = UDim2.new(1, -38, 0, 0)
+	ConfigArrowButton = Instance.new("TextLabel")
+	ConfigArrowButton.Size = UDim2.new(0, 24, 1, 0)
+	ConfigArrowButton.Position = UDim2.new(1, -30, 0, 0)
 	ConfigArrowButton.BackgroundTransparency = 1
 	ConfigArrowButton.Text = "▲"
-	ConfigArrowButton.TextColor3 = Color3.fromRGB(180,180,180)
+	ConfigArrowButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigArrowButton.Font = Enum.Font.GothamBold
-	ConfigArrowButton.TextSize = 16
-	ConfigArrowButton.ZIndex = 92
-	ConfigArrowButton.AutoButtonColor = false
+	ConfigArrowButton.TextSize = 14
+	ConfigArrowButton.TextXAlignment = Enum.TextXAlignment.Center
+	ConfigArrowButton.ZIndex = 46
 	ConfigArrowButton.Parent = ConfigSelectedButton
 	noTextStroke(ConfigArrowButton)
 
-	ConfigArrowButton.MouseButton1Click:Connect(function()
-		configDropdownOpen = not configDropdownOpen
-		if ConfigDropdownFrame then
-			ConfigDropdownFrame.Visible = configDropdownOpen
-		end
-		ConfigArrowButton.Text = configDropdownOpen and "▼" or "▲"
-	end)
-
 	ConfigDropdownFrame = Instance.new("Frame")
-	ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 28)
-	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 240)
+	ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 44)
+	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 254)
 	ConfigDropdownFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigDropdownFrame.BorderSizePixel = 0
 	ConfigDropdownFrame.Visible = false
 	ConfigDropdownFrame.ZIndex = 85
 	ConfigDropdownFrame.Active = true
 	ConfigDropdownFrame.Parent = MobileSettingsPage
-	Instance.new("UICorner", ConfigDropdownFrame).CornerRadius = UDim.new(0, 9)
+	Instance.new("UICorner", ConfigDropdownFrame).CornerRadius = UDim.new(0, 12)
 	ConfigDropdownStroke = Instance.new("UIStroke")
 	ConfigDropdownStroke.Color = Color3.fromRGB(35,35,35)
 	ConfigDropdownStroke.Thickness = 1
 	ConfigDropdownStroke.Transparency = 0.08
 	ConfigDropdownStroke.Parent = ConfigDropdownFrame
 
-	LoadConfigButton = createSettingsButton(MobileSettingsPage, 270, "Load config")
+	ConfigSelectedButton.MouseButton1Click:Connect(function()
+		configDropdownOpen = not configDropdownOpen
+		if ConfigDropdownFrame then
+			ConfigDropdownFrame.Visible = configDropdownOpen
+		end
+		if ConfigArrowButton then
+			ConfigArrowButton.Text = configDropdownOpen and "▼" or "▲"
+		end
+	end)
+
+	LoadConfigButton = createSettingsButton(MobileSettingsPage, 264, "Load config")
 	LoadConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -2057,7 +2053,7 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	OverwriteConfigButton = createSettingsButton(MobileSettingsPage, 306, "Overwrite config")
+	OverwriteConfigButton = createSettingsButton(MobileSettingsPage, 302, "Overwrite config")
 	OverwriteConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -2067,7 +2063,7 @@ function buildMobileSettingsPage()
 		showSettingsNotice("The " .. selectedConfigName .. " config was overwritten successfully.")
 	end)
 
-	DeleteConfigButton = createSettingsButton(MobileSettingsPage, 342, "Delete config")
+	DeleteConfigButton = createSettingsButton(MobileSettingsPage, 340, "Delete config")
 	DeleteConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -2084,7 +2080,7 @@ function buildMobileSettingsPage()
 		refreshConfigList(true)
 	end)
 
-	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 414, "Set as autoload")
+	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 416, "Set as autoload")
 	SetAutoloadButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -2095,7 +2091,7 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	ResetAutoloadButton = createSettingsButton(MobileSettingsPage, 450, "Reset autoload")
+	ResetAutoloadButton = createSettingsButton(MobileSettingsPage, 454, "Reset autoload")
 	ResetAutoloadButton.MouseButton1Click:Connect(function()
 		if resetAutoloadConfig() then
 			showSettingsNotice("The autoload config has been reset successfully.")
@@ -2105,14 +2101,16 @@ function buildMobileSettingsPage()
 	end)
 
 	ConfigAutoloadLabel = Instance.new("TextLabel")
-	ConfigAutoloadLabel.Size = UDim2.new(1, -14, 0, 42)
-	ConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 490)
+	ConfigAutoloadLabel.Size = UDim2.new(1, -14, 0, 40)
+	ConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 494)
 	ConfigAutoloadLabel.BackgroundTransparency = 1
 	ConfigAutoloadLabel.TextColor3 = Color3.fromRGB(255,255,255)
-	ConfigAutoloadLabel.Font = Enum.Font.GothamBold
+	ConfigAutoloadLabel.Font = Enum.Font.Gotham
 	ConfigAutoloadLabel.TextSize = 12
 	ConfigAutoloadLabel.TextWrapped = true
 	ConfigAutoloadLabel.TextXAlignment = Enum.TextXAlignment.Left
+	ConfigAutoloadLabel.TextYAlignment = Enum.TextYAlignment.Top
+	ConfigAutoloadLabel.ZIndex = 40
 	ConfigAutoloadLabel.Parent = MobileSettingsPage
 	noTextStroke(ConfigAutoloadLabel)
 
@@ -2122,7 +2120,6 @@ function buildMobileSettingsPage()
 	updateSettingsInputs()
 	task.defer(loadAutoloadConfig)
 end
-
 
 local function buildMobileGui()
 	clearOldDragConnections()
