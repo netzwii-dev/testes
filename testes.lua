@@ -1,15 +1,6 @@
--- (Made by nyhito)
+-- Wallhop Script (Made by nyhito)
 -- All Credits: nyhito (tester, config and uploader)
--- The Best
--- Edited:
--- Added 3 flick modes: Normal Wallhop / Visual Wallhop / Console Wallhop
--- WALLHOP_COOLDOWN = 0.22
--- MIN_HIT_DISTANCE = 0.1
--- Normal flick: ida mais lenta e volta igual
--- Jump voltou para hum:ChangeState(Enum.HumanoidStateType.Jumping)
--- findValidWall offsets: -2.3, -2.2 e -2.1
--- Raycast distance: forward 1.20 / backward 1.20
--- Angle mantido em 25
+-- The Best Flee the Facility Script
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -50,7 +41,7 @@ end
 
 
 local DEFAULT_HIDE_GUI_KEY = Enum.KeyCode.RightShift
-local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Y
+local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Q
 local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.E
 local DEFAULT_TOGGLE_NON_SPAM_KEY = Enum.KeyCode.T
 local DEFAULT_TOGGLE_CORNER_WALK_KEY = Enum.KeyCode.R
