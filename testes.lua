@@ -1233,6 +1233,10 @@ switchPcTab = function(name)
 
 	PcTabFunctions.BackgroundColor3 = isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	PcTabFlicks.BackgroundColor3 = isFunctions and Color3.fromRGB(8,8,8) or Color3.fromRGB(20,20,20)
+
+	if MainFrame and MainFrame:FindFirstChild("PcFooter") then
+		MainFrame.PcFooter.Visible = isFunctions
+	end
 end
 
 switchMobileTab = function(name)
@@ -1405,9 +1409,9 @@ local function buildMobileGui()
 	MobileFlicksPage.Visible = false
 
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
-	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow")
-	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 130, "X-ray")
+	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 46, "Non-spam")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 88, "Corner Walk")
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 130, "Beast Slow")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -1797,7 +1801,7 @@ local function buildPCGui()
 	setTargetTransparency(MinimizeButton, 0, 0)
 
 	ToggleButton = Instance.new("TextButton")
-	ToggleButton.Size = UDim2.new(1, -36, 0, 32)
+	ToggleButton.Size = UDim2.new(1, -36, 0, 28)
 	ToggleButton.Position = UDim2.new(0, 18, 0, 90)
 	ToggleButton.BackgroundTransparency = 1
 	ToggleButton.Text = "Wall Hop Off"
@@ -1879,12 +1883,12 @@ local function buildPCGui()
 	setTargetTransparency(CornerWalkBindButton, 1, 0)
 
 	XrayBindButton = Instance.new("TextButton")
-	XrayBindButton.Size = UDim2.new(1, -36, 0, 24)
-	XrayBindButton.Position = UDim2.new(0, 18, 0, 122)
+	XrayBindButton.Size = UDim2.new(1, -36, 0, 22)
+	XrayBindButton.Position = UDim2.new(0, 18, 0, 118)
 	XrayBindButton.BackgroundTransparency = 1
 	XrayBindButton.TextColor3 = Color3.fromRGB(220,220,220)
 	XrayBindButton.Font = Enum.Font.GothamBold
-	XrayBindButton.TextSize = 16
+	XrayBindButton.TextSize = 15
 	XrayBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	XrayBindButton.AutoButtonColor = false
 	XrayBindButton.Parent = MainFrame
@@ -1911,6 +1915,7 @@ local function buildPCGui()
 	setTargetTransparency(PcCurrentUsingLabel, 1, 0)
 
 	local footer = Instance.new("TextLabel")
+	footer.Name = "PcFooter"
 	footer.Size = UDim2.new(1, -36, 0, 14)
 	footer.Position = UDim2.new(0, 18, 1, -20)
 	footer.BackgroundTransparency = 1
