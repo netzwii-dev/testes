@@ -143,7 +143,7 @@ local lastFlickTime = 0
 local isWallHopping = false
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
-local WALLHOP_COOLDOWN = 0.50
+local WALLHOP_COOLDOWN = 0.25
 
 local canDoubleJump = false
 local lastDoubleJump = 0
@@ -2145,6 +2145,7 @@ local function setupCharacter(char)
 		if new == Enum.HumanoidStateType.Landed then
 			canDoubleJump = false
 			lastHitPosition = nil
+			lastFlickTime = 0
 			airborneSource = nil
 			airborneStartY = nil
 			airborneStartTime = 0
@@ -3525,4 +3526,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility | Made by Nyhito - Loaded Ssssuccessfully ✅")
