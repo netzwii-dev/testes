@@ -83,9 +83,9 @@ local ToggleButton
 local HideGuiBindButton
 local ToggleBindButton
 local BeastSlowBindButton
-local NonSpamBindButton
 local CornerWalkBindButton
 local XrayBindButton
+local NonSpamPcButton
 local Notice
 local NoticeStroke
 
@@ -109,19 +109,19 @@ local MobileNoMoveWallhopRow
 local Mobile360WallhopRow
 local MobileConsoleWallhopRow
 local MobileBeastSlowRow
-local MobileNonSpamRow
 local MobileCornerWalkRow
 local MobileXrayRow
+local MobileNonSpamRow
 local MobileHideGuiRow
 
 local mobileBeastSlowSwitch
 local mobileBeastSlowKnob
-local mobileNonSpamSwitch
-local mobileNonSpamKnob
 local mobileCornerWalkSwitch
 local mobileCornerWalkKnob
 local mobileXraySwitch
 local mobileXrayKnob
+local mobileNonSpamSwitch
+local mobileNonSpamKnob
 local mobileHideGuiSwitch
 local mobileHideGuiKnob
 local mobileDragHandle
@@ -138,6 +138,7 @@ local applyVisibility
 local updateFlickButtons
 local switchPcTab
 local switchMobileTab
+local updateNonSpamUi
 
 local isWallHopEnabled = false
 local isSlowEnabled = false
@@ -969,9 +970,6 @@ updateMobilePanelButtons = function()
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
-	if MobileNonSpamRow and MobileNonSpamRow:FindFirstChild("Label") then
-		MobileNonSpamRow.Label.Text = "Non-spam"
-	end
 	if MobileNormalWallhopRow and MobileNormalWallhopRow:FindFirstChild("Label") then
 		MobileNormalWallhopRow.Label.Text = "Normal Wallhop"
 	end
@@ -989,7 +987,6 @@ updateMobilePanelButtons = function()
 	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
 	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
-	updateSwitchVisual(mobileNonSpamSwitch, mobileNonSpamKnob, isNonSpamEnabled)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
 	setMobileCornerWalkButtonVisible(mobileCornerWalkButtonVisible)
@@ -1011,9 +1008,6 @@ local function updateBindButtons()
 	end
 	if BeastSlowBindButton then
 		BeastSlowBindButton.Text = waitingForBeastSlowKey and "Press any key..." or ("Keybind Toggle Beast Slow: " .. toggleBeastSlowKey.Name)
-	end
-	if NonSpamBindButton then
-		NonSpamBindButton.Text = "Toggle Non-spam: " .. (isNonSpamEnabled and "On" or "Off") .. " | Key: " .. toggleNonSpamKey.Name
 	end
 	if CornerWalkBindButton then
 		CornerWalkBindButton.Text = waitingForCornerWalkKey and "Press any key..." or ("Keybind Toggle Corner Walk: " .. toggleCornerWalkKey.Name)
@@ -1278,7 +1272,13 @@ end
 
 local function setNonSpamEnabled(state)
 	isNonSpamEnabled = state and true or false
-	updateMobilePanelButtons()
+
+	if updateMobilePanelButtons then
+		updateMobilePanelButtons()
+	end
+	if updateNonSpamUi then
+		updateNonSpamUi()
+	end
 end
 
 local function setCornerWalkEnabled(state)
@@ -1366,7 +1366,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 324)
+	MobilePanel.Size = UDim2.new(0, 190, 0, 282)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1430,7 +1430,6 @@ local function buildMobileGui()
 	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow")
 	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 130, "X-ray")
-	MobileNonSpamRow, mobileNonSpamSwitch, mobileNonSpamKnob = createSwitchRow(MobileFunctionsPage, 172, "Non-spam")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -1602,9 +1601,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 316)
+			MobilePanel.Size = UDim2.new(0, 184, 0, 274)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 324), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 282), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1632,10 +1631,6 @@ local function buildMobileGui()
 
 	bindRowPress(MobileXrayRow, function()
 		setXrayEnabled(not isXrayEnabled)
-	end)
-
-	bindRowPress(MobileNonSpamRow, function()
-		setNonSpamEnabled(not isNonSpamEnabled)
 	end)
 
 	bindRowPress(MobileNormalWallhopRow, function()
@@ -1759,6 +1754,57 @@ local function createPcActionButton(parent, y, text)
 	noTextStroke(button)
 	setTargetTransparency(button, 0, 0)
 	return button
+end
+
+
+local function createNonSpamUiSafe()
+	pcall(function()
+		if selectedMode == "PC" and PcFunctionsPage and not NonSpamPcButton then
+			NonSpamPcButton = Instance.new("TextButton")
+			NonSpamPcButton.Size = UDim2.new(1, -36, 0, 22)
+			NonSpamPcButton.Position = UDim2.new(0, 18, 0, 139)
+			NonSpamPcButton.BackgroundTransparency = 1
+			NonSpamPcButton.TextColor3 = Color3.fromRGB(255,255,255)
+			NonSpamPcButton.Font = Enum.Font.Gotham
+			NonSpamPcButton.TextSize = 15
+			NonSpamPcButton.TextXAlignment = Enum.TextXAlignment.Left
+			NonSpamPcButton.AutoButtonColor = false
+			NonSpamPcButton.Parent = PcFunctionsPage
+			noTextStroke(NonSpamPcButton)
+			setTargetTransparency(NonSpamPcButton, 1, 0)
+
+			NonSpamPcButton.MouseButton1Click:Connect(function()
+				setNonSpamEnabled(not isNonSpamEnabled)
+				showNotice(isNonSpamEnabled and "Non-spam enabled" or "Non-spam disabled")
+			end)
+		end
+
+		if selectedMode == "Mobile" and MobileFunctionsPage and not MobileNonSpamRow then
+			MobileNonSpamRow, mobileNonSpamSwitch, mobileNonSpamKnob = createSwitchRow(MobileFunctionsPage, 172, "Non-spam")
+
+			bindRowPress(MobileNonSpamRow, function()
+				setNonSpamEnabled(not isNonSpamEnabled)
+			end)
+		end
+
+		if updateNonSpamUi then
+			updateNonSpamUi()
+		end
+	end)
+end
+
+updateNonSpamUi = function()
+	pcall(function()
+		if NonSpamPcButton then
+			NonSpamPcButton.Text = "Toggle Non-spam: " .. (isNonSpamEnabled and "On" or "Off") .. " | Key: " .. toggleNonSpamKey.Name
+		end
+
+		if MobileNonSpamRow and MobileNonSpamRow:FindFirstChild("Label") then
+			MobileNonSpamRow.Label.Text = "Non-spam"
+		end
+
+		updateSwitchVisual(mobileNonSpamSwitch, mobileNonSpamKnob, isNonSpamEnabled)
+	end)
 end
 
 local function buildPCGui()
@@ -1890,22 +1936,9 @@ local function buildPCGui()
 	noTextStroke(BeastSlowBindButton)
 	setTargetTransparency(BeastSlowBindButton, 1, 0)
 
-	NonSpamBindButton = Instance.new("TextButton")
-	NonSpamBindButton.Size = UDim2.new(1, -36, 0, 22)
-	NonSpamBindButton.Position = UDim2.new(0, 18, 0, 85)
-	NonSpamBindButton.BackgroundTransparency = 1
-	NonSpamBindButton.TextColor3 = Color3.fromRGB(255,255,255)
-	NonSpamBindButton.Font = Enum.Font.Gotham
-	NonSpamBindButton.TextSize = 15
-	NonSpamBindButton.TextXAlignment = Enum.TextXAlignment.Left
-	NonSpamBindButton.AutoButtonColor = false
-	NonSpamBindButton.Parent = PcFunctionsPage
-	noTextStroke(NonSpamBindButton)
-	setTargetTransparency(NonSpamBindButton, 1, 0)
-
 	CornerWalkBindButton = Instance.new("TextButton")
 	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 22)
-	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 112)
+	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 85)
 	CornerWalkBindButton.BackgroundTransparency = 1
 	CornerWalkBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	CornerWalkBindButton.Font = Enum.Font.Gotham
@@ -1918,7 +1951,7 @@ local function buildPCGui()
 
 	XrayBindButton = Instance.new("TextButton")
 	XrayBindButton.Size = UDim2.new(1, -36, 0, 22)
-	XrayBindButton.Position = UDim2.new(0, 18, 0, 139)
+	XrayBindButton.Position = UDim2.new(0, 18, 0, 112)
 	XrayBindButton.BackgroundTransparency = 1
 	XrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	XrayBindButton.Font = Enum.Font.Gotham
@@ -2043,11 +2076,6 @@ local function buildPCGui()
 		waitingForXrayKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
-	end)
-
-	NonSpamBindButton.MouseButton1Click:Connect(function()
-		setNonSpamEnabled(not isNonSpamEnabled)
-		showNotice(isNonSpamEnabled and "Non-spam enabled" or "Non-spam disabled")
 	end)
 
 	CornerWalkBindButton.MouseButton1Click:Connect(function()
@@ -3572,10 +3600,15 @@ createModeSelector(function(mode)
 		buildMobileGui()
 	end
 
+	createNonSpamUiSafe()
+
 	updateToggleButton()
 	updateMobilePanelButtons()
+	if updateNonSpamUi then
+		updateNonSpamUi()
+	end
 	updateFlickButtons()
 	applyVisibility()
 end)
 
-print("Best Flee Thhhe Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
