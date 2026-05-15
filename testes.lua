@@ -86,6 +86,7 @@ XrayBindButton = nil
 RealXrayBindButton = nil
 Notice = nil
 NoticeStroke = nil
+NoticeBar = nil
 
 PcTabFunctions = nil
 PcTabFlicks = nil
@@ -657,19 +658,25 @@ end
 
 local activeNoticeId = 0
 local function showNotice(text)
-	if selectedMode ~= "PC" or not Notice or not NoticeStroke then
+	if selectedMode ~= "PC" or not Notice or not NoticeStroke or not NoticeBar then
 		return
 	end
 
 	activeNoticeId += 1
 	local myId = activeNoticeId
+	local msg = tostring(text or "")
+	local noticeWidth = math.clamp(210 + (#msg * 4), 230, 460)
 
-	Notice.Text = text
+	Notice.Size = UDim2.new(0, noticeWidth, 0, 30)
+	Notice.Text = msg
 	Notice.Visible = true
-	Notice.Position = UDim2.new(1, -14, 0, 14)
+	Notice.Position = UDim2.new(1, noticeWidth + 20, 0, 14)
 	Notice.BackgroundTransparency = 1
 	Notice.TextTransparency = 1
 	NoticeStroke.Transparency = 1
+	NoticeBar.BackgroundTransparency = 0
+	NoticeBar.Size = UDim2.new(1, -12, 0, 2)
+	NoticeBar.Position = UDim2.new(0, 6, 1, -4)
 
 	TweenService:Create(Notice, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 		BackgroundTransparency = 0.08,
@@ -681,7 +688,12 @@ local function showNotice(text)
 		Transparency = 0.9
 	}):Play()
 
-	task.delay(1, function()
+	TweenService:Create(NoticeBar, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+		Size = UDim2.new(0, 0, 0, 2),
+		Position = UDim2.new(1, -6, 1, -4)
+	}):Play()
+
+	task.delay(2, function()
 		if myId ~= activeNoticeId then
 			return
 		end
@@ -689,14 +701,18 @@ local function showNotice(text)
 		TweenService:Create(Notice, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
 			BackgroundTransparency = 1,
 			TextTransparency = 1,
-			Position = UDim2.new(1, 220, 0, 14)
+			Position = UDim2.new(1, noticeWidth + 20, 0, 14)
 		}):Play()
 
 		TweenService:Create(NoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 			Transparency = 1
 		}):Play()
 
-		task.delay(0.22, function()
+		TweenService:Create(NoticeBar, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			BackgroundTransparency = 1
+		}):Play()
+
+		task.delay(0.25, function()
 			if myId == activeNoticeId then
 				Notice.Visible = false
 			end
@@ -1277,7 +1293,7 @@ switchPcTab = function(name)
 	end
 
 	if MainFrame and MainFrame:FindFirstChild("PcFooter") then
-		MainFrame.PcFooter.Visible = isFunctions or isFlicks
+		MainFrame.PcFooter.Visible = isFunctions
 	end
 end
 
@@ -1303,7 +1319,7 @@ switchMobileTab = function(name)
 	end
 
 	if MobilePanel and MobilePanel:FindFirstChild("MobileFooter") then
-		MobilePanel.MobileFooter.Visible = not mobileIsSettings
+		MobilePanel.MobileFooter.Visible = mobileIsFunctions
 	end
 end
 
@@ -3026,7 +3042,7 @@ local function buildPCGui()
 	setTargetTransparency(MiniButton, 0, 0)
 
 	Notice = Instance.new("TextLabel")
-	Notice.Size = UDim2.new(0, 200, 0, 26)
+	Notice.Size = UDim2.new(0, 230, 0, 30)
 	Notice.Position = UDim2.new(1, -14, 0, 14)
 	Notice.AnchorPoint = Vector2.new(1, 0)
 	Notice.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -3034,12 +3050,32 @@ local function buildPCGui()
 	Notice.TextColor3 = Color3.fromRGB(255,255,255)
 	Notice.TextTransparency = 1
 	Notice.Font = Enum.Font.GothamBold
-	Notice.TextSize = 13
+	Notice.TextSize = 11
+	Notice.TextWrapped = false
+	Notice.TextXAlignment = Enum.TextXAlignment.Left
+	Notice.TextYAlignment = Enum.TextYAlignment.Center
+	Notice.ClipsDescendants = true
+	Notice.ZIndex = 90
 	Notice.Visible = false
 	Notice.Parent = ScreenGui
 	Instance.new("UICorner", Notice).CornerRadius = UDim.new(0, 10)
+	local noticePadding = Instance.new("UIPadding")
+	noticePadding.PaddingLeft = UDim.new(0, 8)
+	noticePadding.PaddingRight = UDim.new(0, 8)
+	noticePadding.PaddingTop = UDim.new(0, 2)
+	noticePadding.Parent = Notice
 	noTextStroke(Notice)
 	setTargetTransparency(Notice, 0.08, 0)
+
+	NoticeBar = Instance.new("Frame")
+	NoticeBar.Size = UDim2.new(1, -12, 0, 2)
+	NoticeBar.Position = UDim2.new(0, 6, 1, -4)
+	NoticeBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+	NoticeBar.BackgroundTransparency = 0
+	NoticeBar.BorderSizePixel = 0
+	NoticeBar.ZIndex = 91
+	NoticeBar.Parent = Notice
+	Instance.new("UICorner", NoticeBar).CornerRadius = UDim.new(1, 0)
 
 	NoticeStroke = Instance.new("UIStroke")
 	NoticeStroke.Color = Color3.fromRGB(255,255,255)
