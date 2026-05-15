@@ -143,7 +143,7 @@ local lastFlickTime = 0
 local isWallHopping = false
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
-local WALLHOP_COOLDOWN = 0.50 -- tempo mínimo entre wallhops
+local WALLHOP_COOLDOWN = 0.50
 
 local canDoubleJump = false
 local lastDoubleJump = 0
