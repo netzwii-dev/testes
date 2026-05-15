@@ -1328,6 +1328,8 @@ function showSettingsNotice(message)
 
 		if SettingsNoticeFrame and SettingsNoticeFrame.Parent then
 			oldNoticeFrame = SettingsNoticeFrame
+			SettingsNoticeFrame = nil
+
 			pcall(function()
 				TweenService:Create(oldNoticeFrame, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					BackgroundTransparency = 1,
@@ -1471,7 +1473,16 @@ end
 function getCurrentConfigPayload()
 	return {
 		xrayOpacityValue = tonumber(xrayOpacityValue) or 60,
-		nonSpamValue = tonumber(nonSpamValue) or 50
+		nonSpamValue = tonumber(nonSpamValue) or 50,
+		currentFlickMode = currentFlickMode,
+		isWallHopEnabled = isWallHopEnabled,
+		isSlowEnabled = isSlowEnabled,
+		isCornerWalkEnabled = isCornerWalkEnabled,
+		realXrayEnabled = realXrayEnabled,
+		isNonSpamEnabled = isXrayEnabled,
+		mobileWallhopGuiHidden = mobileWallhopGuiHidden,
+		mobileCornerWalkButtonVisible = mobileCornerWalkButtonVisible,
+		mobileBeastSlowButtonVisible = mobileBeastSlowButtonVisible
 	}
 end
 
@@ -1487,15 +1498,44 @@ function applyConfigPayload(payload)
 		nonSpamValue = math.clamp(math.floor(tonumber(payload.nonSpamValue)), 10, 99)
 	end
 
-	if isXrayEnabled then
-		WALLHOP_COOLDOWN = (tonumber(nonSpamValue) or 50) / 100
+	if type(payload.currentFlickMode) == "string" then
+		setFlickMode(payload.currentFlickMode)
 	end
 
-	if realXrayEnabled then
+	if type(payload.isWallHopEnabled) == "boolean" then
+		isWallHopEnabled = payload.isWallHopEnabled
+	end
+	if type(payload.isSlowEnabled) == "boolean" then
+		setSlowEnabled(payload.isSlowEnabled)
+	end
+	if type(payload.isCornerWalkEnabled) == "boolean" then
+		setCornerWalkEnabled(payload.isCornerWalkEnabled)
+	end
+	if type(payload.mobileWallhopGuiHidden) == "boolean" then
+		setMobileGuiHidden(payload.mobileWallhopGuiHidden)
+	end
+	if type(payload.mobileCornerWalkButtonVisible) == "boolean" then
+		setMobileCornerWalkButtonState(payload.mobileCornerWalkButtonVisible)
+	end
+	if type(payload.mobileBeastSlowButtonVisible) == "boolean" then
+		setMobileBeastSlowButtonState(payload.mobileBeastSlowButtonVisible)
+	end
+
+	if type(payload.isNonSpamEnabled) == "boolean" then
+		isXrayEnabled = payload.isNonSpamEnabled
+	end
+	WALLHOP_COOLDOWN = isXrayEnabled and ((tonumber(nonSpamValue) or 50) / 100) or 0
+
+	if type(payload.realXrayEnabled) == "boolean" then
+		setXrayEnabled(payload.realXrayEnabled)
+	elseif realXrayEnabled then
 		clearXray()
 		applyXray()
 	end
 
+	updateToggleButton()
+	updateMobilePanelButtons()
+	updateFlickButtons()
 	updateSettingsInputs()
 end
 
@@ -1640,18 +1680,42 @@ function refreshConfigList(showMessage)
 		end
 
 		configY = 0
-		configCount = 0
+
+		ConfigNoneButton = Instance.new("TextButton")
+		ConfigNoneButton.Size = UDim2.new(1, 0, 0, 30)
+		ConfigNoneButton.Position = UDim2.new(0, 0, 0, configY)
+		ConfigNoneButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+		ConfigNoneButton.Text = "---"
+		ConfigNoneButton.TextColor3 = Color3.fromRGB(130,130,130)
+		ConfigNoneButton.Font = Enum.Font.GothamBold
+		ConfigNoneButton.TextSize = 12
+		ConfigNoneButton.AutoButtonColor = false
+		ConfigNoneButton.ZIndex = 60
+		ConfigNoneButton.Parent = ConfigDropdownFrame
+		noTextStroke(ConfigNoneButton)
+		ConfigNoneButton.MouseButton1Click:Connect(function()
+			selectedConfigName = "---"
+			if ConfigSelectedButton then
+				ConfigSelectedButton.Text = "---"
+				ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+			end
+			configDropdownOpen = false
+			ConfigDropdownFrame.Visible = false
+		end)
+
+		configY += 32
+
 		for name, _ in pairs(wallhopConfigs) do
-			configCount += 1
 			ConfigOptionButton = Instance.new("TextButton")
-			ConfigOptionButton.Size = UDim2.new(1, 0, 0, 26)
+			ConfigOptionButton.Size = UDim2.new(1, 0, 0, 30)
 			ConfigOptionButton.Position = UDim2.new(0, 0, 0, configY)
-			ConfigOptionButton.BackgroundColor3 = Color3.fromRGB(8,8,8)
+			ConfigOptionButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
 			ConfigOptionButton.Text = name
 			ConfigOptionButton.TextColor3 = Color3.fromRGB(255,255,255)
 			ConfigOptionButton.Font = Enum.Font.GothamBold
 			ConfigOptionButton.TextSize = 12
 			ConfigOptionButton.AutoButtonColor = false
+			ConfigOptionButton.ZIndex = 60
 			ConfigOptionButton.Parent = ConfigDropdownFrame
 			noTextStroke(ConfigOptionButton)
 
@@ -1659,15 +1723,16 @@ function refreshConfigList(showMessage)
 				selectedConfigName = name
 				if ConfigSelectedButton then
 					ConfigSelectedButton.Text = selectedConfigName
+					ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 				end
 				configDropdownOpen = false
 				ConfigDropdownFrame.Visible = false
 			end)
 
-			configY += 28
+			configY += 32
 		end
 
-		ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, math.max(28, math.min(configY, 112)))
+		ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, math.max(32, math.min(configY, 160)))
 	end
 
 	if ConfigSelectedButton then
@@ -1747,7 +1812,6 @@ function createSettingsLabel(parent, y, textValue)
 	SettingsLabel.ZIndex = 30
 	SettingsLabel.Parent = parent
 	noTextStroke(SettingsLabel)
-	setTargetTransparency(SettingsLabel, 1, 0)
 	return SettingsLabel
 end
 
@@ -1860,6 +1924,8 @@ function buildMobileSettingsPage()
 
 	createSettingsLabel(MobileSettingsPage, 192, "Config list")
 	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 220, "---")
+	ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+	ConfigSelectedButton.ZIndex = 45
 	ConfigSelectedButton.MouseButton1Click:Connect(function()
 		configDropdownOpen = not configDropdownOpen
 		if ConfigDropdownFrame then
@@ -1873,6 +1939,8 @@ function buildMobileSettingsPage()
 	ConfigDropdownFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigDropdownFrame.BorderSizePixel = 0
 	ConfigDropdownFrame.Visible = false
+	ConfigDropdownFrame.ZIndex = 55
+	ConfigDropdownFrame.Active = true
 	ConfigDropdownFrame.Parent = MobileSettingsPage
 	Instance.new("UICorner", ConfigDropdownFrame).CornerRadius = UDim.new(0, 9)
 
@@ -1948,7 +2016,7 @@ function buildMobileSettingsPage()
 
 	refreshConfigList(false)
 	updateSettingsInputs()
-	loadAutoloadConfig()
+	task.defer(loadAutoloadConfig)
 end
 
 
@@ -2119,14 +2187,16 @@ local function buildMobileGui()
 
 	local mobileFooter = Instance.new("TextLabel")
 	mobileFooter.Name = "MobileFooter"
-	mobileFooter.Size = UDim2.new(1, -14, 0, 16)
-	mobileFooter.Position = UDim2.new(0, 7, 1, -18)
-	mobileFooter.BackgroundTransparency = 1
+	mobileFooter.Size = UDim2.new(1, 0, 0, 28)
+	mobileFooter.Position = UDim2.new(0, 0, 1, -28)
+	mobileFooter.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	mobileFooter.BackgroundTransparency = 0
 	mobileFooter.Text = "the best flee the facility wallhop script"
 	mobileFooter.TextColor3 = Color3.fromRGB(95,95,95)
 	mobileFooter.Font = Enum.Font.Gotham
 	mobileFooter.TextSize = 10
 	mobileFooter.TextXAlignment = Enum.TextXAlignment.Left
+	mobileFooter.ZIndex = 80
 	mobileFooter.Parent = MobilePanel
 	noTextStroke(mobileFooter)
 	setTargetTransparency(mobileFooter, 1, 0)
