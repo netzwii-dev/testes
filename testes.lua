@@ -1744,6 +1744,7 @@ function refreshConfigList(showMessage)
 			ConfigOptionStroke.Transparency = 0.08
 			ConfigOptionStroke.Parent = ConfigOption
 			noTextStroke(ConfigOption)
+			addSettingsPressEffect(ConfigOption)
 			ConfigOption.MouseButton1Click:Connect(onClick)
 			return ConfigOption
 		end
@@ -1757,7 +1758,7 @@ function refreshConfigList(showMessage)
 			configDropdownOpen = false
 			ConfigDropdownFrame.Visible = false
 			if ConfigArrowButton then
-				ConfigArrowButton.Text = "▲"
+				ConfigArrowButton.Text = "⌃"
 			end
 		end)
 
@@ -1779,14 +1780,19 @@ function refreshConfigList(showMessage)
 				configDropdownOpen = false
 				ConfigDropdownFrame.Visible = false
 				if ConfigArrowButton then
-					ConfigArrowButton.Text = "▲"
+					ConfigArrowButton.Text = "⌃"
 				end
 			end)
 		end
 
-		visibleRows = math.max(1, math.min(#configNames + 1, 4))
-		ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 12 + (visibleRows * 32) + ((visibleRows - 1) * 6))
-		ConfigDropdownFrame.CanvasSize = nil
+		totalRows = #configNames + 1
+		visibleRows = math.max(1, math.min(totalRows, 4))
+		visibleHeight = 12 + (visibleRows * 32) + ((visibleRows - 1) * 6)
+		contentHeight = 12 + (totalRows * 32) + ((totalRows - 1) * 6)
+		ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, visibleHeight)
+		ConfigDropdownFrame.CanvasSize = UDim2.new(0, 0, 0, contentHeight)
+		ConfigDropdownFrame.ScrollBarImageColor3 = Color3.fromRGB(160,160,160)
+		ConfigDropdownFrame.CanvasPosition = Vector2.new(0, 0)
 	end
 
 	if ConfigSelectedButton then
@@ -1799,7 +1805,7 @@ function refreshConfigList(showMessage)
 		end
 	end
 	if ConfigArrowButton then
-		ConfigArrowButton.Text = configDropdownOpen and "▼" or "▲"
+		ConfigArrowButton.Text = configDropdownOpen and "⌄" or "⌃"
 	end
 
 	if showMessage then
@@ -1833,6 +1839,13 @@ function updateSettingsInputs()
 	end
 	if ConfigArrowButton then
 		ConfigArrowButton.TextTransparency = 0
+		ConfigArrowButton.Visible = true
+	end
+	for _, lbl in ipairs({SettingsXrayTitle, SettingsNonSpamTitle, ConfigNameTitle, ConfigListTitle, ConfigAutoloadLabel}) do
+		if lbl then
+			lbl.TextTransparency = 0
+			lbl.Visible = true
+		end
 	end
 	updateAutoloadLabel()
 end
@@ -1893,6 +1906,63 @@ function createSettingsLabel(parent, y, textValue)
 	return SettingsLabel
 end
 
+function addSettingsPressEffect(button)
+	if not button then
+		return
+	end
+
+	local pressOverlay = Instance.new("Frame")
+	pressOverlay.Name = "PressOverlay"
+	pressOverlay.Size = UDim2.new(1, 0, 1, 0)
+	pressOverlay.Position = UDim2.new(0, 0, 0, 0)
+	pressOverlay.BackgroundColor3 = Color3.fromRGB(255,255,255)
+	pressOverlay.BackgroundTransparency = 1
+	pressOverlay.BorderSizePixel = 0
+	pressOverlay.ZIndex = button.ZIndex + 1
+	pressOverlay.Active = false
+	pressOverlay.Parent = button
+	Instance.new("UICorner", pressOverlay).CornerRadius = UDim.new(0, 10)
+
+	local pressing = false
+	local function setOverlay(alpha)
+		pcall(function()
+			TweenService:Create(pressOverlay, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				BackgroundTransparency = alpha
+			}):Play()
+		end)
+	end
+
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			pressing = true
+			setOverlay(0.82)
+		end
+	end)
+
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			pressing = false
+			setOverlay(1)
+		end
+	end)
+
+	button.MouseLeave:Connect(function()
+		if pressing then
+			pressing = false
+			setOverlay(1)
+		end
+	end)
+
+	button.Activated:Connect(function()
+		setOverlay(0.82)
+		task.delay(0.08, function()
+			if pressOverlay and pressOverlay.Parent then
+				setOverlay(1)
+			end
+		end)
+	end)
+end
+
 function createSettingsButton(parent, y, textValue)
 	SettingsButton = Instance.new("TextButton")
 	SettingsButton.Size = UDim2.new(1, -14, 0, 32)
@@ -1913,6 +1983,7 @@ function createSettingsButton(parent, y, textValue)
 	SettingsButtonStroke.Parent = SettingsButton
 	noTextStroke(SettingsButton)
 	setTargetTransparency(SettingsButton, 0, 0)
+	addSettingsPressEffect(SettingsButton)
 	return SettingsButton
 end
 
@@ -1929,6 +2000,7 @@ function buildMobileSettingsPage()
 
 	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 6, "X-ray Opacity")
 	SettingsXrayTitle.ZIndex = 40
+	SettingsXrayTitle.TextTransparency = 0
 	setTargetTransparency(SettingsXrayTitle, 1, 0)
 
 	SettingsXrayBox = Instance.new("TextBox")
@@ -1953,6 +2025,7 @@ function buildMobileSettingsPage()
 
 	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam Settings")
 	SettingsNonSpamTitle.ZIndex = 40
+	SettingsNonSpamTitle.TextTransparency = 0
 	setTargetTransparency(SettingsNonSpamTitle, 1, 0)
 
 	SettingsNonSpamBox = Instance.new("TextBox")
@@ -1977,6 +2050,7 @@ function buildMobileSettingsPage()
 
 	ConfigNameTitle = createSettingsLabel(MobileSettingsPage, 80, "Config name")
 	ConfigNameTitle.ZIndex = 40
+	ConfigNameTitle.TextTransparency = 0
 	setTargetTransparency(ConfigNameTitle, 1, 0)
 
 	ConfigNameBox = Instance.new("TextBox")
@@ -2020,6 +2094,7 @@ function buildMobileSettingsPage()
 
 	ConfigListTitle = createSettingsLabel(MobileSettingsPage, 190, "Config list")
 	ConfigListTitle.ZIndex = 40
+	ConfigListTitle.TextTransparency = 0
 	setTargetTransparency(ConfigListTitle, 1, 0)
 
 	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 218, "   ---")
@@ -2031,7 +2106,7 @@ function buildMobileSettingsPage()
 	ConfigArrowButton.Size = UDim2.new(0, 24, 1, 0)
 	ConfigArrowButton.Position = UDim2.new(1, -30, 0, 0)
 	ConfigArrowButton.BackgroundTransparency = 1
-	ConfigArrowButton.Text = "▲"
+	ConfigArrowButton.Text = "⌃"
 	ConfigArrowButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigArrowButton.TextTransparency = 0
 	ConfigArrowButton.Font = Enum.Font.GothamBold
@@ -2042,7 +2117,7 @@ function buildMobileSettingsPage()
 	noTextStroke(ConfigArrowButton)
 	setTargetTransparency(ConfigArrowButton, 1, 0)
 
-	ConfigDropdownFrame = Instance.new("Frame")
+	ConfigDropdownFrame = Instance.new("ScrollingFrame")
 	ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 44)
 	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 254)
 	ConfigDropdownFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
@@ -2050,6 +2125,10 @@ function buildMobileSettingsPage()
 	ConfigDropdownFrame.Visible = false
 	ConfigDropdownFrame.ZIndex = 85
 	ConfigDropdownFrame.Active = true
+	ConfigDropdownFrame.ScrollBarThickness = 3
+	ConfigDropdownFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+	ConfigDropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 44)
+	ConfigDropdownFrame.AutomaticCanvasSize = Enum.AutomaticSize.None
 	ConfigDropdownFrame.Parent = MobileSettingsPage
 	Instance.new("UICorner", ConfigDropdownFrame).CornerRadius = UDim.new(0, 12)
 	ConfigDropdownStroke = Instance.new("UIStroke")
@@ -2062,9 +2141,10 @@ function buildMobileSettingsPage()
 		configDropdownOpen = not configDropdownOpen
 		if ConfigDropdownFrame then
 			ConfigDropdownFrame.Visible = configDropdownOpen
+			ConfigDropdownFrame.CanvasPosition = Vector2.new(0, 0)
 		end
 		if ConfigArrowButton then
-			ConfigArrowButton.Text = configDropdownOpen and "▼" or "▲"
+			ConfigArrowButton.Text = configDropdownOpen and "⌄" or "⌃"
 		end
 	end)
 
@@ -2103,7 +2183,8 @@ function buildMobileSettingsPage()
 
 	RefreshConfigButton = createSettingsButton(MobileSettingsPage, 378, "Refresh list")
 	RefreshConfigButton.MouseButton1Click:Connect(function()
-		refreshConfigList(true)
+		refreshConfigList(false)
+		showSettingsNotice("All the config list has been refreshed successfully.")
 	end)
 
 	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 416, "Set as autoload")
@@ -2138,6 +2219,7 @@ function buildMobileSettingsPage()
 	ConfigAutoloadLabel.TextYAlignment = Enum.TextYAlignment.Top
 	ConfigAutoloadLabel.ZIndex = 40
 	ConfigAutoloadLabel.Parent = MobileSettingsPage
+	ConfigAutoloadLabel.TextTransparency = 0
 	noTextStroke(ConfigAutoloadLabel)
 	setTargetTransparency(ConfigAutoloadLabel, 1, 0)
 
@@ -2212,7 +2294,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 324)
+	MobilePanel.Size = UDim2.new(0, 198, 0, 324)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
