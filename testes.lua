@@ -89,9 +89,15 @@ NoticeStroke = nil
 
 PcTabFunctions = nil
 PcTabFlicks = nil
+PcTabSettings = nil
 PcFunctionsPage = nil
 PcFlicksPage = nil
+PcSettingsPage = nil
 PcCurrentUsingLabel = nil
+PcSettingsXrayTitle = nil
+PcSettingsNonSpamTitle = nil
+PcSettingsXrayBox = nil
+PcSettingsNonSpamBox = nil
 PcNormalWallhopButton = nil
 PcNoMoveWallhopButton = nil
 Pc360WallhopButton = nil
@@ -1250,20 +1256,28 @@ local function bindFreeDrag(handle, target, onMove, holdTime)
 end
 
 switchPcTab = function(name)
-	if not PcFunctionsPage or not PcFlicksPage or not PcTabFunctions or not PcTabFlicks then
+	if not PcFunctionsPage or not PcFlicksPage or not PcSettingsPage or not PcTabFunctions or not PcTabFlicks or not PcTabSettings then
 		return
 	end
 
 	local isFunctions = name == "Functions"
+	local isFlicks = name == "Flicks"
+	local isSettings = name == "Settings"
 
 	PcFunctionsPage.Visible = isFunctions
-	PcFlicksPage.Visible = not isFunctions
+	PcFlicksPage.Visible = isFlicks
+	PcSettingsPage.Visible = isSettings
 
 	PcTabFunctions.BackgroundColor3 = isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
-	PcTabFlicks.BackgroundColor3 = isFunctions and Color3.fromRGB(8,8,8) or Color3.fromRGB(20,20,20)
+	PcTabFlicks.BackgroundColor3 = isFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	PcTabSettings.BackgroundColor3 = isSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+
+	if isSettings then
+		updateSettingsInputs()
+	end
 
 	if MainFrame and MainFrame:FindFirstChild("PcFooter") then
-		MainFrame.PcFooter.Visible = isFunctions
+		MainFrame.PcFooter.Visible = isFunctions or isFlicks
 	end
 end
 
@@ -1824,10 +1838,20 @@ function updateSettingsInputs()
 		SettingsXrayBox.TextTransparency = 0
 		SettingsXrayBox.BackgroundTransparency = 0
 	end
+	if PcSettingsXrayBox then
+		PcSettingsXrayBox.Text = tostring(math.floor(tonumber(xrayOpacityValue) or 60))
+		PcSettingsXrayBox.TextTransparency = 0
+		PcSettingsXrayBox.BackgroundTransparency = 0
+	end
 	if SettingsNonSpamBox then
 		SettingsNonSpamBox.Text = tostring(math.floor(tonumber(nonSpamValue) or 50))
 		SettingsNonSpamBox.TextTransparency = 0
 		SettingsNonSpamBox.BackgroundTransparency = 0
+	end
+	if PcSettingsNonSpamBox then
+		PcSettingsNonSpamBox.Text = tostring(math.floor(tonumber(nonSpamValue) or 50))
+		PcSettingsNonSpamBox.TextTransparency = 0
+		PcSettingsNonSpamBox.BackgroundTransparency = 0
 	end
 	if ConfigNameBox then
 		ConfigNameBox.TextTransparency = 0
@@ -1841,7 +1865,7 @@ function updateSettingsInputs()
 		ConfigArrowButton.TextTransparency = 0
 		ConfigArrowButton.Visible = true
 	end
-	for _, lbl in ipairs({SettingsXrayTitle, SettingsNonSpamTitle, ConfigNameTitle, ConfigListTitle, ConfigAutoloadLabel}) do
+	for _, lbl in ipairs({SettingsXrayTitle, SettingsNonSpamTitle, PcSettingsXrayTitle, PcSettingsNonSpamTitle, ConfigNameTitle, ConfigListTitle, ConfigAutoloadLabel}) do
 		if lbl then
 			lbl.TextTransparency = 0
 			lbl.Visible = true
@@ -1850,8 +1874,9 @@ function updateSettingsInputs()
 	updateAutoloadLabel()
 end
 
-function applyXraySettingFromBox()
-	value = tonumber(SettingsXrayBox and SettingsXrayBox.Text or "")
+function applyXraySettingFromBox(sourceBox)
+	local activeBox = sourceBox or SettingsXrayBox or PcSettingsXrayBox
+	value = tonumber(activeBox and activeBox.Text or "")
 	if not value or value < 0 or value > 100 then
 		showSettingsNotice("Minimum value is 0 and the maximum value is 100.")
 		updateSettingsInputs()
@@ -1869,8 +1894,9 @@ function applyXraySettingFromBox()
 	showSettingsNotice("X-ray value changed successfully.")
 end
 
-function applyNonSpamSettingFromBox()
-	value = tonumber(SettingsNonSpamBox and SettingsNonSpamBox.Text or "")
+function applyNonSpamSettingFromBox(sourceBox)
+	local activeBox = sourceBox or SettingsNonSpamBox or PcSettingsNonSpamBox
+	value = tonumber(activeBox and activeBox.Text or "")
 	if not value or value < 10 or value > 99 then
 		showSettingsNotice("Minimum value is 10 and the maximum value is 99.")
 		updateSettingsInputs()
@@ -1998,7 +2024,7 @@ function buildMobileSettingsPage()
 	MobileSettingsPage.Visible = false
 	MobileSettingsPage.Parent = MobilePanel
 
-	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 6, "X-ray Opacity")
+	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 6, "Xray Opacity")
 	SettingsXrayTitle.ZIndex = 40
 	SettingsXrayTitle.TextTransparency = 0
 	setTargetTransparency(SettingsXrayTitle, 1, 0)
@@ -2021,7 +2047,9 @@ function buildMobileSettingsPage()
 	SettingsXrayStroke.Transparency = 0.08
 	SettingsXrayStroke.Parent = SettingsXrayBox
 	noTextStroke(SettingsXrayBox)
-	SettingsXrayBox.FocusLost:Connect(applyXraySettingFromBox)
+	SettingsXrayBox.FocusLost:Connect(function()
+		applyXraySettingFromBox(SettingsXrayBox)
+	end)
 
 	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam Setting")
 	SettingsNonSpamTitle.ZIndex = 40
@@ -2046,7 +2074,9 @@ function buildMobileSettingsPage()
 	SettingsNonSpamStroke.Transparency = 0.08
 	SettingsNonSpamStroke.Parent = SettingsNonSpamBox
 	noTextStroke(SettingsNonSpamBox)
-	SettingsNonSpamBox.FocusLost:Connect(applyNonSpamSettingFromBox)
+	SettingsNonSpamBox.FocusLost:Connect(function()
+		applyNonSpamSettingFromBox(SettingsNonSpamBox)
+	end)
 
 	ConfigNameTitle = createSettingsLabel(MobileSettingsPage, 80, "Config name")
 	ConfigNameTitle.ZIndex = 40
@@ -2397,10 +2427,9 @@ local function buildMobileGui()
 
 	local mobileFooter = Instance.new("TextLabel")
 	mobileFooter.Name = "MobileFooter"
-	mobileFooter.Size = UDim2.new(1, 0, 0, 34)
-	mobileFooter.Position = UDim2.new(0, 0, 1, -34)
-	mobileFooter.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	mobileFooter.BackgroundTransparency = 0
+	mobileFooter.Size = UDim2.new(1, -14, 0, 14)
+	mobileFooter.Position = UDim2.new(0, 7, 1, -18)
+	mobileFooter.BackgroundTransparency = 1
 	mobileFooter.Text = "the best flee the facility wallhop script"
 	mobileFooter.TextColor3 = Color3.fromRGB(95,95,95)
 	mobileFooter.Font = Enum.Font.Gotham
@@ -2789,6 +2818,7 @@ local function buildPCGui()
 
 	PcTabFunctions = createPcTabButton(MainFrame, 18, "Functions")
 	PcTabFlicks = createPcTabButton(MainFrame, 120, "Flicks")
+	PcTabSettings = createPcTabButton(MainFrame, 222, "Settings")
 
 	PcFunctionsPage = Instance.new("Frame")
 	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -150)
@@ -2802,6 +2832,13 @@ local function buildPCGui()
 	PcFlicksPage.BackgroundTransparency = 1
 	PcFlicksPage.Visible = false
 	PcFlicksPage.Parent = MainFrame
+
+	PcSettingsPage = Instance.new("Frame")
+	PcSettingsPage.Size = UDim2.new(1, 0, 1, -150)
+	PcSettingsPage.Position = UDim2.new(0, 0, 0, 148)
+	PcSettingsPage.BackgroundTransparency = 1
+	PcSettingsPage.Visible = false
+	PcSettingsPage.Parent = MainFrame
 
 	HideGuiBindButton = Instance.new("TextButton")
 	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 22)
@@ -2880,6 +2917,64 @@ local function buildPCGui()
 	RealXrayBindButton.Parent = PcFunctionsPage
 	noTextStroke(RealXrayBindButton)
 	setTargetTransparency(RealXrayBindButton, 1, 0)
+
+	PcSettingsXrayTitle = createSettingsLabel(PcSettingsPage, 6, "Xray Opacity")
+	PcSettingsXrayTitle.TextSize = 15
+	PcSettingsXrayTitle.ZIndex = 40
+	PcSettingsXrayTitle.TextTransparency = 0
+	setTargetTransparency(PcSettingsXrayTitle, 1, 0)
+
+	PcSettingsXrayBox = Instance.new("TextBox")
+	PcSettingsXrayBox.Size = UDim2.new(0, 62, 0, 28)
+	PcSettingsXrayBox.Position = UDim2.new(1, -80, 0, 4)
+	PcSettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	PcSettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
+	PcSettingsXrayBox.Font = Enum.Font.GothamBold
+	PcSettingsXrayBox.TextSize = 13
+	PcSettingsXrayBox.Text = tostring(xrayOpacityValue)
+	PcSettingsXrayBox.ClearTextOnFocus = false
+	PcSettingsXrayBox.ZIndex = 41
+	PcSettingsXrayBox.Parent = PcSettingsPage
+	Instance.new("UICorner", PcSettingsXrayBox).CornerRadius = UDim.new(0, 8)
+	local PcSettingsXrayStroke = Instance.new("UIStroke")
+	PcSettingsXrayStroke.Color = Color3.fromRGB(35,35,35)
+	PcSettingsXrayStroke.Thickness = 1
+	PcSettingsXrayStroke.Transparency = 0.08
+	PcSettingsXrayStroke.Parent = PcSettingsXrayBox
+	noTextStroke(PcSettingsXrayBox)
+	setTargetTransparency(PcSettingsXrayBox, 0, 0)
+	PcSettingsXrayBox.FocusLost:Connect(function()
+		applyXraySettingFromBox(PcSettingsXrayBox)
+	end)
+
+	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 42, "Non-spam Setting")
+	PcSettingsNonSpamTitle.TextSize = 15
+	PcSettingsNonSpamTitle.ZIndex = 40
+	PcSettingsNonSpamTitle.TextTransparency = 0
+	setTargetTransparency(PcSettingsNonSpamTitle, 1, 0)
+
+	PcSettingsNonSpamBox = Instance.new("TextBox")
+	PcSettingsNonSpamBox.Size = UDim2.new(0, 62, 0, 28)
+	PcSettingsNonSpamBox.Position = UDim2.new(1, -80, 0, 40)
+	PcSettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	PcSettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
+	PcSettingsNonSpamBox.Font = Enum.Font.GothamBold
+	PcSettingsNonSpamBox.TextSize = 13
+	PcSettingsNonSpamBox.Text = tostring(nonSpamValue)
+	PcSettingsNonSpamBox.ClearTextOnFocus = false
+	PcSettingsNonSpamBox.ZIndex = 41
+	PcSettingsNonSpamBox.Parent = PcSettingsPage
+	Instance.new("UICorner", PcSettingsNonSpamBox).CornerRadius = UDim.new(0, 8)
+	local PcSettingsNonSpamStroke = Instance.new("UIStroke")
+	PcSettingsNonSpamStroke.Color = Color3.fromRGB(35,35,35)
+	PcSettingsNonSpamStroke.Thickness = 1
+	PcSettingsNonSpamStroke.Transparency = 0.08
+	PcSettingsNonSpamStroke.Parent = PcSettingsNonSpamBox
+	noTextStroke(PcSettingsNonSpamBox)
+	setTargetTransparency(PcSettingsNonSpamBox, 0, 0)
+	PcSettingsNonSpamBox.FocusLost:Connect(function()
+		applyNonSpamSettingFromBox(PcSettingsNonSpamBox)
+	end)
 
 	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 2, "Normal Wallhop")
 	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 34, "Visual Wallhop")
@@ -2966,6 +3061,10 @@ local function buildPCGui()
 
 	PcTabFlicks.MouseButton1Click:Connect(function()
 		switchPcTab("Flicks")
+	end)
+
+	PcTabSettings.MouseButton1Click:Connect(function()
+		switchPcTab("Settings")
 	end)
 
 	HideGuiBindButton.MouseButton1Click:Connect(function()
