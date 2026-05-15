@@ -85,7 +85,6 @@ local ToggleBindButton
 local BeastSlowBindButton
 local CornerWalkBindButton
 local XrayBindButton
-local NonSpamPcButton
 local Notice
 local NoticeStroke
 
@@ -111,7 +110,6 @@ local MobileConsoleWallhopRow
 local MobileBeastSlowRow
 local MobileCornerWalkRow
 local MobileXrayRow
-local MobileNonSpamRow
 local MobileHideGuiRow
 
 local mobileBeastSlowSwitch
@@ -120,8 +118,6 @@ local mobileCornerWalkSwitch
 local mobileCornerWalkKnob
 local mobileXraySwitch
 local mobileXrayKnob
-local mobileNonSpamSwitch
-local mobileNonSpamKnob
 local mobileHideGuiSwitch
 local mobileHideGuiKnob
 local mobileDragHandle
@@ -138,7 +134,6 @@ local applyVisibility
 local updateFlickButtons
 local switchPcTab
 local switchMobileTab
-local updateNonSpamUi
 
 local isWallHopEnabled = false
 local isSlowEnabled = false
@@ -1276,9 +1271,6 @@ local function setNonSpamEnabled(state)
 	if updateMobilePanelButtons then
 		updateMobilePanelButtons()
 	end
-	if updateNonSpamUi then
-		updateNonSpamUi()
-	end
 end
 
 local function setCornerWalkEnabled(state)
@@ -1754,57 +1746,6 @@ local function createPcActionButton(parent, y, text)
 	noTextStroke(button)
 	setTargetTransparency(button, 0, 0)
 	return button
-end
-
-
-local function createNonSpamUiSafe()
-	pcall(function()
-		if selectedMode == "PC" and PcFunctionsPage and not NonSpamPcButton then
-			NonSpamPcButton = Instance.new("TextButton")
-			NonSpamPcButton.Size = UDim2.new(1, -36, 0, 22)
-			NonSpamPcButton.Position = UDim2.new(0, 18, 0, 139)
-			NonSpamPcButton.BackgroundTransparency = 1
-			NonSpamPcButton.TextColor3 = Color3.fromRGB(255,255,255)
-			NonSpamPcButton.Font = Enum.Font.Gotham
-			NonSpamPcButton.TextSize = 15
-			NonSpamPcButton.TextXAlignment = Enum.TextXAlignment.Left
-			NonSpamPcButton.AutoButtonColor = false
-			NonSpamPcButton.Parent = PcFunctionsPage
-			noTextStroke(NonSpamPcButton)
-			setTargetTransparency(NonSpamPcButton, 1, 0)
-
-			NonSpamPcButton.MouseButton1Click:Connect(function()
-				setNonSpamEnabled(not isNonSpamEnabled)
-				showNotice(isNonSpamEnabled and "Non-spam enabled" or "Non-spam disabled")
-			end)
-		end
-
-		if selectedMode == "Mobile" and MobileFunctionsPage and not MobileNonSpamRow then
-			MobileNonSpamRow, mobileNonSpamSwitch, mobileNonSpamKnob = createSwitchRow(MobileFunctionsPage, 172, "Non-spam")
-
-			bindRowPress(MobileNonSpamRow, function()
-				setNonSpamEnabled(not isNonSpamEnabled)
-			end)
-		end
-
-		if updateNonSpamUi then
-			updateNonSpamUi()
-		end
-	end)
-end
-
-updateNonSpamUi = function()
-	pcall(function()
-		if NonSpamPcButton then
-			NonSpamPcButton.Text = "Toggle Non-spam: " .. (isNonSpamEnabled and "On" or "Off") .. " | Key: " .. toggleNonSpamKey.Name
-		end
-
-		if MobileNonSpamRow and MobileNonSpamRow:FindFirstChild("Label") then
-			MobileNonSpamRow.Label.Text = "Non-spam"
-		end
-
-		updateSwitchVisual(mobileNonSpamSwitch, mobileNonSpamKnob, isNonSpamEnabled)
-	end)
 end
 
 local function buildPCGui()
@@ -3600,13 +3541,8 @@ createModeSelector(function(mode)
 		buildMobileGui()
 	end
 
-	createNonSpamUiSafe()
-
 	updateToggleButton()
 	updateMobilePanelButtons()
-	if updateNonSpamUi then
-		updateNonSpamUi()
-	end
 	updateFlickButtons()
 	applyVisibility()
 end)
