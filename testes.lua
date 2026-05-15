@@ -1758,7 +1758,7 @@ function refreshConfigList(showMessage)
 			configDropdownOpen = false
 			ConfigDropdownFrame.Visible = false
 			if ConfigArrowButton then
-				ConfigArrowButton.Text = "⌃"
+				ConfigArrowButton.Text = "v"
 			end
 		end)
 
@@ -1771,16 +1771,16 @@ function refreshConfigList(showMessage)
 		end)
 
 		for index, name in ipairs(configNames) do
-			newConfigOption(name, Color3.fromRGB(255,255,255), index + 1, function()
+			newConfigOption(name, Color3.fromRGB(130,130,130), index + 1, function()
 				selectedConfigName = name
 				if ConfigSelectedButton then
 					ConfigSelectedButton.Text = "   " .. tostring(selectedConfigName)
-					ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
+					ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
 				end
 				configDropdownOpen = false
 				ConfigDropdownFrame.Visible = false
 				if ConfigArrowButton then
-					ConfigArrowButton.Text = "⌃"
+					ConfigArrowButton.Text = "v"
 				end
 			end)
 		end
@@ -1798,14 +1798,14 @@ function refreshConfigList(showMessage)
 	if ConfigSelectedButton then
 		if selectedConfigName and selectedConfigName ~= "---" then
 			ConfigSelectedButton.Text = "   " .. tostring(selectedConfigName)
-			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
 		else
 			ConfigSelectedButton.Text = "   ---"
 			ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
 		end
 	end
 	if ConfigArrowButton then
-		ConfigArrowButton.Text = configDropdownOpen and "⌄" or "⌃"
+		ConfigArrowButton.Text = configDropdownOpen and "^" or "v"
 	end
 
 	if showMessage then
@@ -2088,7 +2088,7 @@ function buildMobileSettingsPage()
 		showSettingsNotice("The configuration file " .. name .. " was created successfully.")
 		if ConfigSelectedButton then
 			ConfigSelectedButton.Text = "   " .. name
-			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
 		end
 	end)
 
@@ -2106,7 +2106,7 @@ function buildMobileSettingsPage()
 	ConfigArrowButton.Size = UDim2.new(0, 24, 1, 0)
 	ConfigArrowButton.Position = UDim2.new(1, -30, 0, 0)
 	ConfigArrowButton.BackgroundTransparency = 1
-	ConfigArrowButton.Text = "⌃"
+	ConfigArrowButton.Text = "v"
 	ConfigArrowButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigArrowButton.TextTransparency = 0
 	ConfigArrowButton.Font = Enum.Font.GothamBold
@@ -2144,7 +2144,7 @@ function buildMobileSettingsPage()
 			ConfigDropdownFrame.CanvasPosition = Vector2.new(0, 0)
 		end
 		if ConfigArrowButton then
-			ConfigArrowButton.Text = configDropdownOpen and "⌄" or "⌃"
+			ConfigArrowButton.Text = configDropdownOpen and "^" or "v"
 		end
 	end)
 
