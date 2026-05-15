@@ -1723,9 +1723,9 @@ local function setMinimized(state)
 				setHostShadowVisible(MiniButton, false)
 
 				MainFrame.Position = restorePos
-				MainFrame.Size = UDim2.new(0, 335, 0, 330)
+				MainFrame.Size = UDim2.new(0, 335, 0, 300)
 
-				elegantShow(MainFrame, UDim2.new(0, 335, 0, 330), restorePos, 0)
+				elegantShow(MainFrame, UDim2.new(0, 335, 0, 300), restorePos, 0)
 			end)
 		end
 
@@ -1736,7 +1736,7 @@ end
 local function createPcTabButton(parent, x, text)
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(0, 96, 0, 28)
-	button.Position = UDim2.new(0, x, 0, 148)
+	button.Position = UDim2.new(0, x, 0, 54)
 	button.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	button.Text = text
 	button.TextColor3 = Color3.fromRGB(255,255,255)
@@ -1778,8 +1778,8 @@ local function buildPCGui()
 	ScreenGui.Parent = PlayerGui
 
 	MainFrame = Instance.new("Frame")
-	MainFrame.Size = UDim2.new(0, 335, 0, 330)
-	MainFrame.Position = UDim2.new(0.5, -167, 0.5, -165)
+	MainFrame.Size = UDim2.new(0, 335, 0, 300)
+	MainFrame.Position = UDim2.new(0.5, -167, 0.5, -150)
 	MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MainFrame.BorderSizePixel = 0
 	MainFrame.Parent = ScreenGui
@@ -1842,8 +1842,8 @@ local function buildPCGui()
 	setTargetTransparency(ToggleButton, 1, 0)
 
 	NonSpamToggleButton = Instance.new("TextButton")
-	NonSpamToggleButton.Size = UDim2.new(1, -36, 0, 24)
-	NonSpamToggleButton.Position = UDim2.new(0, 18, 0, 122)
+	NonSpamToggleButton.Size = UDim2.new(1, -36, 0, 22)
+	NonSpamToggleButton.Position = UDim2.new(0, 18, 0, 118)
 	NonSpamToggleButton.BackgroundTransparency = 1
 	NonSpamToggleButton.Text = "Non-spam Off"
 	NonSpamToggleButton.TextColor3 = Color3.fromRGB(220,220,220)
@@ -1859,14 +1859,14 @@ local function buildPCGui()
 	PcTabFlicks = createPcTabButton(MainFrame, 120, "Flicks")
 
 	PcFunctionsPage = Instance.new("Frame")
-	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -182)
-	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 180)
+	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -120)
+	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 118)
 	PcFunctionsPage.BackgroundTransparency = 1
 	PcFunctionsPage.Parent = MainFrame
 
 	PcFlicksPage = Instance.new("Frame")
-	PcFlicksPage.Size = UDim2.new(1, 0, 1, -182)
-	PcFlicksPage.Position = UDim2.new(0, 0, 0, 180)
+	PcFlicksPage.Size = UDim2.new(1, 0, 1, -120)
+	PcFlicksPage.Position = UDim2.new(0, 0, 0, 118)
 	PcFlicksPage.BackgroundTransparency = 1
 	PcFlicksPage.Visible = false
 	PcFlicksPage.Parent = MainFrame
@@ -2103,7 +2103,7 @@ local function buildPCGui()
 	switchPcTab("Functions")
 	updateBindButtons()
 	updateFlickButtons()
-	elegantShow(MainFrame, UDim2.new(0, 335, 0, 330), MainFrame.Position, 0)
+	elegantShow(MainFrame, UDim2.new(0, 335, 0, 300), MainFrame.Position, 0)
 	showNotice("PC version loaded")
 end
 
