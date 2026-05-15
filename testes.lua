@@ -99,9 +99,17 @@ PcConsoleWallhopButton = nil
 
 MobileTabFunctions = nil
 MobileTabFlicks = nil
+MobileTabSettings = nil
 MobileFunctionsPage = nil
 MobileFlicksPage = nil
+MobileSettingsPage = nil
 MobileCurrentUsingLabel = nil
+SettingsXrayBox = nil
+SettingsNonSpamBox = nil
+ConfigNameBox = nil
+ConfigSelectedButton = nil
+ConfigDropdownFrame = nil
+ConfigAutoloadLabel = nil
 MobileNormalWallhopRow = nil
 MobileNoMoveWallhopRow = nil
 Mobile360WallhopRow = nil
@@ -142,6 +150,12 @@ isSlowEnabled = false
 isCornerWalkEnabled = false
 isXrayEnabled = false
 realXrayEnabled = false
+xrayOpacityValue = 60
+nonSpamValue = 50
+wallhopConfigs = {}
+selectedConfigName = "---"
+configDropdownOpen = false
+autoloadConfigName = "Default"
 isFlicking = false
 lastFlickTime = 0
 
@@ -355,8 +369,9 @@ local function applyXrayToPart(part)
 	end
 
 	pcall(function()
-		part.Transparency = math.max(part.Transparency, 0.4)
-		part.LocalTransparencyModifier = math.max(part.LocalTransparencyModifier, 0.4)
+		xrayTransparencyTarget = math.clamp((tonumber(xrayOpacityValue) or 60) / 100, 0, 1)
+		part.Transparency = math.max(part.Transparency, xrayTransparencyTarget)
+		part.LocalTransparencyModifier = math.max(part.LocalTransparencyModifier, xrayTransparencyTarget)
 	end)
 end
 
@@ -1252,17 +1267,21 @@ switchPcTab = function(name)
 end
 
 switchMobileTab = function(name)
-	if not MobileFunctionsPage or not MobileFlicksPage or not MobileTabFunctions or not MobileTabFlicks then
+	if not MobileFunctionsPage or not MobileFlicksPage or not MobileSettingsPage or not MobileTabFunctions or not MobileTabFlicks or not MobileTabSettings then
 		return
 	end
 
-	local isFunctions = name == "Functions"
+	mobileIsFunctions = name == "Functions"
+	mobileIsFlicks = name == "Flicks"
+	mobileIsSettings = name == "Settings"
 
-	MobileFunctionsPage.Visible = isFunctions
-	MobileFlicksPage.Visible = not isFunctions
+	MobileFunctionsPage.Visible = mobileIsFunctions
+	MobileFlicksPage.Visible = mobileIsFlicks
+	MobileSettingsPage.Visible = mobileIsSettings
 
-	MobileTabFunctions.BackgroundColor3 = isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
-	MobileTabFlicks.BackgroundColor3 = not isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabFunctions.BackgroundColor3 = mobileIsFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabFlicks.BackgroundColor3 = mobileIsFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabSettings.BackgroundColor3 = mobileIsSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 end
 
 local function setSlowEnabled(state)
@@ -1295,6 +1314,558 @@ local function setMobileBeastSlowButtonState(state)
 	mobileBeastSlowButtonVisible = state and true or false
 	updateMobilePanelButtons()
 end
+
+
+function showSettingsNotice(message)
+	pcall(function()
+		if not ScreenGui then
+			return
+		end
+
+		if SettingsNoticeFrame then
+			SettingsNoticeFrame:Destroy()
+			SettingsNoticeFrame = nil
+		end
+
+		SettingsNoticeFrame = Instance.new("Frame")
+		SettingsNoticeFrame.Size = UDim2.new(0, 330, 0, 44)
+		SettingsNoticeFrame.Position = UDim2.new(0.5, -165, 0, 22)
+		SettingsNoticeFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+		SettingsNoticeFrame.BackgroundTransparency = 0.06
+		SettingsNoticeFrame.BorderSizePixel = 0
+		SettingsNoticeFrame.ZIndex = 90
+		SettingsNoticeFrame.Parent = ScreenGui
+		Instance.new("UICorner", SettingsNoticeFrame).CornerRadius = UDim.new(0, 12)
+
+		SettingsNoticeText = Instance.new("TextLabel")
+		SettingsNoticeText.Size = UDim2.new(1, -18, 0, 28)
+		SettingsNoticeText.Position = UDim2.new(0, 9, 0, 4)
+		SettingsNoticeText.BackgroundTransparency = 1
+		SettingsNoticeText.Text = tostring(message)
+		SettingsNoticeText.TextColor3 = Color3.fromRGB(255,255,255)
+		SettingsNoticeText.Font = Enum.Font.GothamBold
+		SettingsNoticeText.TextSize = 12
+		SettingsNoticeText.TextWrapped = true
+		SettingsNoticeText.TextXAlignment = Enum.TextXAlignment.Left
+		SettingsNoticeText.ZIndex = 91
+		SettingsNoticeText.Parent = SettingsNoticeFrame
+		noTextStroke(SettingsNoticeText)
+
+		SettingsNoticeBar = Instance.new("Frame")
+		SettingsNoticeBar.Size = UDim2.new(1, -14, 0, 3)
+		SettingsNoticeBar.Position = UDim2.new(0, 7, 1, -7)
+		SettingsNoticeBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+		SettingsNoticeBar.BorderSizePixel = 0
+		SettingsNoticeBar.ZIndex = 91
+		SettingsNoticeBar.Parent = SettingsNoticeFrame
+		Instance.new("UICorner", SettingsNoticeBar).CornerRadius = UDim.new(1, 0)
+
+		TweenService:Create(SettingsNoticeBar, TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, 0, 0, 3),
+			Position = UDim2.new(1, -7, 1, -7)
+		}):Play()
+
+		task.delay(3, function()
+			if SettingsNoticeFrame and SettingsNoticeFrame.Parent then
+				TweenService:Create(SettingsNoticeFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					BackgroundTransparency = 1
+				}):Play()
+				TweenService:Create(SettingsNoticeText, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					TextTransparency = 1
+				}):Play()
+				TweenService:Create(SettingsNoticeBar, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					BackgroundTransparency = 1
+				}):Play()
+				task.delay(0.25, function()
+					if SettingsNoticeFrame then
+						SettingsNoticeFrame:Destroy()
+						SettingsNoticeFrame = nil
+					end
+				end)
+			end
+		end)
+	end)
+end
+
+function configSafeName(name)
+	name = tostring(name or "")
+	name = name:gsub("^%s+", ""):gsub("%s+$", "")
+	name = name:gsub("[^%w_%-%s]", "")
+	return name
+end
+
+function configPath(name)
+	return "nyhito_wallhop_configs/" .. configSafeName(name) .. ".json"
+end
+
+function ensureConfigFolder()
+	pcall(function()
+		if makefolder and not isfolder("nyhito_wallhop_configs") then
+			makefolder("nyhito_wallhop_configs")
+		end
+	end)
+end
+
+function getCurrentConfigPayload()
+	return {
+		xrayOpacityValue = tonumber(xrayOpacityValue) or 60,
+		nonSpamValue = tonumber(nonSpamValue) or 50
+	}
+end
+
+function applyConfigPayload(payload)
+	if type(payload) ~= "table" then
+		return
+	end
+
+	if tonumber(payload.xrayOpacityValue) then
+		xrayOpacityValue = math.clamp(math.floor(tonumber(payload.xrayOpacityValue)), 0, 100)
+	end
+	if tonumber(payload.nonSpamValue) then
+		nonSpamValue = math.clamp(math.floor(tonumber(payload.nonSpamValue)), 10, 99)
+	end
+
+	if isXrayEnabled then
+		WALLHOP_COOLDOWN = (tonumber(nonSpamValue) or 50) / 100
+	end
+
+	if realXrayEnabled then
+		clearXray()
+		applyXray()
+	end
+
+	updateSettingsInputs()
+end
+
+function saveNamedConfig(name)
+	ensureConfigFolder()
+	name = configSafeName(name)
+	if name == "" then
+		return false
+	end
+
+	wallhopConfigs[name] = getCurrentConfigPayload()
+
+	pcall(function()
+		if writefile then
+			writefile(configPath(name), HttpService:JSONEncode(wallhopConfigs[name]))
+		end
+	end)
+
+	refreshConfigList(false)
+	return true
+end
+
+function loadNamedConfig(name)
+	name = configSafeName(name)
+	if name == "" or name == "---" then
+		return false
+	end
+
+	if not wallhopConfigs[name] then
+		pcall(function()
+			if readfile and isfile and isfile(configPath(name)) then
+				wallhopConfigs[name] = HttpService:JSONDecode(readfile(configPath(name)))
+			end
+		end)
+	end
+
+	if wallhopConfigs[name] then
+		applyConfigPayload(wallhopConfigs[name])
+		return true
+	end
+
+	return false
+end
+
+function deleteNamedConfig(name)
+	name = configSafeName(name)
+	if name == "" or name == "---" then
+		return false
+	end
+
+	wallhopConfigs[name] = nil
+
+	pcall(function()
+		if delfile and isfile and isfile(configPath(name)) then
+			delfile(configPath(name))
+		end
+	end)
+
+	if selectedConfigName == name then
+		selectedConfigName = "---"
+	end
+
+	refreshConfigList(false)
+	return true
+end
+
+function setAutoloadConfig(name)
+	name = configSafeName(name)
+	if name == "" or name == "---" then
+		return false
+	end
+
+	autoloadConfigName = name
+	pcall(function()
+		if writefile then
+			writefile("nyhito_wallhop_autoload.txt", name)
+		end
+	end)
+
+	updateAutoloadLabel()
+	return true
+end
+
+function resetAutoloadConfig()
+	if autoloadConfigName == "Default" or autoloadConfigName == "" or not autoloadConfigName then
+		return false
+	end
+
+	autoloadConfigName = "Default"
+
+	pcall(function()
+		if delfile and isfile and isfile("nyhito_wallhop_autoload.txt") then
+			delfile("nyhito_wallhop_autoload.txt")
+		elseif writefile then
+			writefile("nyhito_wallhop_autoload.txt", "")
+		end
+	end)
+
+	updateAutoloadLabel()
+	return true
+end
+
+function loadAutoloadConfig()
+	pcall(function()
+		if readfile and isfile and isfile("nyhito_wallhop_autoload.txt") then
+			autoloadConfigName = tostring(readfile("nyhito_wallhop_autoload.txt") or "")
+			autoloadConfigName = configSafeName(autoloadConfigName)
+			if autoloadConfigName == "" then
+				autoloadConfigName = "Default"
+			end
+		end
+	end)
+
+	if autoloadConfigName ~= "Default" and autoloadConfigName ~= "" then
+		loadNamedConfig(autoloadConfigName)
+	end
+
+	updateAutoloadLabel()
+end
+
+function refreshConfigList(showMessage)
+	ensureConfigFolder()
+
+	pcall(function()
+		if listfiles then
+			for _, path in ipairs(listfiles("nyhito_wallhop_configs")) do
+				fileName = tostring(path):match("([^/\\]+)%.json$")
+				if fileName and not wallhopConfigs[fileName] then
+					if readfile then
+						wallhopConfigs[fileName] = HttpService:JSONDecode(readfile(path))
+					end
+				end
+			end
+		end
+	end)
+
+	if ConfigDropdownFrame then
+		for _, obj in ipairs(ConfigDropdownFrame:GetChildren()) do
+			if obj:IsA("TextButton") then
+				obj:Destroy()
+			end
+		end
+
+		configY = 0
+		configCount = 0
+		for name, _ in pairs(wallhopConfigs) do
+			configCount += 1
+			ConfigOptionButton = Instance.new("TextButton")
+			ConfigOptionButton.Size = UDim2.new(1, 0, 0, 26)
+			ConfigOptionButton.Position = UDim2.new(0, 0, 0, configY)
+			ConfigOptionButton.BackgroundColor3 = Color3.fromRGB(8,8,8)
+			ConfigOptionButton.Text = name
+			ConfigOptionButton.TextColor3 = Color3.fromRGB(255,255,255)
+			ConfigOptionButton.Font = Enum.Font.GothamBold
+			ConfigOptionButton.TextSize = 12
+			ConfigOptionButton.AutoButtonColor = false
+			ConfigOptionButton.Parent = ConfigDropdownFrame
+			noTextStroke(ConfigOptionButton)
+
+			ConfigOptionButton.MouseButton1Click:Connect(function()
+				selectedConfigName = name
+				if ConfigSelectedButton then
+					ConfigSelectedButton.Text = selectedConfigName
+				end
+				configDropdownOpen = false
+				ConfigDropdownFrame.Visible = false
+			end)
+
+			configY += 28
+		end
+
+		ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, math.max(28, math.min(configY, 112)))
+	end
+
+	if ConfigSelectedButton then
+		ConfigSelectedButton.Text = selectedConfigName or "---"
+	end
+
+	if showMessage then
+		showSettingsNotice("All the config list has been refreshed successfully.")
+	end
+end
+
+function updateAutoloadLabel()
+	if ConfigAutoloadLabel then
+		ConfigAutoloadLabel.Text = "Currently autoload config: " .. tostring(autoloadConfigName or "Default")
+	end
+end
+
+function updateSettingsInputs()
+	if SettingsXrayBox then
+		SettingsXrayBox.Text = tostring(math.floor(tonumber(xrayOpacityValue) or 60))
+	end
+	if SettingsNonSpamBox then
+		SettingsNonSpamBox.Text = tostring(math.floor(tonumber(nonSpamValue) or 50))
+	end
+	updateAutoloadLabel()
+end
+
+function applyXraySettingFromBox()
+	value = tonumber(SettingsXrayBox and SettingsXrayBox.Text or "")
+	if not value or value < 0 or value > 100 then
+		showSettingsNotice("Minimum value is 0 and the maximum value is 100.")
+		updateSettingsInputs()
+		return
+	end
+
+	xrayOpacityValue = math.floor(value)
+
+	if realXrayEnabled then
+		clearXray()
+		applyXray()
+	end
+
+	updateSettingsInputs()
+	showSettingsNotice("X-ray value changed successfully.")
+end
+
+function applyNonSpamSettingFromBox()
+	value = tonumber(SettingsNonSpamBox and SettingsNonSpamBox.Text or "")
+	if not value or value < 10 or value > 99 then
+		showSettingsNotice("Minimum value is 10 and the maximum value is 99.")
+		updateSettingsInputs()
+		return
+	end
+
+	nonSpamValue = math.floor(value)
+
+	if isXrayEnabled then
+		WALLHOP_COOLDOWN = nonSpamValue / 100
+	end
+
+	updateSettingsInputs()
+	showSettingsNotice("Non-spam value changed successfully.")
+end
+
+function createSettingsLabel(parent, y, textValue)
+	SettingsLabel = Instance.new("TextLabel")
+	SettingsLabel.Size = UDim2.new(1, -14, 0, 20)
+	SettingsLabel.Position = UDim2.new(0, 7, 0, y)
+	SettingsLabel.BackgroundTransparency = 1
+	SettingsLabel.Text = textValue
+	SettingsLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsLabel.Font = Enum.Font.GothamBold
+	SettingsLabel.TextSize = 12
+	SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	SettingsLabel.Parent = parent
+	noTextStroke(SettingsLabel)
+	return SettingsLabel
+end
+
+function createSettingsButton(parent, y, textValue)
+	SettingsButton = Instance.new("TextButton")
+	SettingsButton.Size = UDim2.new(1, -14, 0, 32)
+	SettingsButton.Position = UDim2.new(0, 7, 0, y)
+	SettingsButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	SettingsButton.Text = textValue
+	SettingsButton.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsButton.Font = Enum.Font.GothamBold
+	SettingsButton.TextSize = 13
+	SettingsButton.AutoButtonColor = false
+	SettingsButton.Parent = parent
+	Instance.new("UICorner", SettingsButton).CornerRadius = UDim.new(0, 10)
+	noTextStroke(SettingsButton)
+	setTargetTransparency(SettingsButton, 0, 0)
+	return SettingsButton
+end
+
+function buildMobileSettingsPage()
+	MobileSettingsPage = Instance.new("ScrollingFrame")
+	MobileSettingsPage.Size = UDim2.new(1, 0, 1, -58)
+	MobileSettingsPage.Position = UDim2.new(0, 0, 0, 58)
+	MobileSettingsPage.BackgroundTransparency = 1
+	MobileSettingsPage.BorderSizePixel = 0
+	MobileSettingsPage.ScrollBarThickness = 3
+	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 560)
+	MobileSettingsPage.Visible = false
+	MobileSettingsPage.Parent = MobilePanel
+
+	createSettingsLabel(MobileSettingsPage, 4, "X-ray Opacity")
+	SettingsXrayBox = Instance.new("TextBox")
+	SettingsXrayBox.Size = UDim2.new(0, 54, 0, 26)
+	SettingsXrayBox.Position = UDim2.new(1, -62, 0, 2)
+	SettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	SettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsXrayBox.Font = Enum.Font.GothamBold
+	SettingsXrayBox.TextSize = 12
+	SettingsXrayBox.Text = tostring(xrayOpacityValue)
+	SettingsXrayBox.ClearTextOnFocus = false
+	SettingsXrayBox.Parent = MobileSettingsPage
+	Instance.new("UICorner", SettingsXrayBox).CornerRadius = UDim.new(0, 8)
+	noTextStroke(SettingsXrayBox)
+	SettingsXrayBox.FocusLost:Connect(applyXraySettingFromBox)
+
+	createSettingsLabel(MobileSettingsPage, 36, "Non-spam Settings")
+	SettingsNonSpamBox = Instance.new("TextBox")
+	SettingsNonSpamBox.Size = UDim2.new(0, 54, 0, 26)
+	SettingsNonSpamBox.Position = UDim2.new(1, -62, 0, 34)
+	SettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	SettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsNonSpamBox.Font = Enum.Font.GothamBold
+	SettingsNonSpamBox.TextSize = 12
+	SettingsNonSpamBox.Text = tostring(nonSpamValue)
+	SettingsNonSpamBox.ClearTextOnFocus = false
+	SettingsNonSpamBox.Parent = MobileSettingsPage
+	Instance.new("UICorner", SettingsNonSpamBox).CornerRadius = UDim.new(0, 8)
+	noTextStroke(SettingsNonSpamBox)
+	SettingsNonSpamBox.FocusLost:Connect(applyNonSpamSettingFromBox)
+
+	createSettingsLabel(MobileSettingsPage, 76, "Config name:")
+	ConfigNameBox = Instance.new("TextBox")
+	ConfigNameBox.Size = UDim2.new(1, -14, 0, 30)
+	ConfigNameBox.Position = UDim2.new(0, 7, 0, 98)
+	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	ConfigNameBox.TextColor3 = Color3.fromRGB(255,255,255)
+	ConfigNameBox.PlaceholderText = ""
+	ConfigNameBox.Font = Enum.Font.Gotham
+	ConfigNameBox.TextSize = 12
+	ConfigNameBox.Text = ""
+	ConfigNameBox.ClearTextOnFocus = false
+	ConfigNameBox.Parent = MobileSettingsPage
+	Instance.new("UICorner", ConfigNameBox).CornerRadius = UDim.new(0, 9)
+	noTextStroke(ConfigNameBox)
+
+	CreateConfigButton = createSettingsButton(MobileSettingsPage, 134, "Create config")
+	CreateConfigButton.MouseButton1Click:Connect(function()
+		name = configSafeName(ConfigNameBox.Text)
+		if name == "" then
+			showSettingsNotice("You need to give the config a name first!")
+			return
+		end
+		saveNamedConfig(name)
+		selectedConfigName = name
+		if ConfigSelectedButton then
+			ConfigSelectedButton.Text = name
+		end
+		showSettingsNotice("The configuration file " .. name .. " was created successfully.")
+	end)
+
+	createSettingsLabel(MobileSettingsPage, 174, "Config list:")
+	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 198, "---")
+	ConfigSelectedButton.MouseButton1Click:Connect(function()
+		configDropdownOpen = not configDropdownOpen
+		if ConfigDropdownFrame then
+			ConfigDropdownFrame.Visible = configDropdownOpen
+		end
+	end)
+
+	ConfigDropdownFrame = Instance.new("Frame")
+	ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 28)
+	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 232)
+	ConfigDropdownFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	ConfigDropdownFrame.BorderSizePixel = 0
+	ConfigDropdownFrame.Visible = false
+	ConfigDropdownFrame.Parent = MobileSettingsPage
+	Instance.new("UICorner", ConfigDropdownFrame).CornerRadius = UDim.new(0, 9)
+
+	LoadConfigButton = createSettingsButton(MobileSettingsPage, 262, "Load config")
+	LoadConfigButton.MouseButton1Click:Connect(function()
+		if not selectedConfigName or selectedConfigName == "---" then
+			showSettingsNotice("Please select a config first!")
+			return
+		end
+		if loadNamedConfig(selectedConfigName) then
+			showSettingsNotice("The " .. selectedConfigName .. " config was loaded successfully.")
+		end
+	end)
+
+	OverwriteConfigButton = createSettingsButton(MobileSettingsPage, 300, "Overwrite config")
+	OverwriteConfigButton.MouseButton1Click:Connect(function()
+		if not selectedConfigName or selectedConfigName == "---" then
+			showSettingsNotice("Please select a config first!")
+			return
+		end
+		saveNamedConfig(selectedConfigName)
+		showSettingsNotice("The " .. selectedConfigName .. " config was overwritten successfully.")
+	end)
+
+	DeleteConfigButton = createSettingsButton(MobileSettingsPage, 338, "Delete config")
+	DeleteConfigButton.MouseButton1Click:Connect(function()
+		if not selectedConfigName or selectedConfigName == "---" then
+			showSettingsNotice("Please select a config first!")
+			return
+		end
+		name = selectedConfigName
+		if deleteNamedConfig(name) then
+			showSettingsNotice("The " .. name .. " config was being deleted successfully.")
+		end
+	end)
+
+	RefreshConfigButton = createSettingsButton(MobileSettingsPage, 376, "Refresh list")
+	RefreshConfigButton.MouseButton1Click:Connect(function()
+		refreshConfigList(true)
+	end)
+
+	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 414, "Set as autoload")
+	SetAutoloadButton.MouseButton1Click:Connect(function()
+		if not selectedConfigName or selectedConfigName == "---" then
+			showSettingsNotice("Please select a config first!")
+			return
+		end
+		if setAutoloadConfig(selectedConfigName) then
+			showSettingsNotice("The " .. selectedConfigName .. " config was being set as autoload successfully.")
+		end
+	end)
+
+	ResetAutoloadButton = createSettingsButton(MobileSettingsPage, 452, "Reset autoload")
+	ResetAutoloadButton.MouseButton1Click:Connect(function()
+		if resetAutoloadConfig() then
+			showSettingsNotice("The autoload config has been reset successfully.")
+		else
+			showSettingsNotice("You dont have an autoload config yet!")
+		end
+	end)
+
+	ConfigAutoloadLabel = Instance.new("TextLabel")
+	ConfigAutoloadLabel.Size = UDim2.new(1, -14, 0, 42)
+	ConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 492)
+	ConfigAutoloadLabel.BackgroundTransparency = 1
+	ConfigAutoloadLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	ConfigAutoloadLabel.Font = Enum.Font.GothamBold
+	ConfigAutoloadLabel.TextSize = 12
+	ConfigAutoloadLabel.TextWrapped = true
+	ConfigAutoloadLabel.TextXAlignment = Enum.TextXAlignment.Left
+	ConfigAutoloadLabel.Parent = MobileSettingsPage
+	noTextStroke(ConfigAutoloadLabel)
+
+	refreshConfigList(false)
+	updateSettingsInputs()
+	loadAutoloadConfig()
+end
+
 
 local function buildMobileGui()
 	clearOldDragConnections()
@@ -1380,13 +1951,13 @@ local function buildMobileGui()
 	setTargetTransparency(mobileDragHandle, 0, nil)
 
 	MobileTabFunctions = Instance.new("TextButton")
-	MobileTabFunctions.Size = UDim2.new(0, 82, 0, 26)
+	MobileTabFunctions.Size = UDim2.new(0, 54, 0, 26)
 	MobileTabFunctions.Position = UDim2.new(0, 7, 0, 24)
 	MobileTabFunctions.BackgroundColor3 = Color3.fromRGB(20,20,20)
 	MobileTabFunctions.Text = "Functions"
 	MobileTabFunctions.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFunctions.Font = Enum.Font.GothamBold
-	MobileTabFunctions.TextSize = 12
+	MobileTabFunctions.TextSize = 10
 	MobileTabFunctions.Parent = MobilePanel
 	MobileTabFunctions.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabFunctions).CornerRadius = UDim.new(0, 10)
@@ -1394,18 +1965,32 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFunctions)
 
 	MobileTabFlicks = Instance.new("TextButton")
-	MobileTabFlicks.Size = UDim2.new(0, 82, 0, 26)
-	MobileTabFlicks.Position = UDim2.new(0, 95, 0, 24)
+	MobileTabFlicks.Size = UDim2.new(0, 54, 0, 26)
+	MobileTabFlicks.Position = UDim2.new(0, 67, 0, 24)
 	MobileTabFlicks.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabFlicks.Text = "Flicks"
 	MobileTabFlicks.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFlicks.Font = Enum.Font.GothamBold
-	MobileTabFlicks.TextSize = 12
+	MobileTabFlicks.TextSize = 10
 	MobileTabFlicks.Parent = MobilePanel
 	MobileTabFlicks.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabFlicks).CornerRadius = UDim.new(0, 10)
 	setTargetTransparency(MobileTabFlicks, 0, 0)
 	noTextStroke(MobileTabFlicks)
+
+	MobileTabSettings = Instance.new("TextButton")
+	MobileTabSettings.Size = UDim2.new(0, 58, 0, 26)
+	MobileTabSettings.Position = UDim2.new(0, 127, 0, 24)
+	MobileTabSettings.BackgroundColor3 = Color3.fromRGB(8,8,8)
+	MobileTabSettings.Text = "Settings"
+	MobileTabSettings.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileTabSettings.Font = Enum.Font.GothamBold
+	MobileTabSettings.TextSize = 10
+	MobileTabSettings.Parent = MobilePanel
+	MobileTabSettings.AutoButtonColor = false
+	Instance.new("UICorner", MobileTabSettings).CornerRadius = UDim.new(0, 10)
+	setTargetTransparency(MobileTabSettings, 0, 0)
+	noTextStroke(MobileTabSettings)
 
 	MobileFunctionsPage = Instance.new("Frame")
 	MobileFunctionsPage.Size = UDim2.new(1, 0, 1, -58)
@@ -1419,6 +2004,8 @@ local function buildMobileGui()
 	MobileFlicksPage.BackgroundTransparency = 1
 	MobileFlicksPage.Parent = MobilePanel
 	MobileFlicksPage.Visible = false
+
+	buildMobileSettingsPage()
 
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
 	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 46, "Non-spam")
@@ -1612,6 +2199,10 @@ local function buildMobileGui()
 		switchMobileTab("Flicks")
 	end)
 
+	MobileTabSettings.Activated:Connect(function()
+		switchMobileTab("Settings")
+	end)
+
 	bindRowPress(MobileHideGuiRow, function()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
 	end)
@@ -1626,7 +2217,7 @@ local function buildMobileGui()
 
 	bindRowPress(MobileXrayRow, function()
 		isXrayEnabled = not isXrayEnabled
-		WALLHOP_COOLDOWN = isXrayEnabled and 0.40 or 0
+		WALLHOP_COOLDOWN = isXrayEnabled and ((tonumber(nonSpamValue) or 50) / 100) or 0
 		updateMobilePanelButtons()
 	end)
 
@@ -2054,7 +2645,7 @@ local function buildPCGui()
 
 	XrayBindButton.MouseButton1Click:Connect(function()
 		isXrayEnabled = not isXrayEnabled
-		WALLHOP_COOLDOWN = isXrayEnabled and 0.40 or 0
+		WALLHOP_COOLDOWN = isXrayEnabled and ((tonumber(nonSpamValue) or 50) / 100) or 0
 		updateBindButtons()
 		updateMobilePanelButtons()
 		showNotice(isXrayEnabled and "Non-spam enabled" or "Non-spam disabled")
