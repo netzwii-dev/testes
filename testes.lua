@@ -41,7 +41,7 @@ end
 
 
 local DEFAULT_HIDE_GUI_KEY = Enum.KeyCode.RightShift
-local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Q
+local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Y
 local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.E
 local DEFAULT_TOGGLE_CORNER_WALK_KEY = Enum.KeyCode.R
 local DEFAULT_TOGGLE_XRAY_KEY = Enum.KeyCode.X
@@ -83,6 +83,7 @@ ToggleBindButton = nil
 BeastSlowBindButton = nil
 CornerWalkBindButton = nil
 XrayBindButton = nil
+RealXrayBindButton = nil
 Notice = nil
 NoticeStroke = nil
 
@@ -108,6 +109,7 @@ MobileConsoleWallhopRow = nil
 MobileBeastSlowRow = nil
 MobileCornerWalkRow = nil
 MobileXrayRow = nil
+MobileRealXrayRow = nil
 MobileHideGuiRow = nil
 
 mobileBeastSlowSwitch = nil
@@ -116,6 +118,8 @@ mobileCornerWalkSwitch = nil
 mobileCornerWalkKnob = nil
 mobileXraySwitch = nil
 mobileXrayKnob = nil
+mobileRealXraySwitch = nil
+mobileRealXrayKnob = nil
 mobileHideGuiSwitch = nil
 mobileHideGuiKnob = nil
 mobileDragHandle = nil
@@ -137,6 +141,7 @@ isWallHopEnabled = false
 isSlowEnabled = false
 isCornerWalkEnabled = false
 isXrayEnabled = false
+realXrayEnabled = false
 isFlicking = false
 lastFlickTime = 0
 
@@ -391,9 +396,9 @@ local function clearXray()
 end
 
 local function setXrayEnabled(state)
-	isXrayEnabled = state and true or false
+	realXrayEnabled = state and true or false
 
-	if isXrayEnabled then
+	if realXrayEnabled then
 		applyXray()
 	else
 		clearXray()
@@ -407,7 +412,7 @@ workspace.DescendantAdded:Connect(function(obj)
 		return
 	end
 
-	if isXrayEnabled and obj:IsA("BasePart") then
+	if realXrayEnabled and obj:IsA("BasePart") then
 		task.defer(function()
 			applyXrayToPart(obj)
 		end)
@@ -956,6 +961,9 @@ updateMobilePanelButtons = function()
 	if MobileXrayRow and MobileXrayRow:FindFirstChild("Label") then
 		MobileXrayRow.Label.Text = "Non-spam"
 	end
+	if MobileRealXrayRow and MobileRealXrayRow:FindFirstChild("Label") then
+		MobileRealXrayRow.Label.Text = "X-ray"
+	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
@@ -975,6 +983,7 @@ updateMobilePanelButtons = function()
 	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, not mobileWallhopGuiHidden)
 	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
 	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
+	updateSwitchVisual(mobileRealXraySwitch, mobileRealXrayKnob, realXrayEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
@@ -1003,6 +1012,9 @@ local function updateBindButtons()
 	end
 	if XrayBindButton then
 		XrayBindButton.Text = isXrayEnabled and "Non-spam On" or "Non-spam Off"
+	end
+	if RealXrayBindButton then
+		RealXrayBindButton.Text = waitingForXrayKey and "Press any key..." or ("Keybind Toggle X-ray: " .. toggleXrayKey.Name)
 	end
 end
 
@@ -1348,7 +1360,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 282)
+	MobilePanel.Size = UDim2.new(0, 190, 0, 324)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1410,8 +1422,9 @@ local function buildMobileGui()
 
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
 	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 46, "Non-spam")
-	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 88, "Corner Walk")
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 130, "Beast Slow")
+	MobileRealXrayRow, mobileRealXraySwitch, mobileRealXrayKnob = createSwitchRow(MobileFunctionsPage, 88, "X-ray")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 130, "Corner Walk")
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 172, "Beast Slow")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -1583,9 +1596,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 274)
+			MobilePanel.Size = UDim2.new(0, 184, 0, 316)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 282), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 324), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1613,8 +1626,12 @@ local function buildMobileGui()
 
 	bindRowPress(MobileXrayRow, function()
 		isXrayEnabled = not isXrayEnabled
-		WALLHOP_COOLDOWN = isXrayEnabled and 0.50 or 0
+		WALLHOP_COOLDOWN = isXrayEnabled and 0.40 or 0
 		updateMobilePanelButtons()
+	end)
+
+	bindRowPress(MobileRealXrayRow, function()
+		setXrayEnabled(not realXrayEnabled)
 	end)
 
 	bindRowPress(MobileNormalWallhopRow, function()
@@ -1895,6 +1912,19 @@ local function buildPCGui()
 	noTextStroke(XrayBindButton)
 	setTargetTransparency(XrayBindButton, 1, 0)
 
+	RealXrayBindButton = Instance.new("TextButton")
+	RealXrayBindButton.Size = UDim2.new(1, -36, 0, 22)
+	RealXrayBindButton.Position = UDim2.new(0, 18, 0, 112)
+	RealXrayBindButton.BackgroundTransparency = 1
+	RealXrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
+	RealXrayBindButton.Font = Enum.Font.Gotham
+	RealXrayBindButton.TextSize = 15
+	RealXrayBindButton.TextXAlignment = Enum.TextXAlignment.Left
+	RealXrayBindButton.AutoButtonColor = false
+	RealXrayBindButton.Parent = PcFunctionsPage
+	noTextStroke(RealXrayBindButton)
+	setTargetTransparency(RealXrayBindButton, 1, 0)
+
 	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 2, "Normal Wallhop")
 	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 34, "Visual Wallhop")
 	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 66, "360° Wallhop")
@@ -2024,10 +2054,20 @@ local function buildPCGui()
 
 	XrayBindButton.MouseButton1Click:Connect(function()
 		isXrayEnabled = not isXrayEnabled
-		WALLHOP_COOLDOWN = isXrayEnabled and 0.50 or 0
+		WALLHOP_COOLDOWN = isXrayEnabled and 0.40 or 0
 		updateBindButtons()
 		updateMobilePanelButtons()
 		showNotice(isXrayEnabled and "Non-spam enabled" or "Non-spam disabled")
+	end)
+
+	RealXrayBindButton.MouseButton1Click:Connect(function()
+		waitingForXrayKey = true
+		waitingForHideKey = false
+		waitingForToggleKey = false
+		waitingForBeastSlowKey = false
+		waitingForCornerWalkKey = false
+		updateBindButtons()
+		showNotice("Press a key...")
 	end)
 
 	ToggleButton.MouseButton1Click:Connect(function()
@@ -3470,8 +3510,15 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForXrayKey then
-			waitingForXrayKey = false
-			updateBindButtons()
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey then
+				toggleXrayKey = key
+				waitingForXrayKey = false
+				savePCKeybinds()
+				updateBindButtons()
+				showNotice("X-ray key updated")
+			else
+				showNotice("Key already in use")
+			end
 			return
 		end
 
@@ -3500,6 +3547,8 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if key == toggleXrayKey then
+			setXrayEnabled(not realXrayEnabled)
+			showNotice(realXrayEnabled and "X-ray enabled" or "X-ray disabled")
 			return
 		end
 	end
