@@ -1317,35 +1317,45 @@ local function setMobileBeastSlowButtonState(state)
 end
 
 
-function updateSettingsNoticeStack()
-	pcall(function()
-		if not SettingsNoticeList then
-			SettingsNoticeList = {}
-		end
-
-		noticeIndex = 0
-		for i = #SettingsNoticeList, 1, -1 do
-			frame = SettingsNoticeList[i]
-			if not frame or not frame.Parent then
-				table.remove(SettingsNoticeList, i)
-			else
-				noticeIndex += 1
-				TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					Position = UDim2.new(1, -14, 0, 14 + ((noticeIndex - 1) * 34))
-				}):Play()
-			end
-		end
-	end)
-end
-
 function showSettingsNotice(message)
 	pcall(function()
 		if not ScreenGui then
 			return
 		end
 
-		if not SettingsNoticeList then
-			SettingsNoticeList = {}
+		SettingsNoticeId = (SettingsNoticeId or 0) + 1
+		mySettingsNoticeId = SettingsNoticeId
+
+		if SettingsNoticeFrame and SettingsNoticeFrame.Parent then
+			oldNoticeFrame = SettingsNoticeFrame
+			pcall(function()
+				TweenService:Create(oldNoticeFrame, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					BackgroundTransparency = 1,
+					Position = UDim2.new(1, 250, 0, oldNoticeFrame.Position.Y.Offset)
+				}):Play()
+
+				for _, child in ipairs(oldNoticeFrame:GetDescendants()) do
+					if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+						TweenService:Create(child, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							TextTransparency = 1
+						}):Play()
+					elseif child:IsA("Frame") then
+						TweenService:Create(child, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							BackgroundTransparency = 1
+						}):Play()
+					elseif child:IsA("UIStroke") then
+						TweenService:Create(child, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+							Transparency = 1
+						}):Play()
+					end
+				end
+			end)
+
+			task.delay(0.09, function()
+				if oldNoticeFrame then
+					oldNoticeFrame:Destroy()
+				end
+			end)
 		end
 
 		SettingsNoticeFrame = Instance.new("Frame")
@@ -1390,9 +1400,6 @@ function showSettingsNotice(message)
 		SettingsNoticeBar.Parent = SettingsNoticeFrame
 		Instance.new("UICorner", SettingsNoticeBar).CornerRadius = UDim.new(1, 0)
 
-		table.insert(SettingsNoticeList, 1, SettingsNoticeFrame)
-		updateSettingsNoticeStack()
-
 		TweenService:Create(SettingsNoticeFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
 			BackgroundTransparency = 0.08,
 			Position = UDim2.new(1, -14, 0, 14)
@@ -1412,10 +1419,14 @@ function showSettingsNotice(message)
 		}):Play()
 
 		task.delay(2, function()
+			if mySettingsNoticeId ~= SettingsNoticeId then
+				return
+			end
+
 			if SettingsNoticeFrame and SettingsNoticeFrame.Parent then
 				TweenService:Create(SettingsNoticeFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
 					BackgroundTransparency = 1,
-					Position = UDim2.new(1, 250, 0, SettingsNoticeFrame.Position.Y.Offset)
+					Position = UDim2.new(1, 250, 0, 14)
 				}):Play()
 				TweenService:Create(SettingsNoticeText, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
 					TextTransparency = 1
@@ -1428,17 +1439,10 @@ function showSettingsNotice(message)
 				}):Play()
 
 				task.delay(0.25, function()
-					for i = #SettingsNoticeList, 1, -1 do
-						if SettingsNoticeList[i] == SettingsNoticeFrame then
-							table.remove(SettingsNoticeList, i)
-						end
-					end
-
-					if SettingsNoticeFrame then
+					if mySettingsNoticeId == SettingsNoticeId and SettingsNoticeFrame then
 						SettingsNoticeFrame:Destroy()
+						SettingsNoticeFrame = nil
 					end
-
-					updateSettingsNoticeStack()
 				end)
 			end
 		end)
@@ -1730,19 +1734,20 @@ end
 
 function createSettingsLabel(parent, y, textValue)
 	SettingsLabel = Instance.new("TextLabel")
-	SettingsLabel.Size = UDim2.new(1, -76, 0, 22)
-	SettingsLabel.Position = UDim2.new(0, 7, 0, y)
+	SettingsLabel.Size = UDim2.new(1, -76, 0, 24)
+	SettingsLabel.Position = UDim2.new(0, 12, 0, y)
 	SettingsLabel.BackgroundTransparency = 1
 	SettingsLabel.Text = textValue
 	SettingsLabel.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsLabel.TextTransparency = 0
 	SettingsLabel.Font = Enum.Font.GothamBold
-	SettingsLabel.TextSize = 12
+	SettingsLabel.TextSize = 14
 	SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
 	SettingsLabel.TextYAlignment = Enum.TextYAlignment.Center
-	SettingsLabel.ZIndex = 7
+	SettingsLabel.ZIndex = 30
 	SettingsLabel.Parent = parent
 	noTextStroke(SettingsLabel)
+	setTargetTransparency(SettingsLabel, 1, 0)
 	return SettingsLabel
 end
 
@@ -1770,14 +1775,14 @@ function buildMobileSettingsPage()
 	MobileSettingsPage.BackgroundTransparency = 1
 	MobileSettingsPage.BorderSizePixel = 0
 	MobileSettingsPage.ScrollBarThickness = 3
-	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 560)
+	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 590)
 	MobileSettingsPage.Visible = false
 	MobileSettingsPage.Parent = MobilePanel
 
 	createSettingsLabel(MobileSettingsPage, 4, "X-ray Opacity")
 	SettingsXrayBox = Instance.new("TextBox")
 	SettingsXrayBox.Size = UDim2.new(0, 54, 0, 26)
-	SettingsXrayBox.Position = UDim2.new(1, -62, 0, 2)
+	SettingsXrayBox.Position = UDim2.new(1, -68, 0, 4)
 	SettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsXrayBox.Font = Enum.Font.GothamBold
@@ -1787,13 +1792,18 @@ function buildMobileSettingsPage()
 	SettingsXrayBox.ZIndex = 8
 	SettingsXrayBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", SettingsXrayBox).CornerRadius = UDim.new(0, 8)
+	SettingsXrayStroke = Instance.new("UIStroke")
+	SettingsXrayStroke.Color = Color3.fromRGB(35,35,35)
+	SettingsXrayStroke.Thickness = 1
+	SettingsXrayStroke.Transparency = 0.15
+	SettingsXrayStroke.Parent = SettingsXrayBox
 	noTextStroke(SettingsXrayBox)
 	SettingsXrayBox.FocusLost:Connect(applyXraySettingFromBox)
 
-	createSettingsLabel(MobileSettingsPage, 36, "Non-spam Settings")
+	createSettingsLabel(MobileSettingsPage, 40, "Non-spam Settings")
 	SettingsNonSpamBox = Instance.new("TextBox")
 	SettingsNonSpamBox.Size = UDim2.new(0, 54, 0, 26)
-	SettingsNonSpamBox.Position = UDim2.new(1, -62, 0, 34)
+	SettingsNonSpamBox.Position = UDim2.new(1, -68, 0, 40)
 	SettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsNonSpamBox.Font = Enum.Font.GothamBold
@@ -1803,13 +1813,18 @@ function buildMobileSettingsPage()
 	SettingsNonSpamBox.ZIndex = 8
 	SettingsNonSpamBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", SettingsNonSpamBox).CornerRadius = UDim.new(0, 8)
+	SettingsNonSpamStroke = Instance.new("UIStroke")
+	SettingsNonSpamStroke.Color = Color3.fromRGB(35,35,35)
+	SettingsNonSpamStroke.Thickness = 1
+	SettingsNonSpamStroke.Transparency = 0.15
+	SettingsNonSpamStroke.Parent = SettingsNonSpamBox
 	noTextStroke(SettingsNonSpamBox)
 	SettingsNonSpamBox.FocusLost:Connect(applyNonSpamSettingFromBox)
 
-	createSettingsLabel(MobileSettingsPage, 76, "Config name:")
+	createSettingsLabel(MobileSettingsPage, 82, "Config name")
 	ConfigNameBox = Instance.new("TextBox")
 	ConfigNameBox.Size = UDim2.new(1, -14, 0, 30)
-	ConfigNameBox.Position = UDim2.new(0, 7, 0, 98)
+	ConfigNameBox.Position = UDim2.new(0, 7, 0, 110)
 	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigNameBox.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigNameBox.PlaceholderText = "name config"
@@ -1821,9 +1836,14 @@ function buildMobileSettingsPage()
 	ConfigNameBox.ZIndex = 8
 	ConfigNameBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", ConfigNameBox).CornerRadius = UDim.new(0, 9)
+	ConfigNameStroke = Instance.new("UIStroke")
+	ConfigNameStroke.Color = Color3.fromRGB(35,35,35)
+	ConfigNameStroke.Thickness = 1
+	ConfigNameStroke.Transparency = 0.15
+	ConfigNameStroke.Parent = ConfigNameBox
 	noTextStroke(ConfigNameBox)
 
-	CreateConfigButton = createSettingsButton(MobileSettingsPage, 134, "Create config")
+	CreateConfigButton = createSettingsButton(MobileSettingsPage, 148, "Create config")
 	CreateConfigButton.MouseButton1Click:Connect(function()
 		name = configSafeName(ConfigNameBox.Text)
 		if name == "" then
@@ -1838,8 +1858,8 @@ function buildMobileSettingsPage()
 		showSettingsNotice("The configuration file " .. name .. " was created successfully.")
 	end)
 
-	createSettingsLabel(MobileSettingsPage, 174, "Config list:")
-	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 198, "---")
+	createSettingsLabel(MobileSettingsPage, 192, "Config list")
+	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 220, "---")
 	ConfigSelectedButton.MouseButton1Click:Connect(function()
 		configDropdownOpen = not configDropdownOpen
 		if ConfigDropdownFrame then
@@ -1849,14 +1869,14 @@ function buildMobileSettingsPage()
 
 	ConfigDropdownFrame = Instance.new("Frame")
 	ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 28)
-	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 232)
+	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 256)
 	ConfigDropdownFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigDropdownFrame.BorderSizePixel = 0
 	ConfigDropdownFrame.Visible = false
 	ConfigDropdownFrame.Parent = MobileSettingsPage
 	Instance.new("UICorner", ConfigDropdownFrame).CornerRadius = UDim.new(0, 9)
 
-	LoadConfigButton = createSettingsButton(MobileSettingsPage, 262, "Load config")
+	LoadConfigButton = createSettingsButton(MobileSettingsPage, 286, "Load config")
 	LoadConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -1867,7 +1887,7 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	OverwriteConfigButton = createSettingsButton(MobileSettingsPage, 300, "Overwrite config")
+	OverwriteConfigButton = createSettingsButton(MobileSettingsPage, 324, "Overwrite config")
 	OverwriteConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -1877,7 +1897,7 @@ function buildMobileSettingsPage()
 		showSettingsNotice("The " .. selectedConfigName .. " config was overwritten successfully.")
 	end)
 
-	DeleteConfigButton = createSettingsButton(MobileSettingsPage, 338, "Delete config")
+	DeleteConfigButton = createSettingsButton(MobileSettingsPage, 362, "Delete config")
 	DeleteConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -1889,12 +1909,12 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	RefreshConfigButton = createSettingsButton(MobileSettingsPage, 376, "Refresh list")
+	RefreshConfigButton = createSettingsButton(MobileSettingsPage, 400, "Refresh list")
 	RefreshConfigButton.MouseButton1Click:Connect(function()
 		refreshConfigList(true)
 	end)
 
-	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 414, "Set as autoload")
+	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 438, "Set as autoload")
 	SetAutoloadButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -1905,7 +1925,7 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	ResetAutoloadButton = createSettingsButton(MobileSettingsPage, 452, "Reset autoload")
+	ResetAutoloadButton = createSettingsButton(MobileSettingsPage, 476, "Reset autoload")
 	ResetAutoloadButton.MouseButton1Click:Connect(function()
 		if resetAutoloadConfig() then
 			showSettingsNotice("The autoload config has been reset successfully.")
@@ -1916,7 +1936,7 @@ function buildMobileSettingsPage()
 
 	ConfigAutoloadLabel = Instance.new("TextLabel")
 	ConfigAutoloadLabel.Size = UDim2.new(1, -14, 0, 42)
-	ConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 492)
+	ConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 516)
 	ConfigAutoloadLabel.BackgroundTransparency = 1
 	ConfigAutoloadLabel.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigAutoloadLabel.Font = Enum.Font.GothamBold
