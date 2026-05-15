@@ -1284,6 +1284,10 @@ switchMobileTab = function(name)
 	MobileTabFlicks.BackgroundColor3 = mobileIsFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	MobileTabSettings.BackgroundColor3 = mobileIsSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 
+	if mobileIsSettings then
+		updateSettingsInputs()
+	end
+
 	if MobilePanel and MobilePanel:FindFirstChild("MobileFooter") then
 		MobilePanel.MobileFooter.Visible = not mobileIsSettings
 	end
@@ -1811,9 +1815,24 @@ end
 function updateSettingsInputs()
 	if SettingsXrayBox then
 		SettingsXrayBox.Text = tostring(math.floor(tonumber(xrayOpacityValue) or 60))
+		SettingsXrayBox.TextTransparency = 0
+		SettingsXrayBox.BackgroundTransparency = 0
 	end
 	if SettingsNonSpamBox then
 		SettingsNonSpamBox.Text = tostring(math.floor(tonumber(nonSpamValue) or 50))
+		SettingsNonSpamBox.TextTransparency = 0
+		SettingsNonSpamBox.BackgroundTransparency = 0
+	end
+	if ConfigNameBox then
+		ConfigNameBox.TextTransparency = 0
+		ConfigNameBox.BackgroundTransparency = 0
+	end
+	if ConfigSelectedButton then
+		ConfigSelectedButton.TextTransparency = 0
+		ConfigSelectedButton.BackgroundTransparency = 0
+	end
+	if ConfigArrowButton then
+		ConfigArrowButton.TextTransparency = 0
 	end
 	updateAutoloadLabel()
 end
@@ -1870,6 +1889,7 @@ function createSettingsLabel(parent, y, textValue)
 	SettingsLabel.ZIndex = 30
 	SettingsLabel.Parent = parent
 	noTextStroke(SettingsLabel)
+	setTargetTransparency(SettingsLabel, 1, 0)
 	return SettingsLabel
 end
 
@@ -1909,6 +1929,7 @@ function buildMobileSettingsPage()
 
 	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 6, "X-ray Opacity")
 	SettingsXrayTitle.ZIndex = 40
+	setTargetTransparency(SettingsXrayTitle, 1, 0)
 
 	SettingsXrayBox = Instance.new("TextBox")
 	SettingsXrayBox.Size = UDim2.new(0, 58, 0, 28)
@@ -1932,6 +1953,7 @@ function buildMobileSettingsPage()
 
 	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam Settings")
 	SettingsNonSpamTitle.ZIndex = 40
+	setTargetTransparency(SettingsNonSpamTitle, 1, 0)
 
 	SettingsNonSpamBox = Instance.new("TextBox")
 	SettingsNonSpamBox.Size = UDim2.new(0, 58, 0, 28)
@@ -1955,6 +1977,7 @@ function buildMobileSettingsPage()
 
 	ConfigNameTitle = createSettingsLabel(MobileSettingsPage, 80, "Config name")
 	ConfigNameTitle.ZIndex = 40
+	setTargetTransparency(ConfigNameTitle, 1, 0)
 
 	ConfigNameBox = Instance.new("TextBox")
 	ConfigNameBox.Size = UDim2.new(1, -14, 0, 34)
@@ -1988,15 +2011,16 @@ function buildMobileSettingsPage()
 		end
 		saveNamedConfig(name)
 		selectedConfigName = name
+		showSettingsNotice("The configuration file " .. name .. " was created successfully.")
 		if ConfigSelectedButton then
 			ConfigSelectedButton.Text = "   " .. name
 			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 		end
-		showSettingsNotice("The configuration file " .. name .. " was created successfully.")
 	end)
 
 	ConfigListTitle = createSettingsLabel(MobileSettingsPage, 190, "Config list")
 	ConfigListTitle.ZIndex = 40
+	setTargetTransparency(ConfigListTitle, 1, 0)
 
 	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 218, "   ---")
 	ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
@@ -2009,12 +2033,14 @@ function buildMobileSettingsPage()
 	ConfigArrowButton.BackgroundTransparency = 1
 	ConfigArrowButton.Text = "▲"
 	ConfigArrowButton.TextColor3 = Color3.fromRGB(255,255,255)
+	ConfigArrowButton.TextTransparency = 0
 	ConfigArrowButton.Font = Enum.Font.GothamBold
-	ConfigArrowButton.TextSize = 14
+	ConfigArrowButton.TextSize = 16
 	ConfigArrowButton.TextXAlignment = Enum.TextXAlignment.Center
 	ConfigArrowButton.ZIndex = 46
 	ConfigArrowButton.Parent = ConfigSelectedButton
 	noTextStroke(ConfigArrowButton)
+	setTargetTransparency(ConfigArrowButton, 1, 0)
 
 	ConfigDropdownFrame = Instance.new("Frame")
 	ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 44)
@@ -2113,6 +2139,7 @@ function buildMobileSettingsPage()
 	ConfigAutoloadLabel.ZIndex = 40
 	ConfigAutoloadLabel.Parent = MobileSettingsPage
 	noTextStroke(ConfigAutoloadLabel)
+	setTargetTransparency(ConfigAutoloadLabel, 1, 0)
 
 	task.defer(function()
 		refreshConfigList(false)
