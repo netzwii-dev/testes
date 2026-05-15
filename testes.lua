@@ -80,6 +80,7 @@ local MobileBeastSlowButton
 local MobileMenuButton
 local MobilePanel
 local ToggleButton
+local NonSpamToggleButton
 local HideGuiBindButton
 local ToggleBindButton
 local BeastSlowBindButton
@@ -110,6 +111,7 @@ local MobileConsoleWallhopRow
 local MobileBeastSlowRow
 local MobileCornerWalkRow
 local MobileXrayRow
+local MobileNonSpamRow
 local MobileHideGuiRow
 
 local mobileBeastSlowSwitch
@@ -118,6 +120,8 @@ local mobileCornerWalkSwitch
 local mobileCornerWalkKnob
 local mobileXraySwitch
 local mobileXrayKnob
+local mobileNonSpamSwitch
+local mobileNonSpamKnob
 local mobileHideGuiSwitch
 local mobileHideGuiKnob
 local mobileDragHandle
@@ -869,6 +873,10 @@ local function updateToggleButton()
 			MobileBeastSlowButton.Text = isSlowEnabled and "Slow On" or "Slow Off"
 		end
 	end
+
+	if NonSpamToggleButton then
+		NonSpamToggleButton.Text = isNonSpamEnabled and "Non-spam On" or "Non-spam Off"
+	end
 end
 
 setMobileWallhopVisualHidden = function(hidden)
@@ -956,6 +964,9 @@ updateMobilePanelButtons = function()
 	if MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("Label") then
 		MobileHideGuiRow.Label.Text = "Wallhop"
 	end
+	if MobileNonSpamRow and MobileNonSpamRow:FindFirstChild("Label") then
+		MobileNonSpamRow.Label.Text = "Non-spam"
+	end
 	if MobileCornerWalkRow and MobileCornerWalkRow:FindFirstChild("Label") then
 		MobileCornerWalkRow.Label.Text = "Corner Walk"
 	end
@@ -979,6 +990,7 @@ updateMobilePanelButtons = function()
 	end
 
 	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, not mobileWallhopGuiHidden)
+	updateSwitchVisual(mobileNonSpamSwitch, mobileNonSpamKnob, isNonSpamEnabled)
 	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
 	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
@@ -1268,6 +1280,8 @@ end
 local function setNonSpamEnabled(state)
 	isNonSpamEnabled = state and true or false
 
+	updateToggleButton()
+
 	if updateMobilePanelButtons then
 		updateMobilePanelButtons()
 	end
@@ -1358,7 +1372,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 282)
+	MobilePanel.Size = UDim2.new(0, 190, 0, 324)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1419,9 +1433,10 @@ local function buildMobileGui()
 	MobileFlicksPage.Visible = false
 
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
-	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow")
-	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 130, "X-ray")
+	MobileNonSpamRow, mobileNonSpamSwitch, mobileNonSpamKnob = createSwitchRow(MobileFunctionsPage, 46, "Non-spam")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 88, "Corner Walk")
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 130, "Beast Slow")
+	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 172, "X-ray")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -1593,9 +1608,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 274)
+			MobilePanel.Size = UDim2.new(0, 184, 0, 316)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 282), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 324), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1611,6 +1626,10 @@ local function buildMobileGui()
 
 	bindRowPress(MobileHideGuiRow, function()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
+	end)
+
+	bindRowPress(MobileNonSpamRow, function()
+		setNonSpamEnabled(not isNonSpamEnabled)
 	end)
 
 	bindRowPress(MobileCornerWalkRow, function()
@@ -1704,9 +1723,9 @@ local function setMinimized(state)
 				setHostShadowVisible(MiniButton, false)
 
 				MainFrame.Position = restorePos
-				MainFrame.Size = UDim2.new(0, 335, 0, 300)
+				MainFrame.Size = UDim2.new(0, 335, 0, 330)
 
-				elegantShow(MainFrame, UDim2.new(0, 335, 0, 300), restorePos, 0)
+				elegantShow(MainFrame, UDim2.new(0, 335, 0, 330), restorePos, 0)
 			end)
 		end
 
@@ -1717,7 +1736,7 @@ end
 local function createPcTabButton(parent, x, text)
 	local button = Instance.new("TextButton")
 	button.Size = UDim2.new(0, 96, 0, 28)
-	button.Position = UDim2.new(0, x, 0, 54)
+	button.Position = UDim2.new(0, x, 0, 148)
 	button.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	button.Text = text
 	button.TextColor3 = Color3.fromRGB(255,255,255)
@@ -1759,8 +1778,8 @@ local function buildPCGui()
 	ScreenGui.Parent = PlayerGui
 
 	MainFrame = Instance.new("Frame")
-	MainFrame.Size = UDim2.new(0, 335, 0, 300)
-	MainFrame.Position = UDim2.new(0.5, -167, 0.5, -150)
+	MainFrame.Size = UDim2.new(0, 335, 0, 330)
+	MainFrame.Position = UDim2.new(0.5, -167, 0.5, -165)
 	MainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MainFrame.BorderSizePixel = 0
 	MainFrame.Parent = ScreenGui
@@ -1822,18 +1841,32 @@ local function buildPCGui()
 	noTextStroke(ToggleButton)
 	setTargetTransparency(ToggleButton, 1, 0)
 
+	NonSpamToggleButton = Instance.new("TextButton")
+	NonSpamToggleButton.Size = UDim2.new(1, -36, 0, 24)
+	NonSpamToggleButton.Position = UDim2.new(0, 18, 0, 122)
+	NonSpamToggleButton.BackgroundTransparency = 1
+	NonSpamToggleButton.Text = "Non-spam Off"
+	NonSpamToggleButton.TextColor3 = Color3.fromRGB(220,220,220)
+	NonSpamToggleButton.Font = Enum.Font.GothamBold
+	NonSpamToggleButton.TextSize = 16
+	NonSpamToggleButton.TextXAlignment = Enum.TextXAlignment.Left
+	NonSpamToggleButton.AutoButtonColor = false
+	NonSpamToggleButton.Parent = MainFrame
+	noTextStroke(NonSpamToggleButton)
+	setTargetTransparency(NonSpamToggleButton, 1, 0)
+
 	PcTabFunctions = createPcTabButton(MainFrame, 18, "Functions")
 	PcTabFlicks = createPcTabButton(MainFrame, 120, "Flicks")
 
 	PcFunctionsPage = Instance.new("Frame")
-	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -120)
-	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 118)
+	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -182)
+	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 180)
 	PcFunctionsPage.BackgroundTransparency = 1
 	PcFunctionsPage.Parent = MainFrame
 
 	PcFlicksPage = Instance.new("Frame")
-	PcFlicksPage.Size = UDim2.new(1, 0, 1, -120)
-	PcFlicksPage.Position = UDim2.new(0, 0, 0, 118)
+	PcFlicksPage.Size = UDim2.new(1, 0, 1, -182)
+	PcFlicksPage.Position = UDim2.new(0, 0, 0, 180)
 	PcFlicksPage.BackgroundTransparency = 1
 	PcFlicksPage.Visible = false
 	PcFlicksPage.Parent = MainFrame
@@ -2046,6 +2079,11 @@ local function buildPCGui()
 		showNotice(isWallHopEnabled and "Wallhop enabled" or "Wallhop disabled")
 	end)
 
+	NonSpamToggleButton.MouseButton1Click:Connect(function()
+		setNonSpamEnabled(not isNonSpamEnabled)
+		showNotice(isNonSpamEnabled and "Non-spam enabled" or "Non-spam disabled")
+	end)
+
 	PcNormalWallhopButton.MouseButton1Click:Connect(function()
 		setFlickMode("Normal Wallhop")
 	end)
@@ -2065,7 +2103,7 @@ local function buildPCGui()
 	switchPcTab("Functions")
 	updateBindButtons()
 	updateFlickButtons()
-	elegantShow(MainFrame, UDim2.new(0, 335, 0, 300), MainFrame.Position, 0)
+	elegantShow(MainFrame, UDim2.new(0, 335, 0, 330), MainFrame.Position, 0)
 	showNotice("PC version loaded")
 end
 
