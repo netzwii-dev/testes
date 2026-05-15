@@ -137,14 +137,13 @@ local isWallHopEnabled = false
 local isSlowEnabled = false
 local isCornerWalkEnabled = false
 local isXrayEnabled = false
-local isNonSpamEnabled = false
 local isFlicking = false
 local lastFlickTime = 0
 
 local isWallHopping = false
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
-local NON_SPAM_COOLDOWN = 0.40
+local WALLHOP_COOLDOWN = 0
 
 local canDoubleJump = false
 local lastDoubleJump = 0
@@ -400,11 +399,6 @@ local function setXrayEnabled(state)
 		clearXray()
 	end
 
-	updateMobilePanelButtons()
-end
-
-local function setNonSpamEnabled(state)
-	isNonSpamEnabled = state and true or false
 	updateMobilePanelButtons()
 end
 
@@ -980,7 +974,7 @@ updateMobilePanelButtons = function()
 
 	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, not mobileWallhopGuiHidden)
 	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
-	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isNonSpamEnabled)
+	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
@@ -1614,7 +1608,9 @@ local function buildMobileGui()
 	end)
 
 	bindRowPress(MobileXrayRow, function()
-		setNonSpamEnabled(not isNonSpamEnabled)
+		isXrayEnabled = not isXrayEnabled
+		WALLHOP_COOLDOWN = isXrayEnabled and 0.40 or 0
+		updateMobilePanelButtons()
 	end)
 
 	bindRowPress(MobileNormalWallhopRow, function()
@@ -3389,9 +3385,7 @@ RunService.Heartbeat:Connect(function()
 				farEnough = (result.Position - lastHitPosition).Magnitude >= MIN_HIT_DISTANCE
 			end
 
-			local activeWallhopCooldown = isNonSpamEnabled and NON_SPAM_COOLDOWN or 0
-
-			if hrp.Velocity.Y < -0.8 and tick() - lastFlickTime > activeWallhopCooldown and farEnough then
+			if hrp.Velocity.Y < -0.8 and tick() - lastFlickTime > WALLHOP_COOLDOWN and farEnough then
 				lastFlickTime = tick()
 				lastHitPosition = result.Position
 				performSelectedWallhop()
