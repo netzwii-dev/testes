@@ -153,6 +153,7 @@ realXrayEnabled = false
 xrayOpacityValue = 60
 nonSpamValue = 50
 wallhopConfigs = {}
+SettingsNoticeList = {}
 selectedConfigName = "---"
 configDropdownOpen = false
 autoloadConfigName = "Default"
@@ -1316,35 +1317,63 @@ local function setMobileBeastSlowButtonState(state)
 end
 
 
+function updateSettingsNoticeStack()
+	pcall(function()
+		if not SettingsNoticeList then
+			SettingsNoticeList = {}
+		end
+
+		noticeIndex = 0
+		for i = #SettingsNoticeList, 1, -1 do
+			frame = SettingsNoticeList[i]
+			if not frame or not frame.Parent then
+				table.remove(SettingsNoticeList, i)
+			else
+				noticeIndex += 1
+				TweenService:Create(frame, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Position = UDim2.new(1, -14, 0, 14 + ((noticeIndex - 1) * 34))
+				}):Play()
+			end
+		end
+	end)
+end
+
 function showSettingsNotice(message)
 	pcall(function()
 		if not ScreenGui then
 			return
 		end
 
-		if SettingsNoticeFrame then
-			SettingsNoticeFrame:Destroy()
-			SettingsNoticeFrame = nil
+		if not SettingsNoticeList then
+			SettingsNoticeList = {}
 		end
 
 		SettingsNoticeFrame = Instance.new("Frame")
-		SettingsNoticeFrame.Size = UDim2.new(0, 330, 0, 44)
-		SettingsNoticeFrame.Position = UDim2.new(0.5, -165, 0, 22)
+		SettingsNoticeFrame.Size = UDim2.new(0, 230, 0, 30)
+		SettingsNoticeFrame.Position = UDim2.new(1, 250, 0, 14)
+		SettingsNoticeFrame.AnchorPoint = Vector2.new(1, 0)
 		SettingsNoticeFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		SettingsNoticeFrame.BackgroundTransparency = 0.06
+		SettingsNoticeFrame.BackgroundTransparency = 1
 		SettingsNoticeFrame.BorderSizePixel = 0
 		SettingsNoticeFrame.ZIndex = 90
 		SettingsNoticeFrame.Parent = ScreenGui
-		Instance.new("UICorner", SettingsNoticeFrame).CornerRadius = UDim.new(0, 12)
+		Instance.new("UICorner", SettingsNoticeFrame).CornerRadius = UDim.new(0, 10)
+
+		SettingsNoticeStroke = Instance.new("UIStroke")
+		SettingsNoticeStroke.Color = Color3.fromRGB(255,255,255)
+		SettingsNoticeStroke.Thickness = 1
+		SettingsNoticeStroke.Transparency = 1
+		SettingsNoticeStroke.Parent = SettingsNoticeFrame
 
 		SettingsNoticeText = Instance.new("TextLabel")
-		SettingsNoticeText.Size = UDim2.new(1, -18, 0, 28)
-		SettingsNoticeText.Position = UDim2.new(0, 9, 0, 4)
+		SettingsNoticeText.Size = UDim2.new(1, -14, 0, 21)
+		SettingsNoticeText.Position = UDim2.new(0, 7, 0, 3)
 		SettingsNoticeText.BackgroundTransparency = 1
 		SettingsNoticeText.Text = tostring(message)
 		SettingsNoticeText.TextColor3 = Color3.fromRGB(255,255,255)
+		SettingsNoticeText.TextTransparency = 1
 		SettingsNoticeText.Font = Enum.Font.GothamBold
-		SettingsNoticeText.TextSize = 12
+		SettingsNoticeText.TextSize = 11
 		SettingsNoticeText.TextWrapped = true
 		SettingsNoticeText.TextXAlignment = Enum.TextXAlignment.Left
 		SettingsNoticeText.ZIndex = 91
@@ -1352,35 +1381,64 @@ function showSettingsNotice(message)
 		noTextStroke(SettingsNoticeText)
 
 		SettingsNoticeBar = Instance.new("Frame")
-		SettingsNoticeBar.Size = UDim2.new(1, -14, 0, 3)
-		SettingsNoticeBar.Position = UDim2.new(0, 7, 1, -7)
+		SettingsNoticeBar.Size = UDim2.new(1, -12, 0, 2)
+		SettingsNoticeBar.Position = UDim2.new(0, 6, 1, -4)
 		SettingsNoticeBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
+		SettingsNoticeBar.BackgroundTransparency = 0
 		SettingsNoticeBar.BorderSizePixel = 0
 		SettingsNoticeBar.ZIndex = 91
 		SettingsNoticeBar.Parent = SettingsNoticeFrame
 		Instance.new("UICorner", SettingsNoticeBar).CornerRadius = UDim.new(1, 0)
 
-		TweenService:Create(SettingsNoticeBar, TweenInfo.new(3, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 0, 0, 3),
-			Position = UDim2.new(1, -7, 1, -7)
+		table.insert(SettingsNoticeList, 1, SettingsNoticeFrame)
+		updateSettingsNoticeStack()
+
+		TweenService:Create(SettingsNoticeFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+			BackgroundTransparency = 0.08,
+			Position = UDim2.new(1, -14, 0, 14)
 		}):Play()
 
-		task.delay(3, function()
+		TweenService:Create(SettingsNoticeText, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+			TextTransparency = 0
+		}):Play()
+
+		TweenService:Create(SettingsNoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Transparency = 0.9
+		}):Play()
+
+		TweenService:Create(SettingsNoticeBar, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, 0, 0, 2),
+			Position = UDim2.new(1, -6, 1, -4)
+		}):Play()
+
+		task.delay(2, function()
 			if SettingsNoticeFrame and SettingsNoticeFrame.Parent then
-				TweenService:Create(SettingsNoticeFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-					BackgroundTransparency = 1
+				TweenService:Create(SettingsNoticeFrame, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+					BackgroundTransparency = 1,
+					Position = UDim2.new(1, 250, 0, SettingsNoticeFrame.Position.Y.Offset)
 				}):Play()
-				TweenService:Create(SettingsNoticeText, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				TweenService:Create(SettingsNoticeText, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
 					TextTransparency = 1
 				}):Play()
-				TweenService:Create(SettingsNoticeBar, TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				TweenService:Create(SettingsNoticeStroke, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					Transparency = 1
+				}):Play()
+				TweenService:Create(SettingsNoticeBar, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 					BackgroundTransparency = 1
 				}):Play()
+
 				task.delay(0.25, function()
+					for i = #SettingsNoticeList, 1, -1 do
+						if SettingsNoticeList[i] == SettingsNoticeFrame then
+							table.remove(SettingsNoticeList, i)
+						end
+					end
+
 					if SettingsNoticeFrame then
 						SettingsNoticeFrame:Destroy()
-						SettingsNoticeFrame = nil
 					end
+
+					updateSettingsNoticeStack()
 				end)
 			end
 		end)
@@ -1672,14 +1730,17 @@ end
 
 function createSettingsLabel(parent, y, textValue)
 	SettingsLabel = Instance.new("TextLabel")
-	SettingsLabel.Size = UDim2.new(1, -14, 0, 20)
+	SettingsLabel.Size = UDim2.new(1, -76, 0, 22)
 	SettingsLabel.Position = UDim2.new(0, 7, 0, y)
 	SettingsLabel.BackgroundTransparency = 1
 	SettingsLabel.Text = textValue
 	SettingsLabel.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsLabel.TextTransparency = 0
 	SettingsLabel.Font = Enum.Font.GothamBold
 	SettingsLabel.TextSize = 12
 	SettingsLabel.TextXAlignment = Enum.TextXAlignment.Left
+	SettingsLabel.TextYAlignment = Enum.TextYAlignment.Center
+	SettingsLabel.ZIndex = 7
 	SettingsLabel.Parent = parent
 	noTextStroke(SettingsLabel)
 	return SettingsLabel
@@ -1723,6 +1784,7 @@ function buildMobileSettingsPage()
 	SettingsXrayBox.TextSize = 12
 	SettingsXrayBox.Text = tostring(xrayOpacityValue)
 	SettingsXrayBox.ClearTextOnFocus = false
+	SettingsXrayBox.ZIndex = 8
 	SettingsXrayBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", SettingsXrayBox).CornerRadius = UDim.new(0, 8)
 	noTextStroke(SettingsXrayBox)
@@ -1738,6 +1800,7 @@ function buildMobileSettingsPage()
 	SettingsNonSpamBox.TextSize = 12
 	SettingsNonSpamBox.Text = tostring(nonSpamValue)
 	SettingsNonSpamBox.ClearTextOnFocus = false
+	SettingsNonSpamBox.ZIndex = 8
 	SettingsNonSpamBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", SettingsNonSpamBox).CornerRadius = UDim.new(0, 8)
 	noTextStroke(SettingsNonSpamBox)
@@ -1749,11 +1812,13 @@ function buildMobileSettingsPage()
 	ConfigNameBox.Position = UDim2.new(0, 7, 0, 98)
 	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigNameBox.TextColor3 = Color3.fromRGB(255,255,255)
-	ConfigNameBox.PlaceholderText = ""
+	ConfigNameBox.PlaceholderText = "name config"
+	ConfigNameBox.PlaceholderColor3 = Color3.fromRGB(130,130,130)
 	ConfigNameBox.Font = Enum.Font.Gotham
 	ConfigNameBox.TextSize = 12
 	ConfigNameBox.Text = ""
 	ConfigNameBox.ClearTextOnFocus = false
+	ConfigNameBox.ZIndex = 8
 	ConfigNameBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", ConfigNameBox).CornerRadius = UDim.new(0, 9)
 	noTextStroke(ConfigNameBox)
