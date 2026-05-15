@@ -1771,11 +1771,11 @@ function refreshConfigList(showMessage)
 		end)
 
 		for index, name in ipairs(configNames) do
-			newConfigOption(name, Color3.fromRGB(130,130,130), index + 1, function()
+			newConfigOption(name, Color3.fromRGB(255,255,255), index + 1, function()
 				selectedConfigName = name
 				if ConfigSelectedButton then
 					ConfigSelectedButton.Text = "   " .. tostring(selectedConfigName)
-					ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+					ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 				end
 				configDropdownOpen = false
 				ConfigDropdownFrame.Visible = false
@@ -1798,7 +1798,7 @@ function refreshConfigList(showMessage)
 	if ConfigSelectedButton then
 		if selectedConfigName and selectedConfigName ~= "---" then
 			ConfigSelectedButton.Text = "   " .. tostring(selectedConfigName)
-			ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 		else
 			ConfigSelectedButton.Text = "   ---"
 			ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
@@ -2023,7 +2023,7 @@ function buildMobileSettingsPage()
 	noTextStroke(SettingsXrayBox)
 	SettingsXrayBox.FocusLost:Connect(applyXraySettingFromBox)
 
-	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam Settings")
+	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam Setting")
 	SettingsNonSpamTitle.ZIndex = 40
 	SettingsNonSpamTitle.TextTransparency = 0
 	setTargetTransparency(SettingsNonSpamTitle, 1, 0)
@@ -2088,7 +2088,7 @@ function buildMobileSettingsPage()
 		showSettingsNotice("The configuration file " .. name .. " was created successfully.")
 		if ConfigSelectedButton then
 			ConfigSelectedButton.Text = "   " .. name
-			ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 		end
 	end)
 
@@ -2098,7 +2098,7 @@ function buildMobileSettingsPage()
 	setTargetTransparency(ConfigListTitle, 1, 0)
 
 	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 218, "   ---")
-	ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+	ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Left
 	ConfigSelectedButton.ZIndex = 45
 
