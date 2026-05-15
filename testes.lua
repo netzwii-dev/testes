@@ -108,7 +108,6 @@ local MobileConsoleWallhopRow
 local MobileBeastSlowRow
 local MobileCornerWalkRow
 local MobileXrayRow
-local MobileNonSpamRow
 local MobileHideGuiRow
 
 local mobileBeastSlowSwitch
@@ -117,8 +116,6 @@ local mobileCornerWalkSwitch
 local mobileCornerWalkKnob
 local mobileXraySwitch
 local mobileXrayKnob
-local mobileNonSpamSwitch
-local mobileNonSpamKnob
 local mobileHideGuiSwitch
 local mobileHideGuiKnob
 local mobileDragHandle
@@ -403,6 +400,11 @@ local function setXrayEnabled(state)
 		clearXray()
 	end
 
+	updateMobilePanelButtons()
+end
+
+local function setNonSpamEnabled(state)
+	isNonSpamEnabled = state and true or false
 	updateMobilePanelButtons()
 end
 
@@ -954,14 +956,11 @@ updateMobilePanelButtons = function()
 	if MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("Label") then
 		MobileHideGuiRow.Label.Text = "Wallhop"
 	end
-	if MobileNonSpamRow and MobileNonSpamRow:FindFirstChild("Label") then
-		MobileNonSpamRow.Label.Text = "Non-spam"
-	end
 	if MobileCornerWalkRow and MobileCornerWalkRow:FindFirstChild("Label") then
 		MobileCornerWalkRow.Label.Text = "Corner Walk"
 	end
 	if MobileXrayRow and MobileXrayRow:FindFirstChild("Label") then
-		MobileXrayRow.Label.Text = "X-ray"
+		MobileXrayRow.Label.Text = "Non-spam"
 	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
@@ -980,9 +979,8 @@ updateMobilePanelButtons = function()
 	end
 
 	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, not mobileWallhopGuiHidden)
-	updateSwitchVisual(mobileNonSpamSwitch, mobileNonSpamKnob, isNonSpamEnabled)
 	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
-	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
+	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isNonSpamEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
@@ -1278,11 +1276,6 @@ local function setMobileGuiHidden(state)
 	updateMobilePanelButtons()
 end
 
-local function setNonSpamEnabled(state)
-	isNonSpamEnabled = state and true or false
-	updateMobilePanelButtons()
-end
-
 local function setMobileCornerWalkButtonState(state)
 	mobileCornerWalkButtonVisible = state and true or false
 	updateMobilePanelButtons()
@@ -1357,7 +1350,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 324)
+	MobilePanel.Size = UDim2.new(0, 190, 0, 282)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1418,10 +1411,9 @@ local function buildMobileGui()
 	MobileFlicksPage.Visible = false
 
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
-	MobileNonSpamRow, mobileNonSpamSwitch, mobileNonSpamKnob = createSwitchRow(MobileFunctionsPage, 46, "Non-spam")
-	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 88, "Corner Walk")
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 130, "Beast Slow")
-	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 172, "X-ray")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow")
+	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 130, "X-ray")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -1593,9 +1585,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 316)
+			MobilePanel.Size = UDim2.new(0, 184, 0, 274)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 324), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 282), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1613,10 +1605,6 @@ local function buildMobileGui()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
 	end)
 
-	bindRowPress(MobileNonSpamRow, function()
-		setNonSpamEnabled(not isNonSpamEnabled)
-	end)
-
 	bindRowPress(MobileCornerWalkRow, function()
 		setMobileCornerWalkButtonState(not mobileCornerWalkButtonVisible)
 	end)
@@ -1626,7 +1614,7 @@ local function buildMobileGui()
 	end)
 
 	bindRowPress(MobileXrayRow, function()
-		setXrayEnabled(not isXrayEnabled)
+		setNonSpamEnabled(not isNonSpamEnabled)
 	end)
 
 	bindRowPress(MobileNormalWallhopRow, function()
@@ -3545,4 +3533,4 @@ createModeSelector(function(mode)
 	applyVisibility()
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loadeddd Successfully ✅")
+print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
