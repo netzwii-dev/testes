@@ -110,15 +110,12 @@ local MobileNoMoveWallhopRow
 local Mobile360WallhopRow
 local MobileConsoleWallhopRow
 local MobileBeastSlowRow
-local MobileNonSpamRow
 local MobileCornerWalkRow
 local MobileXrayRow
 local MobileHideGuiRow
 
 local mobileBeastSlowSwitch
 local mobileBeastSlowKnob
-local mobileNonSpamSwitch
-local mobileNonSpamKnob
 local mobileCornerWalkSwitch
 local mobileCornerWalkKnob
 local mobileXraySwitch
@@ -970,9 +967,6 @@ updateMobilePanelButtons = function()
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
-	if MobileNonSpamRow and MobileNonSpamRow:FindFirstChild("Label") then
-		MobileNonSpamRow.Label.Text = "Non-spam"
-	end
 	if MobileNormalWallhopRow and MobileNormalWallhopRow:FindFirstChild("Label") then
 		MobileNormalWallhopRow.Label.Text = "Normal Wallhop"
 	end
@@ -990,7 +984,6 @@ updateMobilePanelButtons = function()
 	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
 	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
-	updateSwitchVisual(mobileNonSpamSwitch, mobileNonSpamKnob, isNonSpamEnabled)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
 	setMobileCornerWalkButtonVisible(mobileCornerWalkButtonVisible)
@@ -1367,7 +1360,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 190, 0, 324)
+	MobilePanel.Size = UDim2.new(0, 190, 0, 282)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1430,8 +1423,7 @@ local function buildMobileGui()
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
 	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow")
-	MobileNonSpamRow, mobileNonSpamSwitch, mobileNonSpamKnob = createSwitchRow(MobileFunctionsPage, 130, "Non-spam")
-	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 172, "X-ray")
+	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 130, "X-ray")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -1603,9 +1595,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 316)
+			MobilePanel.Size = UDim2.new(0, 184, 0, 274)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 324), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 282), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1629,10 +1621,6 @@ local function buildMobileGui()
 
 	bindRowPress(MobileBeastSlowRow, function()
 		setMobileBeastSlowButtonState(not mobileBeastSlowButtonVisible)
-	end)
-
-	bindRowPress(MobileNonSpamRow, function()
-		setNonSpamEnabled(not isNonSpamEnabled)
 	end)
 
 	bindRowPress(MobileXrayRow, function()
@@ -1854,7 +1842,7 @@ local function buildPCGui()
 
 	HideGuiBindButton = Instance.new("TextButton")
 	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 22)
-	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 2)
+	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 4)
 	HideGuiBindButton.BackgroundTransparency = 1
 	HideGuiBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	HideGuiBindButton.Font = Enum.Font.Gotham
@@ -1867,7 +1855,7 @@ local function buildPCGui()
 
 	ToggleBindButton = Instance.new("TextButton")
 	ToggleBindButton.Size = UDim2.new(1, -36, 0, 22)
-	ToggleBindButton.Position = UDim2.new(0, 18, 0, 27)
+	ToggleBindButton.Position = UDim2.new(0, 18, 0, 31)
 	ToggleBindButton.BackgroundTransparency = 1
 	ToggleBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleBindButton.Font = Enum.Font.Gotham
@@ -1880,7 +1868,7 @@ local function buildPCGui()
 
 	BeastSlowBindButton = Instance.new("TextButton")
 	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 22)
-	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 52)
+	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 58)
 	BeastSlowBindButton.BackgroundTransparency = 1
 	BeastSlowBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	BeastSlowBindButton.Font = Enum.Font.Gotham
@@ -1893,7 +1881,7 @@ local function buildPCGui()
 
 	NonSpamBindButton = Instance.new("TextButton")
 	NonSpamBindButton.Size = UDim2.new(1, -36, 0, 22)
-	NonSpamBindButton.Position = UDim2.new(0, 18, 0, 77)
+	NonSpamBindButton.Position = UDim2.new(0, 18, 0, 85)
 	NonSpamBindButton.BackgroundTransparency = 1
 	NonSpamBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	NonSpamBindButton.Font = Enum.Font.Gotham
@@ -1906,7 +1894,7 @@ local function buildPCGui()
 
 	CornerWalkBindButton = Instance.new("TextButton")
 	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 22)
-	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 102)
+	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 112)
 	CornerWalkBindButton.BackgroundTransparency = 1
 	CornerWalkBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	CornerWalkBindButton.Font = Enum.Font.Gotham
@@ -1919,7 +1907,7 @@ local function buildPCGui()
 
 	XrayBindButton = Instance.new("TextButton")
 	XrayBindButton.Size = UDim2.new(1, -36, 0, 22)
-	XrayBindButton.Position = UDim2.new(0, 18, 0, 127)
+	XrayBindButton.Position = UDim2.new(0, 18, 0, 139)
 	XrayBindButton.BackgroundTransparency = 1
 	XrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	XrayBindButton.Font = Enum.Font.Gotham
@@ -2020,7 +2008,6 @@ local function buildPCGui()
 		waitingForHideKey = true
 		waitingForToggleKey = false
 		waitingForBeastSlowKey = false
-		waitingForNonSpamKey = false
 		waitingForCornerWalkKey = false
 		waitingForXrayKey = false
 		updateBindButtons()
@@ -2031,7 +2018,6 @@ local function buildPCGui()
 		waitingForToggleKey = true
 		waitingForHideKey = false
 		waitingForBeastSlowKey = false
-		waitingForNonSpamKey = false
 		waitingForCornerWalkKey = false
 		waitingForXrayKey = false
 		updateBindButtons()
@@ -2054,7 +2040,6 @@ local function buildPCGui()
 		waitingForHideKey = false
 		waitingForToggleKey = false
 		waitingForBeastSlowKey = false
-		waitingForNonSpamKey = false
 		waitingForCornerWalkKey = false
 		waitingForXrayKey = false
 		updateBindButtons()
@@ -2076,7 +2061,6 @@ local function buildPCGui()
 		waitingForHideKey = false
 		waitingForToggleKey = false
 		waitingForBeastSlowKey = false
-		waitingForNonSpamKey = false
 		waitingForCornerWalkKey = false
 		waitingForXrayKey = false
 		updateBindButtons()
