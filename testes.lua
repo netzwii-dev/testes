@@ -97,18 +97,23 @@ local NoticeStroke
 
 local PcTabFunctions
 local PcTabFlicks
+local PcTabSettings
 local PcFunctionsPage
 local PcFlicksPage
+local PcSettingsPage
 local PcCurrentUsingLabel
 local PcNormalWallhopButton
 local PcNoMoveWallhopButton
 local Pc360WallhopButton
 local PcConsoleWallhopButton
+local PcNonSpamButton
 
 local MobileTabFunctions
 local MobileTabFlicks
+local MobileTabSettings
 local MobileFunctionsPage
 local MobileFlicksPage
+local MobileSettingsPage
 local MobileCurrentUsingLabel
 local MobileNormalWallhopRow
 local MobileNoMoveWallhopRow
@@ -117,6 +122,7 @@ local MobileConsoleWallhopRow
 local MobileBeastSlowRow
 local MobileCornerWalkRow
 local MobileXrayRow
+local MobileNonSpamRow
 local MobileHideGuiRow
 
 local mobileBeastSlowSwitch
@@ -125,6 +131,8 @@ local mobileCornerWalkSwitch
 local mobileCornerWalkKnob
 local mobileXraySwitch
 local mobileXrayKnob
+local mobileNonSpamSwitch
+local mobileNonSpamKnob
 local mobileHideGuiSwitch
 local mobileHideGuiKnob
 local mobileDragHandle
@@ -146,6 +154,7 @@ local isWallHopEnabled = false
 local isSlowEnabled = false
 local isCornerWalkEnabled = false
 local isXrayEnabled = false
+local isNonSpamEnabled = false
 local isFlicking = false
 local lastFlickTime = 0
 
@@ -153,6 +162,7 @@ local isWallHopping = false
 local lastWallHopTime = 0
 local WALLHOP_GRACE_TIME = 1.5
 local WALLHOP_COOLDOWN = 0.22
+local NON_SPAM_DELAY = 0.50
 
 local canDoubleJump = false
 local lastDoubleJump = 0
@@ -409,6 +419,12 @@ local function setXrayEnabled(state)
 	end
 
 	updateMobilePanelButtons()
+end
+
+local function setNonSpamEnabled(state)
+	isNonSpamEnabled = state and true or false
+	updateMobilePanelButtons()
+	updateFlickButtons()
 end
 
 workspace.DescendantAdded:Connect(function(obj)
@@ -965,6 +981,9 @@ updateMobilePanelButtons = function()
 	if MobileXrayRow and MobileXrayRow:FindFirstChild("Label") then
 		MobileXrayRow.Label.Text = "X-ray"
 	end
+	if MobileNonSpamRow and MobileNonSpamRow:FindFirstChild("Label") then
+		MobileNonSpamRow.Label.Text = "Non-spam"
+	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
@@ -984,6 +1003,7 @@ updateMobilePanelButtons = function()
 	updateSwitchVisual(mobileHideGuiSwitch, mobileHideGuiKnob, not mobileWallhopGuiHidden)
 	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
 	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
+	updateSwitchVisual(mobileNonSpamSwitch, mobileNonSpamKnob, isNonSpamEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
@@ -1231,31 +1251,45 @@ local function bindFreeDrag(handle, target, onMove, holdTime)
 end
 
 switchPcTab = function(name)
-	if not PcFunctionsPage or not PcFlicksPage or not PcTabFunctions or not PcTabFlicks then
+	if not PcFunctionsPage or not PcFlicksPage or not PcSettingsPage
+		or not PcTabFunctions or not PcTabFlicks or not PcTabSettings then
 		return
 	end
 
 	local isFunctions = name == "Functions"
+	local isFlicks = name == "Flicks"
+	local isSettings = name == "Settings"
 
 	PcFunctionsPage.Visible = isFunctions
-	PcFlicksPage.Visible = not isFunctions
+	PcFlicksPage.Visible = isFlicks
+	PcSettingsPage.Visible = isSettings
 
 	PcTabFunctions.BackgroundColor3 = isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
-	PcTabFlicks.BackgroundColor3 = isFunctions and Color3.fromRGB(8,8,8) or Color3.fromRGB(20,20,20)
+	PcTabFlicks.BackgroundColor3 = isFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	PcTabSettings.BackgroundColor3 = isSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+
+	if PcNonSpamButton then
+		PcNonSpamButton.Text = isNonSpamEnabled and "Non-spam: On" or "Non-spam: Off"
+	end
 end
 
 switchMobileTab = function(name)
-	if not MobileFunctionsPage or not MobileFlicksPage or not MobileTabFunctions or not MobileTabFlicks then
+	if not MobileFunctionsPage or not MobileFlicksPage or not MobileSettingsPage
+		or not MobileTabFunctions or not MobileTabFlicks or not MobileTabSettings then
 		return
 	end
 
 	local isFunctions = name == "Functions"
+	local isFlicks = name == "Flicks"
+	local isSettings = name == "Settings"
 
 	MobileFunctionsPage.Visible = isFunctions
-	MobileFlicksPage.Visible = not isFunctions
+	MobileFlicksPage.Visible = isFlicks
+	MobileSettingsPage.Visible = isSettings
 
 	MobileTabFunctions.BackgroundColor3 = isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
-	MobileTabFlicks.BackgroundColor3 = not isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabFlicks.BackgroundColor3 = isFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabSettings.BackgroundColor3 = isSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 end
 
 local function setSlowEnabled(state)
@@ -1373,10 +1407,10 @@ local function buildMobileGui()
 	setTargetTransparency(mobileDragHandle, 0, nil)
 
 	MobileTabFunctions = Instance.new("TextButton")
-	MobileTabFunctions.Size = UDim2.new(0, 82, 0, 26)
+	MobileTabFunctions.Size = UDim2.new(0, 56, 0, 26)
 	MobileTabFunctions.Position = UDim2.new(0, 7, 0, 24)
 	MobileTabFunctions.BackgroundColor3 = Color3.fromRGB(20,20,20)
-	MobileTabFunctions.Text = "Functions"
+	MobileTabFunctions.Text = "Funcs"
 	MobileTabFunctions.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFunctions.Font = Enum.Font.GothamBold
 	MobileTabFunctions.TextSize = 12
@@ -1387,8 +1421,8 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFunctions)
 
 	MobileTabFlicks = Instance.new("TextButton")
-	MobileTabFlicks.Size = UDim2.new(0, 82, 0, 26)
-	MobileTabFlicks.Position = UDim2.new(0, 95, 0, 24)
+	MobileTabFlicks.Size = UDim2.new(0, 56, 0, 26)
+	MobileTabFlicks.Position = UDim2.new(0, 68, 0, 24)
 	MobileTabFlicks.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabFlicks.Text = "Flicks"
 	MobileTabFlicks.TextColor3 = Color3.fromRGB(255,255,255)
@@ -1399,6 +1433,20 @@ local function buildMobileGui()
 	Instance.new("UICorner", MobileTabFlicks).CornerRadius = UDim.new(0, 10)
 	setTargetTransparency(MobileTabFlicks, 0, 0)
 	noTextStroke(MobileTabFlicks)
+
+	MobileTabSettings = Instance.new("TextButton")
+	MobileTabSettings.Size = UDim2.new(0, 62, 0, 26)
+	MobileTabSettings.Position = UDim2.new(0, 129, 0, 24)
+	MobileTabSettings.BackgroundColor3 = Color3.fromRGB(8,8,8)
+	MobileTabSettings.Text = "Settings"
+	MobileTabSettings.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileTabSettings.Font = Enum.Font.GothamBold
+	MobileTabSettings.TextSize = 11
+	MobileTabSettings.Parent = MobilePanel
+	MobileTabSettings.AutoButtonColor = false
+	Instance.new("UICorner", MobileTabSettings).CornerRadius = UDim.new(0, 10)
+	setTargetTransparency(MobileTabSettings, 0, 0)
+	noTextStroke(MobileTabSettings)
 
 	MobileFunctionsPage = Instance.new("Frame")
 	MobileFunctionsPage.Size = UDim2.new(1, 0, 1, -58)
@@ -1413,10 +1461,19 @@ local function buildMobileGui()
 	MobileFlicksPage.Parent = MobilePanel
 	MobileFlicksPage.Visible = false
 
+	MobileSettingsPage = Instance.new("Frame")
+	MobileSettingsPage.Size = UDim2.new(1, 0, 1, -58)
+	MobileSettingsPage.Position = UDim2.new(0, 0, 0, 58)
+	MobileSettingsPage.BackgroundTransparency = 1
+	MobileSettingsPage.Parent = MobilePanel
+	MobileSettingsPage.Visible = false
+
 	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
 	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 46, "Corner Walk")
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 88, "Beast Slow")
 	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 130, "X-ray")
+
+	MobileNonSpamRow, mobileNonSpamSwitch, mobileNonSpamKnob = createSwitchRow(MobileSettingsPage, 4, "Non-spam")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -1604,6 +1661,10 @@ local function buildMobileGui()
 		switchMobileTab("Flicks")
 	end)
 
+	MobileTabSettings.Activated:Connect(function()
+		switchMobileTab("Settings")
+	end)
+
 	bindRowPress(MobileHideGuiRow, function()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
 	end)
@@ -1618,6 +1679,10 @@ local function buildMobileGui()
 
 	bindRowPress(MobileXrayRow, function()
 		setXrayEnabled(not isXrayEnabled)
+	end)
+
+	bindRowPress(MobileNonSpamRow, function()
+		setNonSpamEnabled(not isNonSpamEnabled)
 	end)
 
 	bindRowPress(MobileNormalWallhopRow, function()
@@ -1819,6 +1884,7 @@ local function buildPCGui()
 
 	PcTabFunctions = createPcTabButton(MainFrame, 18, "Functions")
 	PcTabFlicks = createPcTabButton(MainFrame, 120, "Flicks")
+	PcTabSettings = createPcTabButton(MainFrame, 222, "Settings")
 
 	PcFunctionsPage = Instance.new("Frame")
 	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -120)
@@ -1832,6 +1898,13 @@ local function buildPCGui()
 	PcFlicksPage.BackgroundTransparency = 1
 	PcFlicksPage.Visible = false
 	PcFlicksPage.Parent = MainFrame
+
+	PcSettingsPage = Instance.new("Frame")
+	PcSettingsPage.Size = UDim2.new(1, 0, 1, -120)
+	PcSettingsPage.Position = UDim2.new(0, 0, 0, 118)
+	PcSettingsPage.BackgroundTransparency = 1
+	PcSettingsPage.Visible = false
+	PcSettingsPage.Parent = MainFrame
 
 	HideGuiBindButton = Instance.new("TextButton")
 	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 22)
@@ -1917,6 +1990,13 @@ local function buildPCGui()
 	noTextStroke(PcCurrentUsingLabel)
 	setTargetTransparency(PcCurrentUsingLabel, 1, 0)
 
+	PcNonSpamButton = createPcActionButton(PcSettingsPage, 8, "Non-spam: Off")
+	PcNonSpamButton.MouseButton1Click:Connect(function()
+		setNonSpamEnabled(not isNonSpamEnabled)
+		PcNonSpamButton.Text = isNonSpamEnabled and "Non-spam: On" or "Non-spam: Off"
+		showNotice(isNonSpamEnabled and "Non-spam enabled" or "Non-spam disabled")
+	end)
+
 	local footer = Instance.new("TextLabel")
 	footer.Size = UDim2.new(1, -36, 0, 14)
 	footer.Position = UDim2.new(0, 18, 1, -20)
@@ -1982,6 +2062,10 @@ local function buildPCGui()
 
 	PcTabFlicks.MouseButton1Click:Connect(function()
 		switchPcTab("Flicks")
+	end)
+
+	PcTabSettings.MouseButton1Click:Connect(function()
+		switchPcTab("Settings")
 	end)
 
 	HideGuiBindButton.MouseButton1Click:Connect(function()
@@ -3392,7 +3476,9 @@ RunService.Heartbeat:Connect(function()
 				farEnough = (result.Position - lastHitPosition).Magnitude >= MIN_HIT_DISTANCE
 			end
 
-			if hrp.Velocity.Y < -0.8 and tick() - lastFlickTime > WALLHOP_COOLDOWN and farEnough then
+			local effectiveWallhopCooldown = isNonSpamEnabled and NON_SPAM_DELAY or WALLHOP_COOLDOWN
+
+			if hrp.Velocity.Y < -0.8 and tick() - lastFlickTime > effectiveWallhopCooldown and farEnough then
 				lastFlickTime = tick()
 				lastHitPosition = result.Position
 				performSelectedWallhop()
