@@ -169,6 +169,7 @@ isSlowEnabled = false
 isCornerWalkEnabled = false
 isXrayEnabled = false
 realXrayEnabled = false
+allowThirdPersonEnabled = true
 xrayOpacityValue = 60
 nonSpamValue = 50
 nonSpamAfterValue = 0
@@ -417,6 +418,26 @@ local function loadUserPreferences()
 	end)
 end
 
+
+local function allowThirdPersonAccess()
+	if not allowThirdPersonEnabled then
+		return
+	end
+
+	pcall(function()
+		if LocalPlayer.CameraMode == Enum.CameraMode.LockFirstPerson then
+			LocalPlayer.CameraMode = Enum.CameraMode.Classic
+		end
+	end)
+end
+
+RunService.RenderStepped:Connect(function()
+	if isThisScriptActive and not isThisScriptActive() then
+		return
+	end
+
+	allowThirdPersonAccess()
+end)
 
 local xrayOriginalTransparency = {}
 local xrayOriginalLocalTransparency = {}
