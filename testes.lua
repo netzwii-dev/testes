@@ -103,6 +103,8 @@ PcSettingsXrayTitle = nil
 PcSettingsNonSpamTitle = nil
 PcSettingsXrayBox = nil
 PcSettingsNonSpamBox = nil
+PcSettingsNonSpamAfterTitle = nil
+PcSettingsNonSpamAfterBox = nil
 PcCwalkRangeTitle = nil
 PcCwalkRangeBox = nil
 PcNormalWallhopButton = nil
@@ -119,6 +121,8 @@ MobileSettingsPage = nil
 MobileCurrentUsingLabel = nil
 SettingsXrayBox = nil
 SettingsNonSpamBox = nil
+SettingsNonSpamAfterTitle = nil
+SettingsNonSpamAfterBox = nil
 SettingsCwalkRangeTitle = nil
 SettingsCwalkRangeBox = nil
 ConfigNameBox = nil
@@ -167,7 +171,9 @@ isXrayEnabled = false
 realXrayEnabled = false
 xrayOpacityValue = 60
 nonSpamValue = 50
+nonSpamAfterValue = 0
 cwalkRangeValue = 1
+consecutiveWallhopCount = 0
 wallhopConfigs = {}
 SettingsNoticeList = {}
 selectedConfigName = "---"
@@ -354,6 +360,7 @@ local function saveUserPreferences()
 	local payload = {
 		xrayOpacityValue = tonumber(xrayOpacityValue) or 60,
 		nonSpamValue = tonumber(nonSpamValue) or 50,
+		nonSpamAfterValue = tonumber(nonSpamAfterValue) or 0,
 		cwalkRangeValue = tonumber(cwalkRangeValue) or 1,
 		currentFlickMode = tostring(currentFlickMode or "Normal Wallhop"),
 		isWallHopEnabled = isWallHopEnabled,
@@ -382,6 +389,9 @@ local function loadUserPreferences()
 		if tonumber(decoded.nonSpamValue) then
 			nonSpamValue = math.clamp(math.floor(tonumber(decoded.nonSpamValue)), 10, 99)
 		end
+		if tonumber(decoded.nonSpamAfterValue) then
+			nonSpamAfterValue = math.clamp(math.floor(tonumber(decoded.nonSpamAfterValue)), 0, 10)
+		end
 		if tonumber(decoded.cwalkRangeValue) and setCwalkRangeValue then
 			setCwalkRangeValue(decoded.cwalkRangeValue)
 		end
@@ -403,7 +413,7 @@ local function loadUserPreferences()
 		if type(decoded.realXrayEnabled) == "boolean" then
 			realXrayEnabled = decoded.realXrayEnabled
 		end
-		WALLHOP_COOLDOWN = isXrayEnabled and ((tonumber(nonSpamValue) or 50) / 100) or 0
+		applyCurrentNonSpamCooldown()
 	end)
 end
 
@@ -1574,6 +1584,29 @@ function setCwalkRangeValue(value)
 	CORNER_WALK_WALL_DISTANCE = getCwalkRangeDistance(cwalkRangeValue)
 end
 
+function getNumberFromSettingBox(box)
+	local raw = tostring(box and box.Text or "")
+	local num = tonumber(raw) or tonumber(raw:match("[-]?%d+"))
+	return num
+end
+
+function getEffectiveWallhopCooldown()
+	if not isXrayEnabled then
+		return 0
+	end
+
+	local after = math.clamp(math.floor(tonumber(nonSpamAfterValue) or 0), 0, 10)
+	if consecutiveWallhopCount < after then
+		return 0
+	end
+
+	return (tonumber(nonSpamValue) or 50) / 100
+end
+
+function applyCurrentNonSpamCooldown()
+	WALLHOP_COOLDOWN = getEffectiveWallhopCooldown()
+end
+
 function ensureConfigFolder()
 	pcall(function()
 		if makefolder and not isfolder("nyhito_wallhop_configs") then
@@ -1586,6 +1619,7 @@ function getCurrentConfigPayload()
 	return {
 		xrayOpacityValue = tonumber(xrayOpacityValue) or 60,
 		nonSpamValue = tonumber(nonSpamValue) or 50,
+		nonSpamAfterValue = tonumber(nonSpamAfterValue) or 0,
 		cwalkRangeValue = tonumber(cwalkRangeValue) or 1,
 
 		currentFlickMode = currentFlickMode,
@@ -1620,6 +1654,9 @@ function applyConfigPayload(payload)
 	end
 	if tonumber(payload.nonSpamValue) then
 		nonSpamValue = math.clamp(math.floor(tonumber(payload.nonSpamValue)), 10, 99)
+	end
+	if tonumber(payload.nonSpamAfterValue) then
+		nonSpamAfterValue = math.clamp(math.floor(tonumber(payload.nonSpamAfterValue)), 0, 10)
 	end
 	if tonumber(payload.cwalkRangeValue) then
 		setCwalkRangeValue(payload.cwalkRangeValue)
@@ -1675,7 +1712,7 @@ function applyConfigPayload(payload)
 	if type(payload.isNonSpamEnabled) == "boolean" then
 		isXrayEnabled = payload.isNonSpamEnabled
 	end
-	WALLHOP_COOLDOWN = isXrayEnabled and ((tonumber(nonSpamValue) or 50) / 100) or 0
+	applyCurrentNonSpamCooldown()
 
 	if type(payload.realXrayEnabled) == "boolean" then
 		setXrayEnabled(payload.realXrayEnabled)
@@ -1948,32 +1985,42 @@ end
 
 function updateSettingsInputs()
 	if SettingsXrayBox then
-		SettingsXrayBox.Text = tostring(math.floor(tonumber(xrayOpacityValue) or 60))
+		SettingsXrayBox.Text = tostring(math.floor(tonumber(xrayOpacityValue) or 60)) .. "%"
 		SettingsXrayBox.TextTransparency = 0
 		SettingsXrayBox.BackgroundTransparency = 0
 	end
 	if PcSettingsXrayBox then
-		PcSettingsXrayBox.Text = tostring(math.floor(tonumber(xrayOpacityValue) or 60))
+		PcSettingsXrayBox.Text = tostring(math.floor(tonumber(xrayOpacityValue) or 60)) .. "%"
 		PcSettingsXrayBox.TextTransparency = 0
 		PcSettingsXrayBox.BackgroundTransparency = 0
 	end
 	if SettingsNonSpamBox then
-		SettingsNonSpamBox.Text = tostring(math.floor(tonumber(nonSpamValue) or 50))
+		SettingsNonSpamBox.Text = tostring(math.floor(tonumber(nonSpamValue) or 50)) .. "ms"
 		SettingsNonSpamBox.TextTransparency = 0
 		SettingsNonSpamBox.BackgroundTransparency = 0
 	end
-	if SettingsCwalkRangeBox then
-		SettingsCwalkRangeBox.Text = tostring(math.floor(tonumber(cwalkRangeValue) or 1))
-		SettingsCwalkRangeBox.TextTransparency = 0
-		SettingsCwalkRangeBox.BackgroundTransparency = 0
-	end
 	if PcSettingsNonSpamBox then
-		PcSettingsNonSpamBox.Text = tostring(math.floor(tonumber(nonSpamValue) or 50))
+		PcSettingsNonSpamBox.Text = tostring(math.floor(tonumber(nonSpamValue) or 50)) .. "ms"
 		PcSettingsNonSpamBox.TextTransparency = 0
 		PcSettingsNonSpamBox.BackgroundTransparency = 0
 	end
+	if SettingsNonSpamAfterBox then
+		SettingsNonSpamAfterBox.Text = tostring(math.floor(tonumber(nonSpamAfterValue) or 0)) .. "wh"
+		SettingsNonSpamAfterBox.TextTransparency = 0
+		SettingsNonSpamAfterBox.BackgroundTransparency = 0
+	end
+	if PcSettingsNonSpamAfterBox then
+		PcSettingsNonSpamAfterBox.Text = tostring(math.floor(tonumber(nonSpamAfterValue) or 0)) .. "wh"
+		PcSettingsNonSpamAfterBox.TextTransparency = 0
+		PcSettingsNonSpamAfterBox.BackgroundTransparency = 0
+	end
+	if SettingsCwalkRangeBox then
+		SettingsCwalkRangeBox.Text = tostring(math.floor(tonumber(cwalkRangeValue) or 1)) .. "sd"
+		SettingsCwalkRangeBox.TextTransparency = 0
+		SettingsCwalkRangeBox.BackgroundTransparency = 0
+	end
 	if PcCwalkRangeBox then
-		PcCwalkRangeBox.Text = tostring(math.floor(tonumber(cwalkRangeValue) or 1))
+		PcCwalkRangeBox.Text = tostring(math.floor(tonumber(cwalkRangeValue) or 1)) .. "sd"
 		PcCwalkRangeBox.TextTransparency = 0
 		PcCwalkRangeBox.BackgroundTransparency = 0
 	end
@@ -1989,7 +2036,7 @@ function updateSettingsInputs()
 		ConfigArrowButton.TextTransparency = 0
 		ConfigArrowButton.Visible = true
 	end
-	for _, lbl in ipairs({SettingsXrayTitle, SettingsNonSpamTitle, SettingsCwalkRangeTitle, PcSettingsXrayTitle, PcSettingsNonSpamTitle, PcCwalkRangeTitle, ConfigNameTitle, ConfigListTitle, ConfigAutoloadLabel}) do
+	for _, lbl in ipairs({SettingsNonSpamTitle, SettingsNonSpamAfterTitle, SettingsCwalkRangeTitle, SettingsXrayTitle, PcSettingsNonSpamTitle, PcSettingsNonSpamAfterTitle, PcCwalkRangeTitle, PcSettingsXrayTitle, ConfigNameTitle, ConfigListTitle, ConfigAutoloadLabel}) do
 		if lbl then
 			lbl.TextTransparency = 0
 			lbl.Visible = true
@@ -2000,7 +2047,7 @@ end
 
 function applyXraySettingFromBox(sourceBox)
 	local activeBox = sourceBox or SettingsXrayBox or PcSettingsXrayBox
-	value = tonumber(activeBox and activeBox.Text or "")
+	value = getNumberFromSettingBox(activeBox)
 	if not value or value < 0 or value > 100 then
 		showSettingsNotice("Minimum value is 0 and the maximum value is 100.")
 		updateSettingsInputs()
@@ -2016,12 +2063,12 @@ function applyXraySettingFromBox(sourceBox)
 
 	updateSettingsInputs()
 	saveUserPreferences()
-	showSettingsNotice("X-ray value changed successfully.")
+	showSettingsNotice("X-ray Opacity value changed successfully.")
 end
 
 function applyNonSpamSettingFromBox(sourceBox)
 	local activeBox = sourceBox or SettingsNonSpamBox or PcSettingsNonSpamBox
-	value = tonumber(activeBox and activeBox.Text or "")
+	value = getNumberFromSettingBox(activeBox)
 	if not value or value < 10 or value > 99 then
 		showSettingsNotice("Minimum value is 10 and the maximum value is 99.")
 		updateSettingsInputs()
@@ -2031,17 +2078,33 @@ function applyNonSpamSettingFromBox(sourceBox)
 	nonSpamValue = math.floor(value)
 
 	if isXrayEnabled then
-		WALLHOP_COOLDOWN = nonSpamValue / 100
+		applyCurrentNonSpamCooldown()
 	end
 
 	updateSettingsInputs()
 	saveUserPreferences()
-	showSettingsNotice("Non-spam value changed successfully.")
+	showSettingsNotice("Non-spam Time value changed successfully.")
+end
+
+function applyNonSpamAfterSettingFromBox(sourceBox)
+	local activeBox = sourceBox or SettingsNonSpamAfterBox or PcSettingsNonSpamAfterBox
+	value = getNumberFromSettingBox(activeBox)
+	if not value or value < 0 or value > 10 then
+		showSettingsNotice("Minimum value is 0 and the maximum value is 10.")
+		updateSettingsInputs()
+		return
+	end
+
+	nonSpamAfterValue = math.floor(value)
+	applyCurrentNonSpamCooldown()
+	updateSettingsInputs()
+	saveUserPreferences()
+	showSettingsNotice("Non-spam After value changed successfully.")
 end
 
 function applyCwalkRangeSettingFromBox(sourceBox)
 	local activeBox = sourceBox or SettingsCwalkRangeBox or PcCwalkRangeBox
-	value = tonumber(activeBox and activeBox.Text or "")
+	value = getNumberFromSettingBox(activeBox)
 	if not value or value < 1 or value > 5 then
 		showSettingsNotice("Minimum value is 1 and the maximum value is 5.")
 		updateSettingsInputs()
@@ -2050,7 +2113,7 @@ function applyCwalkRangeSettingFromBox(sourceBox)
 	setCwalkRangeValue(value)
 	updateSettingsInputs()
 	saveUserPreferences()
-	showSettingsNotice("C-walk range value changed successfully.")
+	showSettingsNotice("Corner walk Range value changed successfully.")
 end
 
 function createSettingsLabel(parent, y, textValue)
@@ -2162,68 +2225,69 @@ function buildMobileSettingsPage()
 	MobileSettingsPage.BackgroundTransparency = 1
 	MobileSettingsPage.BorderSizePixel = 0
 	MobileSettingsPage.ScrollBarThickness = 3
-	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 650)
+	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 690)
 	MobileSettingsPage.Visible = false
 	MobileSettingsPage.Parent = MobilePanel
 
-	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 6, "Xray Opacity")
-	SettingsXrayTitle.ZIndex = 40
-	SettingsXrayTitle.TextTransparency = 0
-	setTargetTransparency(SettingsXrayTitle, 1, 0)
-
-	SettingsXrayBox = Instance.new("TextBox")
-	SettingsXrayBox.Size = UDim2.new(0, 58, 0, 28)
-	SettingsXrayBox.Position = UDim2.new(1, -65, 0, 4)
-	SettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	SettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
-	SettingsXrayBox.Font = Enum.Font.GothamBold
-	SettingsXrayBox.TextSize = 12
-	SettingsXrayBox.Text = tostring(xrayOpacityValue)
-	SettingsXrayBox.ClearTextOnFocus = false
-	SettingsXrayBox.ZIndex = 41
-	SettingsXrayBox.Parent = MobileSettingsPage
-	Instance.new("UICorner", SettingsXrayBox).CornerRadius = UDim.new(0, 8)
-	SettingsXrayStroke = Instance.new("UIStroke")
-	SettingsXrayStroke.Color = Color3.fromRGB(35,35,35)
-	SettingsXrayStroke.Thickness = 1
-	SettingsXrayStroke.Transparency = 0.08
-	SettingsXrayStroke.Parent = SettingsXrayBox
-	noTextStroke(SettingsXrayBox)
-	SettingsXrayBox.FocusLost:Connect(function()
-		applyXraySettingFromBox(SettingsXrayBox)
-	end)
-
-	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam Setting")
+	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 6, "Non-spam Time")
 	SettingsNonSpamTitle.ZIndex = 40
 	SettingsNonSpamTitle.TextTransparency = 0
 	setTargetTransparency(SettingsNonSpamTitle, 1, 0)
 
 	SettingsNonSpamBox = Instance.new("TextBox")
 	SettingsNonSpamBox.Size = UDim2.new(0, 58, 0, 28)
-	SettingsNonSpamBox.Position = UDim2.new(1, -65, 0, 40)
+	SettingsNonSpamBox.Position = UDim2.new(1, -65, 0, 4)
 	SettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsNonSpamBox.Font = Enum.Font.GothamBold
 	SettingsNonSpamBox.TextSize = 12
-	SettingsNonSpamBox.Text = tostring(nonSpamValue)
-	SettingsNonSpamBox.ClearTextOnFocus = false
+	SettingsNonSpamBox.Text = tostring(nonSpamValue) .. "ms"
+	SettingsNonSpamBox.ClearTextOnFocus = true
 	SettingsNonSpamBox.ZIndex = 41
 	SettingsNonSpamBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", SettingsNonSpamBox).CornerRadius = UDim.new(0, 8)
-	SettingsNonSpamStroke = Instance.new("UIStroke")
-	SettingsNonSpamStroke.Color = Color3.fromRGB(35,35,35)
-	SettingsNonSpamStroke.Thickness = 1
-	SettingsNonSpamStroke.Transparency = 0.08
-	SettingsNonSpamStroke.Parent = SettingsNonSpamBox
+	SettingsNonSpamBoxStroke = Instance.new("UIStroke")
+	SettingsNonSpamBoxStroke.Color = Color3.fromRGB(35,35,35)
+	SettingsNonSpamBoxStroke.Thickness = 1
+	SettingsNonSpamBoxStroke.Transparency = 0.08
+	SettingsNonSpamBoxStroke.Parent = SettingsNonSpamBox
 	noTextStroke(SettingsNonSpamBox)
 	SettingsNonSpamBox.FocusLost:Connect(function()
 		applyNonSpamSettingFromBox(SettingsNonSpamBox)
 	end)
 
-	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 78, "C-walk range")
+	SettingsNonSpamAfterTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam After")
+	SettingsNonSpamAfterTitle.ZIndex = 40
+	SettingsNonSpamAfterTitle.TextTransparency = 0
+	setTargetTransparency(SettingsNonSpamAfterTitle, 1, 0)
+
+	SettingsNonSpamAfterBox = Instance.new("TextBox")
+	SettingsNonSpamAfterBox.Size = UDim2.new(0, 58, 0, 28)
+	SettingsNonSpamAfterBox.Position = UDim2.new(1, -65, 0, 40)
+	SettingsNonSpamAfterBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	SettingsNonSpamAfterBox.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsNonSpamAfterBox.Font = Enum.Font.GothamBold
+	SettingsNonSpamAfterBox.TextSize = 12
+	SettingsNonSpamAfterBox.Text = tostring(nonSpamAfterValue) .. "wh"
+	SettingsNonSpamAfterBox.ClearTextOnFocus = true
+	SettingsNonSpamAfterBox.ZIndex = 41
+	SettingsNonSpamAfterBox.Parent = MobileSettingsPage
+	Instance.new("UICorner", SettingsNonSpamAfterBox).CornerRadius = UDim.new(0, 8)
+	SettingsNonSpamAfterBoxStroke = Instance.new("UIStroke")
+	SettingsNonSpamAfterBoxStroke.Color = Color3.fromRGB(35,35,35)
+	SettingsNonSpamAfterBoxStroke.Thickness = 1
+	SettingsNonSpamAfterBoxStroke.Transparency = 0.08
+	SettingsNonSpamAfterBoxStroke.Parent = SettingsNonSpamAfterBox
+	noTextStroke(SettingsNonSpamAfterBox)
+	SettingsNonSpamAfterBox.FocusLost:Connect(function()
+		applyNonSpamAfterSettingFromBox(SettingsNonSpamAfterBox)
+	end)
+
+	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 78, "Corner walk Range")
 	SettingsCwalkRangeTitle.ZIndex = 40
 	SettingsCwalkRangeTitle.TextTransparency = 0
 	setTargetTransparency(SettingsCwalkRangeTitle, 1, 0)
+
 	SettingsCwalkRangeBox = Instance.new("TextBox")
 	SettingsCwalkRangeBox.Size = UDim2.new(0, 58, 0, 28)
 	SettingsCwalkRangeBox.Position = UDim2.new(1, -65, 0, 76)
@@ -2231,29 +2295,56 @@ function buildMobileSettingsPage()
 	SettingsCwalkRangeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsCwalkRangeBox.Font = Enum.Font.GothamBold
 	SettingsCwalkRangeBox.TextSize = 12
-	SettingsCwalkRangeBox.Text = tostring(cwalkRangeValue)
-	SettingsCwalkRangeBox.ClearTextOnFocus = false
+	SettingsCwalkRangeBox.Text = tostring(cwalkRangeValue) .. "sd"
+	SettingsCwalkRangeBox.ClearTextOnFocus = true
 	SettingsCwalkRangeBox.ZIndex = 41
 	SettingsCwalkRangeBox.Parent = MobileSettingsPage
 	Instance.new("UICorner", SettingsCwalkRangeBox).CornerRadius = UDim.new(0, 8)
-	SettingsCwalkRangeStroke = Instance.new("UIStroke")
-	SettingsCwalkRangeStroke.Color = Color3.fromRGB(35,35,35)
-	SettingsCwalkRangeStroke.Thickness = 1
-	SettingsCwalkRangeStroke.Transparency = 0.08
-	SettingsCwalkRangeStroke.Parent = SettingsCwalkRangeBox
+	SettingsCwalkRangeBoxStroke = Instance.new("UIStroke")
+	SettingsCwalkRangeBoxStroke.Color = Color3.fromRGB(35,35,35)
+	SettingsCwalkRangeBoxStroke.Thickness = 1
+	SettingsCwalkRangeBoxStroke.Transparency = 0.08
+	SettingsCwalkRangeBoxStroke.Parent = SettingsCwalkRangeBox
 	noTextStroke(SettingsCwalkRangeBox)
 	SettingsCwalkRangeBox.FocusLost:Connect(function()
 		applyCwalkRangeSettingFromBox(SettingsCwalkRangeBox)
 	end)
 
-	ConfigNameTitle = createSettingsLabel(MobileSettingsPage, 116, "Config name")
+	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 114, "X-ray Opacity")
+	SettingsXrayTitle.ZIndex = 40
+	SettingsXrayTitle.TextTransparency = 0
+	setTargetTransparency(SettingsXrayTitle, 1, 0)
+
+	SettingsXrayBox = Instance.new("TextBox")
+	SettingsXrayBox.Size = UDim2.new(0, 58, 0, 28)
+	SettingsXrayBox.Position = UDim2.new(1, -65, 0, 112)
+	SettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	SettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsXrayBox.Font = Enum.Font.GothamBold
+	SettingsXrayBox.TextSize = 12
+	SettingsXrayBox.Text = tostring(xrayOpacityValue) .. "%"
+	SettingsXrayBox.ClearTextOnFocus = true
+	SettingsXrayBox.ZIndex = 41
+	SettingsXrayBox.Parent = MobileSettingsPage
+	Instance.new("UICorner", SettingsXrayBox).CornerRadius = UDim.new(0, 8)
+	SettingsXrayBoxStroke = Instance.new("UIStroke")
+	SettingsXrayBoxStroke.Color = Color3.fromRGB(35,35,35)
+	SettingsXrayBoxStroke.Thickness = 1
+	SettingsXrayBoxStroke.Transparency = 0.08
+	SettingsXrayBoxStroke.Parent = SettingsXrayBox
+	noTextStroke(SettingsXrayBox)
+	SettingsXrayBox.FocusLost:Connect(function()
+		applyXraySettingFromBox(SettingsXrayBox)
+	end)
+
+	ConfigNameTitle = createSettingsLabel(MobileSettingsPage, 152, "Config name")
 	ConfigNameTitle.ZIndex = 40
 	ConfigNameTitle.TextTransparency = 0
 	setTargetTransparency(ConfigNameTitle, 1, 0)
 
 	ConfigNameBox = Instance.new("TextBox")
 	ConfigNameBox.Size = UDim2.new(1, -7, 0, 32)
-	ConfigNameBox.Position = UDim2.new(0, 0, 0, 142)
+	ConfigNameBox.Position = UDim2.new(0, 0, 0, 178)
 	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigNameBox.TextColor3 = Color3.fromRGB(180,180,180)
 	ConfigNameBox.PlaceholderText = "---"
@@ -2280,7 +2371,7 @@ function buildMobileSettingsPage()
 	noTextStroke(ConfigNameBox)
 	addSettingsPressEffect(ConfigNameBox)
 
-	CreateConfigButton = createSettingsButton(MobileSettingsPage, 184, "Create config")
+	CreateConfigButton = createSettingsButton(MobileSettingsPage, 220, "Create config")
 	CreateConfigButton.ZIndex = 41
 	CreateConfigButton.MouseButton1Click:Connect(function()
 		name = configSafeName(ConfigNameBox.Text)
@@ -2298,12 +2389,12 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	ConfigListTitle = createSettingsLabel(MobileSettingsPage, 226, "Config list")
+	ConfigListTitle = createSettingsLabel(MobileSettingsPage, 262, "Config list")
 	ConfigListTitle.ZIndex = 40
 	ConfigListTitle.TextTransparency = 0
 	setTargetTransparency(ConfigListTitle, 1, 0)
 
-	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 254, "   ---")
+	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 290, "   ---")
 	ConfigSelectedButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Left
@@ -2326,7 +2417,7 @@ function buildMobileSettingsPage()
 
 	ConfigDropdownFrame = Instance.new("ScrollingFrame")
 	ConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 44)
-	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 290)
+	ConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 326)
 	ConfigDropdownFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigDropdownFrame.BorderSizePixel = 0
 	ConfigDropdownFrame.Visible = false
@@ -2355,7 +2446,7 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	LoadConfigButton = createSettingsButton(MobileSettingsPage, 300, "Load config")
+	LoadConfigButton = createSettingsButton(MobileSettingsPage, 336, "Load config")
 	LoadConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -2366,7 +2457,7 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	OverwriteConfigButton = createSettingsButton(MobileSettingsPage, 338, "Overwrite config")
+	OverwriteConfigButton = createSettingsButton(MobileSettingsPage, 374, "Overwrite config")
 	OverwriteConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -2376,7 +2467,7 @@ function buildMobileSettingsPage()
 		showSettingsNotice("The " .. selectedConfigName .. " config was overwritten successfully.")
 	end)
 
-	DeleteConfigButton = createSettingsButton(MobileSettingsPage, 376, "Delete config")
+	DeleteConfigButton = createSettingsButton(MobileSettingsPage, 412, "Delete config")
 	DeleteConfigButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -2388,13 +2479,13 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	RefreshConfigButton = createSettingsButton(MobileSettingsPage, 414, "Refresh list")
+	RefreshConfigButton = createSettingsButton(MobileSettingsPage, 450, "Refresh list")
 	RefreshConfigButton.MouseButton1Click:Connect(function()
 		refreshConfigList(false)
 		showSettingsNotice("All the config list has been refreshed successfully.")
 	end)
 
-	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 452, "Set as autoload")
+	SetAutoloadButton = createSettingsButton(MobileSettingsPage, 488, "Set as autoload")
 	SetAutoloadButton.MouseButton1Click:Connect(function()
 		if not selectedConfigName or selectedConfigName == "---" then
 			showSettingsNotice("Please select a config first!")
@@ -2405,7 +2496,7 @@ function buildMobileSettingsPage()
 		end
 	end)
 
-	ResetAutoloadButton = createSettingsButton(MobileSettingsPage, 490, "Reset autoload")
+	ResetAutoloadButton = createSettingsButton(MobileSettingsPage, 526, "Reset autoload")
 	ResetAutoloadButton.MouseButton1Click:Connect(function()
 		if resetAutoloadConfig() then
 			showSettingsNotice("The autoload config has been reset successfully.")
@@ -2416,7 +2507,7 @@ function buildMobileSettingsPage()
 
 	ConfigAutoloadLabel = Instance.new("TextLabel")
 	ConfigAutoloadLabel.Size = UDim2.new(1, -14, 0, 40)
-	ConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 530)
+	ConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 566)
 	ConfigAutoloadLabel.BackgroundTransparency = 1
 	ConfigAutoloadLabel.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigAutoloadLabel.Font = Enum.Font.Gotham
@@ -2789,7 +2880,7 @@ local function buildMobileGui()
 
 	bindRowPress(MobileXrayRow, function()
 		isXrayEnabled = not isXrayEnabled
-		WALLHOP_COOLDOWN = isXrayEnabled and ((tonumber(nonSpamValue) or 50) / 100) or 0
+		applyCurrentNonSpamCooldown()
 		updateMobilePanelButtons()
 	end)
 
@@ -3101,36 +3192,7 @@ local function buildPCGui()
 	noTextStroke(RealXrayBindButton)
 	setTargetTransparency(RealXrayBindButton, 1, 0)
 
-	PcSettingsXrayTitle = createSettingsLabel(PcSettingsPage, 0, "Xray Opacity")
-	PcSettingsXrayTitle.TextSize = 15
-	PcSettingsXrayTitle.ZIndex = 40
-	PcSettingsXrayTitle.TextTransparency = 0
-	setTargetTransparency(PcSettingsXrayTitle, 1, 0)
-
-	PcSettingsXrayBox = Instance.new("TextBox")
-	PcSettingsXrayBox.Size = UDim2.new(0, 62, 0, 28)
-	PcSettingsXrayBox.Position = UDim2.new(1, -80, 0, -2)
-	PcSettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	PcSettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
-	PcSettingsXrayBox.Font = Enum.Font.GothamBold
-	PcSettingsXrayBox.TextSize = 13
-	PcSettingsXrayBox.Text = tostring(xrayOpacityValue)
-	PcSettingsXrayBox.ClearTextOnFocus = false
-	PcSettingsXrayBox.ZIndex = 41
-	PcSettingsXrayBox.Parent = PcSettingsPage
-	Instance.new("UICorner", PcSettingsXrayBox).CornerRadius = UDim.new(0, 8)
-	local PcSettingsXrayStroke = Instance.new("UIStroke")
-	PcSettingsXrayStroke.Color = Color3.fromRGB(35,35,35)
-	PcSettingsXrayStroke.Thickness = 1
-	PcSettingsXrayStroke.Transparency = 0.08
-	PcSettingsXrayStroke.Parent = PcSettingsXrayBox
-	noTextStroke(PcSettingsXrayBox)
-	setTargetTransparency(PcSettingsXrayBox, 0, 0)
-	PcSettingsXrayBox.FocusLost:Connect(function()
-		applyXraySettingFromBox(PcSettingsXrayBox)
-	end)
-
-	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 30, "Non-spam Setting")
+	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 0, "Non-spam Time")
 	PcSettingsNonSpamTitle.TextSize = 15
 	PcSettingsNonSpamTitle.ZIndex = 40
 	PcSettingsNonSpamTitle.TextTransparency = 0
@@ -3138,32 +3200,62 @@ local function buildPCGui()
 
 	PcSettingsNonSpamBox = Instance.new("TextBox")
 	PcSettingsNonSpamBox.Size = UDim2.new(0, 62, 0, 28)
-	PcSettingsNonSpamBox.Position = UDim2.new(1, -80, 0, 28)
+	PcSettingsNonSpamBox.Position = UDim2.new(1, -80, 0, -2)
 	PcSettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcSettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcSettingsNonSpamBox.Font = Enum.Font.GothamBold
 	PcSettingsNonSpamBox.TextSize = 13
-	PcSettingsNonSpamBox.Text = tostring(nonSpamValue)
-	PcSettingsNonSpamBox.ClearTextOnFocus = false
+	PcSettingsNonSpamBox.Text = tostring(nonSpamValue) .. "ms"
+	PcSettingsNonSpamBox.ClearTextOnFocus = true
 	PcSettingsNonSpamBox.ZIndex = 41
 	PcSettingsNonSpamBox.Parent = PcSettingsPage
 	Instance.new("UICorner", PcSettingsNonSpamBox).CornerRadius = UDim.new(0, 8)
-	local PcSettingsNonSpamStroke = Instance.new("UIStroke")
-	PcSettingsNonSpamStroke.Color = Color3.fromRGB(35,35,35)
-	PcSettingsNonSpamStroke.Thickness = 1
-	PcSettingsNonSpamStroke.Transparency = 0.08
-	PcSettingsNonSpamStroke.Parent = PcSettingsNonSpamBox
+	PcSettingsNonSpamBoxStroke = Instance.new("UIStroke")
+	PcSettingsNonSpamBoxStroke.Color = Color3.fromRGB(35,35,35)
+	PcSettingsNonSpamBoxStroke.Thickness = 1
+	PcSettingsNonSpamBoxStroke.Transparency = 0.08
+	PcSettingsNonSpamBoxStroke.Parent = PcSettingsNonSpamBox
 	noTextStroke(PcSettingsNonSpamBox)
 	setTargetTransparency(PcSettingsNonSpamBox, 0, 0)
 	PcSettingsNonSpamBox.FocusLost:Connect(function()
 		applyNonSpamSettingFromBox(PcSettingsNonSpamBox)
 	end)
 
-	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 60, "C-walk range")
+	PcSettingsNonSpamAfterTitle = createSettingsLabel(PcSettingsPage, 30, "Non-spam After")
+	PcSettingsNonSpamAfterTitle.TextSize = 15
+	PcSettingsNonSpamAfterTitle.ZIndex = 40
+	PcSettingsNonSpamAfterTitle.TextTransparency = 0
+	setTargetTransparency(PcSettingsNonSpamAfterTitle, 1, 0)
+
+	PcSettingsNonSpamAfterBox = Instance.new("TextBox")
+	PcSettingsNonSpamAfterBox.Size = UDim2.new(0, 62, 0, 28)
+	PcSettingsNonSpamAfterBox.Position = UDim2.new(1, -80, 0, 28)
+	PcSettingsNonSpamAfterBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	PcSettingsNonSpamAfterBox.TextColor3 = Color3.fromRGB(255,255,255)
+	PcSettingsNonSpamAfterBox.Font = Enum.Font.GothamBold
+	PcSettingsNonSpamAfterBox.TextSize = 13
+	PcSettingsNonSpamAfterBox.Text = tostring(nonSpamAfterValue) .. "wh"
+	PcSettingsNonSpamAfterBox.ClearTextOnFocus = true
+	PcSettingsNonSpamAfterBox.ZIndex = 41
+	PcSettingsNonSpamAfterBox.Parent = PcSettingsPage
+	Instance.new("UICorner", PcSettingsNonSpamAfterBox).CornerRadius = UDim.new(0, 8)
+	PcSettingsNonSpamAfterBoxStroke = Instance.new("UIStroke")
+	PcSettingsNonSpamAfterBoxStroke.Color = Color3.fromRGB(35,35,35)
+	PcSettingsNonSpamAfterBoxStroke.Thickness = 1
+	PcSettingsNonSpamAfterBoxStroke.Transparency = 0.08
+	PcSettingsNonSpamAfterBoxStroke.Parent = PcSettingsNonSpamAfterBox
+	noTextStroke(PcSettingsNonSpamAfterBox)
+	setTargetTransparency(PcSettingsNonSpamAfterBox, 0, 0)
+	PcSettingsNonSpamAfterBox.FocusLost:Connect(function()
+		applyNonSpamAfterSettingFromBox(PcSettingsNonSpamAfterBox)
+	end)
+
+	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 60, "Corner walk Range")
 	PcCwalkRangeTitle.TextSize = 15
 	PcCwalkRangeTitle.ZIndex = 40
 	PcCwalkRangeTitle.TextTransparency = 0
 	setTargetTransparency(PcCwalkRangeTitle, 1, 0)
+
 	PcCwalkRangeBox = Instance.new("TextBox")
 	PcCwalkRangeBox.Size = UDim2.new(0, 62, 0, 28)
 	PcCwalkRangeBox.Position = UDim2.new(1, -80, 0, 58)
@@ -3171,20 +3263,49 @@ local function buildPCGui()
 	PcCwalkRangeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcCwalkRangeBox.Font = Enum.Font.GothamBold
 	PcCwalkRangeBox.TextSize = 13
-	PcCwalkRangeBox.Text = tostring(cwalkRangeValue)
-	PcCwalkRangeBox.ClearTextOnFocus = false
+	PcCwalkRangeBox.Text = tostring(cwalkRangeValue) .. "sd"
+	PcCwalkRangeBox.ClearTextOnFocus = true
 	PcCwalkRangeBox.ZIndex = 41
 	PcCwalkRangeBox.Parent = PcSettingsPage
 	Instance.new("UICorner", PcCwalkRangeBox).CornerRadius = UDim.new(0, 8)
-	PcCwalkRangeStroke = Instance.new("UIStroke")
-	PcCwalkRangeStroke.Color = Color3.fromRGB(35,35,35)
-	PcCwalkRangeStroke.Thickness = 1
-	PcCwalkRangeStroke.Transparency = 0.08
-	PcCwalkRangeStroke.Parent = PcCwalkRangeBox
+	PcCwalkRangeBoxStroke = Instance.new("UIStroke")
+	PcCwalkRangeBoxStroke.Color = Color3.fromRGB(35,35,35)
+	PcCwalkRangeBoxStroke.Thickness = 1
+	PcCwalkRangeBoxStroke.Transparency = 0.08
+	PcCwalkRangeBoxStroke.Parent = PcCwalkRangeBox
 	noTextStroke(PcCwalkRangeBox)
 	setTargetTransparency(PcCwalkRangeBox, 0, 0)
 	PcCwalkRangeBox.FocusLost:Connect(function()
 		applyCwalkRangeSettingFromBox(PcCwalkRangeBox)
+	end)
+
+	PcSettingsXrayTitle = createSettingsLabel(PcSettingsPage, 90, "X-ray Opacity")
+	PcSettingsXrayTitle.TextSize = 15
+	PcSettingsXrayTitle.ZIndex = 40
+	PcSettingsXrayTitle.TextTransparency = 0
+	setTargetTransparency(PcSettingsXrayTitle, 1, 0)
+
+	PcSettingsXrayBox = Instance.new("TextBox")
+	PcSettingsXrayBox.Size = UDim2.new(0, 62, 0, 28)
+	PcSettingsXrayBox.Position = UDim2.new(1, -80, 0, 88)
+	PcSettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	PcSettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
+	PcSettingsXrayBox.Font = Enum.Font.GothamBold
+	PcSettingsXrayBox.TextSize = 13
+	PcSettingsXrayBox.Text = tostring(xrayOpacityValue) .. "%"
+	PcSettingsXrayBox.ClearTextOnFocus = true
+	PcSettingsXrayBox.ZIndex = 41
+	PcSettingsXrayBox.Parent = PcSettingsPage
+	Instance.new("UICorner", PcSettingsXrayBox).CornerRadius = UDim.new(0, 8)
+	PcSettingsXrayBoxStroke = Instance.new("UIStroke")
+	PcSettingsXrayBoxStroke.Color = Color3.fromRGB(35,35,35)
+	PcSettingsXrayBoxStroke.Thickness = 1
+	PcSettingsXrayBoxStroke.Transparency = 0.08
+	PcSettingsXrayBoxStroke.Parent = PcSettingsXrayBox
+	noTextStroke(PcSettingsXrayBox)
+	setTargetTransparency(PcSettingsXrayBox, 0, 0)
+	PcSettingsXrayBox.FocusLost:Connect(function()
+		applyXraySettingFromBox(PcSettingsXrayBox)
 	end)
 
 	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 0, "Normal Wallhop")
@@ -4676,6 +4797,8 @@ RunService.Heartbeat:Connect(function()
 
 	if not airborne then
 		lastHitPosition = nil
+		consecutiveWallhopCount = 0
+		applyCurrentNonSpamCooldown()
 		return
 	end
 
@@ -4727,8 +4850,11 @@ RunService.Heartbeat:Connect(function()
 				farEnough = (result.Position - lastHitPosition).Magnitude >= MIN_HIT_DISTANCE
 			end
 
-			if hrp.Velocity.Y < -0.8 and tick() - lastFlickTime > WALLHOP_COOLDOWN and farEnough then
+			local activeCooldown = getEffectiveWallhopCooldown()
+			if hrp.Velocity.Y < -0.8 and tick() - lastFlickTime > activeCooldown and farEnough then
 				lastFlickTime = tick()
+				consecutiveWallhopCount = consecutiveWallhopCount + 1
+				applyCurrentNonSpamCooldown()
 				lastHitPosition = result.Position
 				performSelectedWallhop()
 			else
@@ -4864,7 +4990,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 		if key == toggleNonSpamKey then
 			isXrayEnabled = not isXrayEnabled
-			WALLHOP_COOLDOWN = isXrayEnabled and ((tonumber(nonSpamValue) or 50) / 100) or 0
+			applyCurrentNonSpamCooldown()
 			updateBindButtons()
 			updateMobilePanelButtons()
 			saveUserPreferences()
