@@ -1851,8 +1851,10 @@ function refreshConfigList(showMessage)
 			ConfigOption = Instance.new("TextButton")
 			ConfigOption.Size = UDim2.new(1, 0, 0, 32)
 			ConfigOption.BackgroundColor3 = Color3.fromRGB(0,0,0)
+			ConfigOption.BackgroundTransparency = 0
 			ConfigOption.Text = optionText
 			ConfigOption.TextColor3 = optionColor or Color3.fromRGB(255,255,255)
+			ConfigOption.TextTransparency = 0
 			ConfigOption.Font = Enum.Font.GothamBold
 			ConfigOption.TextSize = 12
 			ConfigOption.TextXAlignment = Enum.TextXAlignment.Left
@@ -1873,7 +1875,7 @@ function refreshConfigList(showMessage)
 			return ConfigOption
 		end
 
-		newConfigOption("---", Color3.fromRGB(130,130,130), 1, function()
+		newConfigOption("---", Color3.fromRGB(180,180,180), 1, function()
 			selectedConfigName = "---"
 			if ConfigSelectedButton then
 				ConfigSelectedButton.Text = "   ---"
@@ -1923,9 +1925,11 @@ function refreshConfigList(showMessage)
 		if selectedConfigName and selectedConfigName ~= "---" then
 			ConfigSelectedButton.Text = "   " .. tostring(selectedConfigName)
 			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
+			ConfigSelectedButton.TextTransparency = 0
 		else
 			ConfigSelectedButton.Text = "   ---"
-			ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(180,180,180)
+			ConfigSelectedButton.TextTransparency = 0
 		end
 	end
 	if ConfigArrowButton then
@@ -2115,14 +2119,16 @@ function addSettingsPressEffect(button)
 		end
 	end)
 
-	button.Activated:Connect(function()
-		setOverlay(0.82)
-		task.delay(0.08, function()
-			if pressOverlay and pressOverlay.Parent then
-				setOverlay(1)
-			end
+	if button:IsA("GuiButton") then
+		button.Activated:Connect(function()
+			setOverlay(0.82)
+			task.delay(0.08, function()
+				if pressOverlay and pressOverlay.Parent then
+					setOverlay(1)
+				end
+			end)
 		end)
-	end)
+	end
 end
 
 function createSettingsButton(parent, y, textValue)
@@ -2248,12 +2254,12 @@ function buildMobileSettingsPage()
 	ConfigNameBox = Instance.new("TextBox")
 	ConfigNameBox.Size = UDim2.new(1, -14, 0, 34)
 	ConfigNameBox.Position = UDim2.new(0, 7, 0, 142)
-	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	ConfigNameBox.TextColor3 = Color3.fromRGB(130,130,130)
+	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
+	ConfigNameBox.TextColor3 = Color3.fromRGB(180,180,180)
 	ConfigNameBox.PlaceholderText = "---"
-	ConfigNameBox.PlaceholderColor3 = Color3.fromRGB(130,130,130)
-	ConfigNameBox.Font = Enum.Font.Gotham
-	ConfigNameBox.TextSize = 12
+	ConfigNameBox.PlaceholderColor3 = Color3.fromRGB(180,180,180)
+	ConfigNameBox.Font = Enum.Font.GothamBold
+	ConfigNameBox.TextSize = 13
 	ConfigNameBox.TextXAlignment = Enum.TextXAlignment.Left
 	ConfigNameBox.Text = ""
 	ConfigNameBox.ClearTextOnFocus = false
@@ -2266,6 +2272,7 @@ function buildMobileSettingsPage()
 	ConfigNameStroke.Transparency = 0.08
 	ConfigNameStroke.Parent = ConfigNameBox
 	noTextStroke(ConfigNameBox)
+	addSettingsPressEffect(ConfigNameBox)
 
 	CreateConfigButton = createSettingsButton(MobileSettingsPage, 184, "Create config")
 	CreateConfigButton.ZIndex = 41
@@ -2290,7 +2297,8 @@ function buildMobileSettingsPage()
 	setTargetTransparency(ConfigListTitle, 1, 0)
 
 	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 254, "   ---")
-	ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
+	ConfigSelectedButton.BackgroundColor3 = Color3.fromRGB(45,45,45)
+	ConfigSelectedButton.TextColor3 = Color3.fromRGB(180,180,180)
 	ConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Left
 	ConfigSelectedButton.ZIndex = 45
 
