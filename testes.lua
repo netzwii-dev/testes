@@ -42,7 +42,7 @@ end
 
 local DEFAULT_HIDE_GUI_KEY = Enum.KeyCode.RightShift
 local DEFAULT_TOGGLE_SCRIPT_KEY = Enum.KeyCode.Y
-local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.E
+local DEFAULT_TOGGLE_BEAST_SLOW_KEY = Enum.KeyCode.I
 local DEFAULT_TOGGLE_CORNER_WALK_KEY = Enum.KeyCode.R
 local DEFAULT_TOGGLE_XRAY_KEY = Enum.KeyCode.X
 local DEFAULT_TOGGLE_NON_SPAM_KEY = Enum.KeyCode.U
@@ -2063,7 +2063,7 @@ function applyXraySettingFromBox(sourceBox)
 
 	updateSettingsInputs()
 	saveUserPreferences()
-	showSettingsNotice("X-ray Opacity value changed successfully.")
+	showSettingsNotice("Successfully changed, the transparency of xray is at " .. tostring(xrayOpacityValue) .. " percentage.")
 end
 
 function applyNonSpamSettingFromBox(sourceBox)
@@ -2083,7 +2083,7 @@ function applyNonSpamSettingFromBox(sourceBox)
 
 	updateSettingsInputs()
 	saveUserPreferences()
-	showSettingsNotice("Non-spam Time value changed successfully.")
+	showSettingsNotice("Successfully changed, non-spam time will be at " .. tostring(nonSpamValue) .. " milliseconds.")
 end
 
 function applyNonSpamAfterSettingFromBox(sourceBox)
@@ -2099,7 +2099,7 @@ function applyNonSpamAfterSettingFromBox(sourceBox)
 	applyCurrentNonSpamCooldown()
 	updateSettingsInputs()
 	saveUserPreferences()
-	showSettingsNotice("Non-spam After value changed successfully.")
+	showSettingsNotice("Successfully changed, it will now run non-spam time after " .. tostring(nonSpamAfterValue) .. " wallhops.")
 end
 
 function applyCwalkRangeSettingFromBox(sourceBox)
@@ -2113,7 +2113,7 @@ function applyCwalkRangeSettingFromBox(sourceBox)
 	setCwalkRangeValue(value)
 	updateSettingsInputs()
 	saveUserPreferences()
-	showSettingsNotice("Corner walk Range value changed successfully.")
+	showSettingsNotice("Successfully changed, the Corner walk range will be at " .. tostring(cwalkRangeValue) .. " studs.")
 end
 
 function createSettingsLabel(parent, y, textValue)
@@ -2283,7 +2283,7 @@ function buildMobileSettingsPage()
 		applyNonSpamAfterSettingFromBox(SettingsNonSpamAfterBox)
 	end)
 
-	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 78, "Corner walk Range")
+	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 78, "C-walk Range")
 	SettingsCwalkRangeTitle.ZIndex = 40
 	SettingsCwalkRangeTitle.TextTransparency = 0
 	setTargetTransparency(SettingsCwalkRangeTitle, 1, 0)
@@ -3250,7 +3250,7 @@ local function buildPCGui()
 		applyNonSpamAfterSettingFromBox(PcSettingsNonSpamAfterBox)
 	end)
 
-	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 60, "Corner walk Range")
+	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 60, "C-walk Range")
 	PcCwalkRangeTitle.TextSize = 15
 	PcCwalkRangeTitle.ZIndex = 40
 	PcCwalkRangeTitle.TextTransparency = 0
