@@ -48,6 +48,7 @@ local DEFAULT_TOGGLE_XRAY_KEY = Enum.KeyCode.X
 local DEFAULT_TOGGLE_NON_SPAM_KEY = Enum.KeyCode.U
 
 local KEYBINDS_FILE = "nyhito_ftf_wallhop_keybinds.json"
+local PREFS_FILE = "nyhito_ftf_wallhop_prefs.json"
 
 selectedMode = nil
 
@@ -348,6 +349,48 @@ local function loadPCKeybinds()
 		toggleCornerWalkKey = getKeyCodeFromName(decoded.toggleCornerWalkKey, DEFAULT_TOGGLE_CORNER_WALK_KEY)
 		toggleXrayKey = getKeyCodeFromName(decoded.toggleXrayKey, DEFAULT_TOGGLE_XRAY_KEY)
 		toggleNonSpamKey = getKeyCodeFromName(decoded.toggleNonSpamKey, DEFAULT_TOGGLE_NON_SPAM_KEY)
+	end)
+end
+
+local function saveUserPreferences()
+	if not writefile then
+		return
+	end
+
+	local payload = {
+		xrayOpacityValue = tonumber(xrayOpacityValue) or 60,
+		nonSpamValue = tonumber(nonSpamValue) or 50,
+		cwalkRangeValue = tonumber(cwalkRangeValue) or 1,
+		currentFlickMode = tostring(currentFlickMode or "Normal Wallhop")
+	}
+
+	pcall(function()
+		writefile(PREFS_FILE, HttpService:JSONEncode(payload))
+	end)
+end
+
+local function loadUserPreferences()
+	if not readfile or not isfile or not isfile(PREFS_FILE) then
+		return
+	end
+
+	pcall(function()
+		local raw = readfile(PREFS_FILE)
+		local decoded = HttpService:JSONDecode(raw)
+		if tonumber(decoded.xrayOpacityValue) then
+			xrayOpacityValue = math.clamp(math.floor(tonumber(decoded.xrayOpacityValue)), 0, 100)
+		end
+		if tonumber(decoded.nonSpamValue) then
+			nonSpamValue = math.clamp(math.floor(tonumber(decoded.nonSpamValue)), 10, 99)
+		end
+		if tonumber(decoded.cwalkRangeValue) then
+			setCwalkRangeValue(decoded.cwalkRangeValue)
+		else
+			setCwalkRangeValue(cwalkRangeValue)
+		end
+		if type(decoded.currentFlickMode) == "string" and decoded.currentFlickMode ~= "" then
+			currentFlickMode = decoded.currentFlickMode
+		end
 	end)
 end
 
@@ -1114,6 +1157,7 @@ end
 local function setFlickMode(name)
 	currentFlickMode = name
 	updateFlickButtons()
+	saveUserPreferences()
 	if selectedMode == "PC" then
 		showNotice("Using " .. name)
 	end
@@ -1532,9 +1576,6 @@ function applyPcConfigPayload(payload)
 	if tonumber(payload.cwalkRangeValue) then
 		setCwalkRangeValue(payload.cwalkRangeValue)
 	end
-	if tonumber(payload.cwalkRangeValue) then
-		setCwalkRangeValue(payload.cwalkRangeValue)
-	end
 	if type(payload.currentFlickMode) == "string" then
 		setFlickMode(payload.currentFlickMode)
 	end
@@ -1548,6 +1589,7 @@ function applyPcConfigPayload(payload)
 
 	updateSettingsInputs()
 	updateFlickButtons()
+	saveUserPreferences()
 end
 
 function loadPcNamedConfig(name)
@@ -1736,6 +1778,7 @@ function applyConfigPayload(payload)
 	updateMobilePanelButtons()
 	updateFlickButtons()
 	updateSettingsInputs()
+	saveUserPreferences()
 end
 
 function saveNamedConfig(name)
@@ -1902,6 +1945,7 @@ function refreshConfigList(showMessage)
 			ConfigOption.BackgroundColor3 = Color3.fromRGB(0,0,0)
 			ConfigOption.Text = optionText
 			ConfigOption.TextColor3 = optionColor or Color3.fromRGB(255,255,255)
+			ConfigOption.TextTransparency = 0
 			ConfigOption.Font = Enum.Font.GothamBold
 			ConfigOption.TextSize = 12
 			ConfigOption.TextXAlignment = Enum.TextXAlignment.Left
@@ -2042,6 +2086,7 @@ function refreshPcConfigList(showMessage)
 			PcConfigOption.BackgroundColor3 = Color3.fromRGB(0,0,0)
 			PcConfigOption.Text = "   " .. tostring(optionText)
 			PcConfigOption.TextColor3 = optionColor or Color3.fromRGB(255,255,255)
+			PcConfigOption.TextTransparency = 0
 			PcConfigOption.Font = Enum.Font.GothamBold
 			PcConfigOption.TextSize = 12
 			PcConfigOption.TextXAlignment = Enum.TextXAlignment.Left
@@ -2184,6 +2229,7 @@ function applyXraySettingFromBox(sourceBox)
 	end
 
 	updateSettingsInputs()
+	saveUserPreferences()
 	showSettingsNotice("X-ray value changed successfully.")
 end
 
@@ -2203,6 +2249,7 @@ function applyNonSpamSettingFromBox(sourceBox)
 	end
 
 	updateSettingsInputs()
+	saveUserPreferences()
 	showSettingsNotice("Non-spam value changed successfully.")
 end
 
@@ -2217,6 +2264,7 @@ function applyCwalkRangeSettingFromBox(sourceBox)
 
 	setCwalkRangeValue(value)
 	updateSettingsInputs()
+	saveUserPreferences()
 	showSettingsNotice("C-walk range value changed successfully.")
 end
 
@@ -2438,6 +2486,7 @@ function buildMobileSettingsPage()
 	ConfigNameStroke.Transparency = 0.08
 	ConfigNameStroke.Parent = ConfigNameBox
 	noTextStroke(ConfigNameBox)
+	addSettingsPressEffect(ConfigNameBox)
 
 	CreateConfigButton = createSettingsButton(MobileSettingsPage, 184, "Create config")
 	CreateConfigButton.ZIndex = 41
@@ -2462,7 +2511,7 @@ function buildMobileSettingsPage()
 	setTargetTransparency(ConfigListTitle, 1, 0)
 
 	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 254, "   ---")
-	ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
+	ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
 	ConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Left
 	ConfigSelectedButton.ZIndex = 45
 
@@ -2596,6 +2645,7 @@ end
 
 local function buildMobileGui()
 	clearOldDragConnections()
+	loadUserPreferences()
 
 	ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = "AutoWallHopGuiMobile"
@@ -3079,6 +3129,7 @@ end
 local function buildPCGui()
 	clearOldDragConnections()
 	loadPCKeybinds()
+	loadUserPreferences()
 
 	ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = "AutoWallHopGui"
@@ -3202,7 +3253,7 @@ local function buildPCGui()
 
 	BeastSlowBindButton = Instance.new("TextButton")
 	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 22)
-	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 58)
+	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 112)
 	BeastSlowBindButton.BackgroundTransparency = 1
 	BeastSlowBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	BeastSlowBindButton.Font = Enum.Font.Gotham
@@ -3228,20 +3279,20 @@ local function buildPCGui()
 
 	XrayBindButton = Instance.new("TextButton")
 	XrayBindButton.Size = UDim2.new(1, -36, 0, 22)
-	XrayBindButton.Position = UDim2.new(0, 18, 0, 118)
+	XrayBindButton.Position = UDim2.new(0, 18, 0, 58)
 	XrayBindButton.BackgroundTransparency = 1
-	XrayBindButton.TextColor3 = Color3.fromRGB(220,220,220)
-	XrayBindButton.Font = Enum.Font.GothamBold
+	XrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
+	XrayBindButton.Font = Enum.Font.Gotham
 	XrayBindButton.TextSize = 15
 	XrayBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	XrayBindButton.AutoButtonColor = false
-	XrayBindButton.Parent = MainFrame
+	XrayBindButton.Parent = PcFunctionsPage
 	noTextStroke(XrayBindButton)
 	setTargetTransparency(XrayBindButton, 1, 0)
 
 	RealXrayBindButton = Instance.new("TextButton")
 	RealXrayBindButton.Size = UDim2.new(1, -36, 0, 22)
-	RealXrayBindButton.Position = UDim2.new(0, 18, 0, 112)
+	RealXrayBindButton.Position = UDim2.new(0, 18, 0, 139)
 	RealXrayBindButton.BackgroundTransparency = 1
 	RealXrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	RealXrayBindButton.Font = Enum.Font.Gotham
@@ -3339,93 +3390,13 @@ local function buildPCGui()
 		applyCwalkRangeSettingFromBox(PcCwalkRangeBox)
 	end)
 
-	PcConfigListTitle = createSettingsLabel(PcSettingsPage, 118, "Autoload config")
-	PcConfigListTitle.TextSize = 15
-	PcConfigListTitle.ZIndex = 40
-	PcConfigListTitle.TextTransparency = 0
-	setTargetTransparency(PcConfigListTitle, 1, 0)
-
-	PcConfigSelectedButton = createSettingsButton(PcSettingsPage, 148, "   ---")
-	PcConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
-	PcConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Left
-
-	PcConfigDropdownFrame = Instance.new("ScrollingFrame")
-	PcConfigDropdownFrame.Size = UDim2.new(1, -14, 0, 44)
-	PcConfigDropdownFrame.Position = UDim2.new(0, 7, 0, 184)
-	PcConfigDropdownFrame.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	PcConfigDropdownFrame.BorderSizePixel = 0
-	PcConfigDropdownFrame.Visible = false
-	PcConfigDropdownFrame.ZIndex = 85
-	PcConfigDropdownFrame.Active = true
-	PcConfigDropdownFrame.ScrollBarThickness = 3
-	PcConfigDropdownFrame.ScrollingDirection = Enum.ScrollingDirection.Y
-	PcConfigDropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 44)
-	PcConfigDropdownFrame.Parent = PcSettingsPage
-	Instance.new("UICorner", PcConfigDropdownFrame).CornerRadius = UDim.new(0, 12)
-	PcConfigDropdownStroke = Instance.new("UIStroke")
-	PcConfigDropdownStroke.Color = Color3.fromRGB(35,35,35)
-	PcConfigDropdownStroke.Thickness = 1
-	PcConfigDropdownStroke.Transparency = 0.08
-	PcConfigDropdownStroke.Parent = PcConfigDropdownFrame
-
-	PcConfigSelectedButton.MouseButton1Click:Connect(function()
-		pcConfigDropdownOpen = not pcConfigDropdownOpen
-		refreshPcConfigList(false)
-		if PcConfigDropdownFrame then
-			PcConfigDropdownFrame.Visible = pcConfigDropdownOpen
-			PcConfigDropdownFrame.CanvasPosition = Vector2.new(0, 0)
-		end
-	end)
-
-	PcLoadConfigButton = createSettingsButton(PcSettingsPage, 194, "Load config")
-	PcLoadConfigButton.MouseButton1Click:Connect(function()
-		if not pcSelectedConfigName or pcSelectedConfigName == "---" then
-			showSettingsNotice("Please select a config first!")
-			return
-		end
-		if loadPcNamedConfig(pcSelectedConfigName) then
-			showSettingsNotice("The " .. pcSelectedConfigName .. " config was loaded successfully.")
-		end
-	end)
-
-	PcSetAutoloadButton = createSettingsButton(PcSettingsPage, 232, "Set as autoload")
-	PcSetAutoloadButton.MouseButton1Click:Connect(function()
-		if not pcSelectedConfigName or pcSelectedConfigName == "---" then
-			showSettingsNotice("Please select a config first!")
-			return
-		end
-		if setPcAutoloadConfig(pcSelectedConfigName) then
-			showSettingsNotice("The " .. pcSelectedConfigName .. " config was being set as autoload successfully.")
-		end
-	end)
-
-	PcResetAutoloadButton = createSettingsButton(PcSettingsPage, 270, "Reset autoload")
-	PcResetAutoloadButton.MouseButton1Click:Connect(function()
-		if resetPcAutoloadConfig() then
-			showSettingsNotice("The autoload config has been reset successfully.")
-		else
-			showSettingsNotice("You dont have an autoload config yet!")
-		end
-	end)
-
-	PcConfigAutoloadLabel = Instance.new("TextLabel")
-	PcConfigAutoloadLabel.Size = UDim2.new(1, -14, 0, 32)
-	PcConfigAutoloadLabel.Position = UDim2.new(0, 7, 0, 310)
-	PcConfigAutoloadLabel.BackgroundTransparency = 1
-	PcConfigAutoloadLabel.TextColor3 = Color3.fromRGB(255,255,255)
-	PcConfigAutoloadLabel.Font = Enum.Font.Gotham
-	PcConfigAutoloadLabel.TextSize = 12
-	PcConfigAutoloadLabel.TextWrapped = true
-	PcConfigAutoloadLabel.TextXAlignment = Enum.TextXAlignment.Left
-	PcConfigAutoloadLabel.TextYAlignment = Enum.TextYAlignment.Top
-	PcConfigAutoloadLabel.ZIndex = 40
-	PcConfigAutoloadLabel.Parent = PcSettingsPage
-	noTextStroke(PcConfigAutoloadLabel)
-	setTargetTransparency(PcConfigAutoloadLabel, 1, 0)
+	PcConfigListTitle = nil
+	PcConfigSelectedButton = nil
+	PcConfigDropdownFrame = nil
+	PcConfigAutoloadLabel = nil
 
 	task.defer(function()
-		refreshPcConfigList(false)
-		loadPcAutoloadConfig()
+		updateSettingsInputs()
 	end)
 
 	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 2, "Normal Wallhop")
@@ -3590,7 +3561,6 @@ local function buildPCGui()
 		waitingForBeastSlowKey = false
 		waitingForCornerWalkKey = false
 		waitingForXrayKey = false
-		waitingForNonSpamKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -3601,6 +3571,7 @@ local function buildPCGui()
 		waitingForToggleKey = false
 		waitingForBeastSlowKey = false
 		waitingForCornerWalkKey = false
+		waitingForNonSpamKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
