@@ -2972,7 +2972,7 @@ local function buildPCGui()
 
 	ToggleButton = Instance.new("TextButton")
 	ToggleButton.Size = UDim2.new(1, -36, 0, 28)
-	ToggleButton.Position = UDim2.new(0, 18, 0, 90)
+	ToggleButton.Position = UDim2.new(0, 18, 0, 82)
 	ToggleButton.BackgroundTransparency = 1
 	ToggleButton.Text = "Wall Hop Off"
 	ToggleButton.TextColor3 = Color3.fromRGB(255,255,255)
@@ -2989,28 +2989,28 @@ local function buildPCGui()
 	PcTabSettings = createPcTabButton(MainFrame, 222, "Settings")
 
 	PcFunctionsPage = Instance.new("Frame")
-	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -150)
-	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 148)
+	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -122)
+	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 116)
 	PcFunctionsPage.BackgroundTransparency = 1
 	PcFunctionsPage.Parent = MainFrame
 
 	PcFlicksPage = Instance.new("Frame")
-	PcFlicksPage.Size = UDim2.new(1, 0, 1, -150)
-	PcFlicksPage.Position = UDim2.new(0, 0, 0, 148)
+	PcFlicksPage.Size = UDim2.new(1, 0, 1, -122)
+	PcFlicksPage.Position = UDim2.new(0, 0, 0, 116)
 	PcFlicksPage.BackgroundTransparency = 1
 	PcFlicksPage.Visible = false
 	PcFlicksPage.Parent = MainFrame
 
 	PcSettingsPage = Instance.new("Frame")
-	PcSettingsPage.Size = UDim2.new(1, 0, 1, -150)
-	PcSettingsPage.Position = UDim2.new(0, 0, 0, 148)
+	PcSettingsPage.Size = UDim2.new(1, 0, 1, -122)
+	PcSettingsPage.Position = UDim2.new(0, 0, 0, 116)
 	PcSettingsPage.BackgroundTransparency = 1
 	PcSettingsPage.Visible = false
 	PcSettingsPage.Parent = MainFrame
 
 	HideGuiBindButton = Instance.new("TextButton")
 	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 22)
-	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 4)
+	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 0)
 	HideGuiBindButton.BackgroundTransparency = 1
 	HideGuiBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	HideGuiBindButton.Font = Enum.Font.Gotham
@@ -3023,7 +3023,7 @@ local function buildPCGui()
 
 	ToggleBindButton = Instance.new("TextButton")
 	ToggleBindButton.Size = UDim2.new(1, -36, 0, 22)
-	ToggleBindButton.Position = UDim2.new(0, 18, 0, 31)
+	ToggleBindButton.Position = UDim2.new(0, 18, 0, 24)
 	ToggleBindButton.BackgroundTransparency = 1
 	ToggleBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleBindButton.Font = Enum.Font.Gotham
@@ -3036,7 +3036,7 @@ local function buildPCGui()
 
 	BeastSlowBindButton = Instance.new("TextButton")
 	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 22)
-	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 112)
+	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 96)
 	BeastSlowBindButton.BackgroundTransparency = 1
 	BeastSlowBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	BeastSlowBindButton.Font = Enum.Font.Gotham
@@ -3049,7 +3049,7 @@ local function buildPCGui()
 
 	CornerWalkBindButton = Instance.new("TextButton")
 	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 22)
-	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 85)
+	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 72)
 	CornerWalkBindButton.BackgroundTransparency = 1
 	CornerWalkBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	CornerWalkBindButton.Font = Enum.Font.Gotham
@@ -3062,7 +3062,7 @@ local function buildPCGui()
 
 	XrayBindButton = Instance.new("TextButton")
 	XrayBindButton.Size = UDim2.new(1, -36, 0, 22)
-	XrayBindButton.Position = UDim2.new(0, 18, 0, 58)
+	XrayBindButton.Position = UDim2.new(0, 18, 0, 48)
 	XrayBindButton.BackgroundTransparency = 1
 	XrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	XrayBindButton.Font = Enum.Font.Gotham
@@ -3075,7 +3075,7 @@ local function buildPCGui()
 
 	RealXrayBindButton = Instance.new("TextButton")
 	RealXrayBindButton.Size = UDim2.new(1, -36, 0, 22)
-	RealXrayBindButton.Position = UDim2.new(0, 18, 0, 139)
+	RealXrayBindButton.Position = UDim2.new(0, 18, 0, 120)
 	RealXrayBindButton.BackgroundTransparency = 1
 	RealXrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	RealXrayBindButton.Font = Enum.Font.Gotham
@@ -3086,7 +3086,7 @@ local function buildPCGui()
 	noTextStroke(RealXrayBindButton)
 	setTargetTransparency(RealXrayBindButton, 1, 0)
 
-	PcSettingsXrayTitle = createSettingsLabel(PcSettingsPage, 6, "Xray Opacity")
+	PcSettingsXrayTitle = createSettingsLabel(PcSettingsPage, 0, "Xray Opacity")
 	PcSettingsXrayTitle.TextSize = 15
 	PcSettingsXrayTitle.ZIndex = 40
 	PcSettingsXrayTitle.TextTransparency = 0
@@ -3094,7 +3094,7 @@ local function buildPCGui()
 
 	PcSettingsXrayBox = Instance.new("TextBox")
 	PcSettingsXrayBox.Size = UDim2.new(0, 62, 0, 28)
-	PcSettingsXrayBox.Position = UDim2.new(1, -80, 0, 4)
+	PcSettingsXrayBox.Position = UDim2.new(1, -80, 0, -2)
 	PcSettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcSettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcSettingsXrayBox.Font = Enum.Font.GothamBold
@@ -3115,7 +3115,7 @@ local function buildPCGui()
 		applyXraySettingFromBox(PcSettingsXrayBox)
 	end)
 
-	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 42, "Non-spam Setting")
+	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 30, "Non-spam Setting")
 	PcSettingsNonSpamTitle.TextSize = 15
 	PcSettingsNonSpamTitle.ZIndex = 40
 	PcSettingsNonSpamTitle.TextTransparency = 0
@@ -3123,7 +3123,7 @@ local function buildPCGui()
 
 	PcSettingsNonSpamBox = Instance.new("TextBox")
 	PcSettingsNonSpamBox.Size = UDim2.new(0, 62, 0, 28)
-	PcSettingsNonSpamBox.Position = UDim2.new(1, -80, 0, 40)
+	PcSettingsNonSpamBox.Position = UDim2.new(1, -80, 0, 28)
 	PcSettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcSettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcSettingsNonSpamBox.Font = Enum.Font.GothamBold
@@ -3144,14 +3144,14 @@ local function buildPCGui()
 		applyNonSpamSettingFromBox(PcSettingsNonSpamBox)
 	end)
 
-	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 78, "C-walk range")
+	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 60, "C-walk range")
 	PcCwalkRangeTitle.TextSize = 15
 	PcCwalkRangeTitle.ZIndex = 40
 	PcCwalkRangeTitle.TextTransparency = 0
 	setTargetTransparency(PcCwalkRangeTitle, 1, 0)
 	PcCwalkRangeBox = Instance.new("TextBox")
 	PcCwalkRangeBox.Size = UDim2.new(0, 62, 0, 28)
-	PcCwalkRangeBox.Position = UDim2.new(1, -80, 0, 76)
+	PcCwalkRangeBox.Position = UDim2.new(1, -80, 0, 58)
 	PcCwalkRangeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcCwalkRangeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcCwalkRangeBox.Font = Enum.Font.GothamBold
@@ -3172,14 +3172,14 @@ local function buildPCGui()
 		applyCwalkRangeSettingFromBox(PcCwalkRangeBox)
 	end)
 
-	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 2, "Normal Wallhop")
-	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 34, "Visual Wallhop")
-	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 66, "360° Wallhop")
-	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 98, "Console Wallhop")
+	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 0, "Normal Wallhop")
+	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 28, "Visual Wallhop")
+	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 56, "360° Wallhop")
+	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 84, "Console Wallhop")
 
 	PcCurrentUsingLabel = Instance.new("TextLabel")
 	PcCurrentUsingLabel.Size = UDim2.new(1, -36, 0, 26)
-	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 134)
+	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 116)
 	PcCurrentUsingLabel.BackgroundTransparency = 1
 	PcCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcCurrentUsingLabel.Font = Enum.Font.Gotham
@@ -3194,7 +3194,7 @@ local function buildPCGui()
 	local footer = Instance.new("TextLabel")
 	footer.Name = "PcFooter"
 	footer.Size = UDim2.new(1, -36, 0, 14)
-	footer.Position = UDim2.new(0, 18, 1, -20)
+	footer.Position = UDim2.new(0, 18, 1, -14)
 	footer.BackgroundTransparency = 1
 	footer.Text = "the best ftf wallhop ever - nyhito panel"
 	footer.TextColor3 = Color3.fromRGB(95,95,95)
