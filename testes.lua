@@ -2254,8 +2254,8 @@ function buildMobileSettingsPage()
 	ConfigNameBox = Instance.new("TextBox")
 	ConfigNameBox.Size = UDim2.new(1, -14, 0, 34)
 	ConfigNameBox.Position = UDim2.new(0, 7, 0, 142)
-	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
-	ConfigNameBox.TextColor3 = Color3.fromRGB(180,180,180)
+	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	ConfigNameBox.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigNameBox.PlaceholderText = "---"
 	ConfigNameBox.PlaceholderColor3 = Color3.fromRGB(180,180,180)
 	ConfigNameBox.Font = Enum.Font.GothamBold
@@ -2271,6 +2271,12 @@ function buildMobileSettingsPage()
 	ConfigNameStroke.Thickness = 1
 	ConfigNameStroke.Transparency = 0.08
 	ConfigNameStroke.Parent = ConfigNameBox
+
+	ConfigNamePadding = Instance.new("UIPadding")
+	ConfigNamePadding.PaddingLeft = UDim.new(0, 18)
+	ConfigNamePadding.PaddingRight = UDim.new(0, 12)
+	ConfigNamePadding.Parent = ConfigNameBox
+
 	noTextStroke(ConfigNameBox)
 	addSettingsPressEffect(ConfigNameBox)
 
@@ -2297,7 +2303,7 @@ function buildMobileSettingsPage()
 	setTargetTransparency(ConfigListTitle, 1, 0)
 
 	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 254, "   ---")
-	ConfigSelectedButton.BackgroundColor3 = Color3.fromRGB(45,45,45)
+	ConfigSelectedButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigSelectedButton.TextColor3 = Color3.fromRGB(180,180,180)
 	ConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Left
 	ConfigSelectedButton.ZIndex = 45
