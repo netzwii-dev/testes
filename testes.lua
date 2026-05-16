@@ -1853,7 +1853,7 @@ function refreshConfigList(showMessage)
 			ConfigOption.BackgroundColor3 = Color3.fromRGB(0,0,0)
 			ConfigOption.BackgroundTransparency = 0
 			ConfigOption.Text = optionText
-			ConfigOption.TextColor3 = optionColor or Color3.fromRGB(255,255,255)
+			ConfigOption.TextColor3 = (tostring(optionText) == "---") and Color3.fromRGB(180,180,180) or Color3.fromRGB(255,255,255)
 			ConfigOption.TextTransparency = 0
 			ConfigOption.Font = Enum.Font.GothamBold
 			ConfigOption.TextSize = 12
@@ -2252,7 +2252,7 @@ function buildMobileSettingsPage()
 	setTargetTransparency(ConfigNameTitle, 1, 0)
 
 	ConfigNameBox = Instance.new("TextBox")
-	ConfigNameBox.Size = UDim2.new(1, -14, 0, 34)
+	ConfigNameBox.Size = UDim2.new(1, -14, 0, 32)
 	ConfigNameBox.Position = UDim2.new(0, 7, 0, 142)
 	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigNameBox.TextColor3 = Color3.fromRGB(255,255,255)
@@ -2265,7 +2265,7 @@ function buildMobileSettingsPage()
 	ConfigNameBox.ClearTextOnFocus = false
 	ConfigNameBox.ZIndex = 41
 	ConfigNameBox.Parent = MobileSettingsPage
-	Instance.new("UICorner", ConfigNameBox).CornerRadius = UDim.new(0, 9)
+	Instance.new("UICorner", ConfigNameBox).CornerRadius = UDim.new(0, 10)
 	ConfigNameStroke = Instance.new("UIStroke")
 	ConfigNameStroke.Color = Color3.fromRGB(35,35,35)
 	ConfigNameStroke.Thickness = 1
@@ -2273,7 +2273,7 @@ function buildMobileSettingsPage()
 	ConfigNameStroke.Parent = ConfigNameBox
 
 	ConfigNamePadding = Instance.new("UIPadding")
-	ConfigNamePadding.PaddingLeft = UDim.new(0, 18)
+	ConfigNamePadding.PaddingLeft = UDim.new(0, 24)
 	ConfigNamePadding.PaddingRight = UDim.new(0, 12)
 	ConfigNamePadding.Parent = ConfigNameBox
 
@@ -2294,6 +2294,7 @@ function buildMobileSettingsPage()
 		if ConfigSelectedButton then
 			ConfigSelectedButton.Text = "   " .. name
 			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
+			ConfigSelectedButton.TextTransparency = 0
 		end
 	end)
 
