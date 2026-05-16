@@ -1853,7 +1853,7 @@ function refreshConfigList(showMessage)
 			ConfigOption.BackgroundColor3 = Color3.fromRGB(0,0,0)
 			ConfigOption.BackgroundTransparency = 0
 			ConfigOption.Text = optionText
-			ConfigOption.TextColor3 = Color3.fromRGB(180,180,180)
+			ConfigOption.TextColor3 = Color3.fromRGB(255,255,255)
 			ConfigOption.TextTransparency = 0
 			ConfigOption.Font = Enum.Font.GothamBold
 			ConfigOption.TextSize = 12
@@ -1875,11 +1875,11 @@ function refreshConfigList(showMessage)
 			return ConfigOption
 		end
 
-		newConfigOption("---", Color3.fromRGB(180,180,180), 1, function()
+		newConfigOption("---", Color3.fromRGB(255,255,255), 1, function()
 			selectedConfigName = "---"
 			if ConfigSelectedButton then
 				ConfigSelectedButton.Text = "   ---"
-				ConfigSelectedButton.TextColor3 = Color3.fromRGB(130,130,130)
+				ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 			end
 			configDropdownOpen = false
 			ConfigDropdownFrame.Visible = false
@@ -1897,11 +1897,11 @@ function refreshConfigList(showMessage)
 		end)
 
 		for index, name in ipairs(configNames) do
-			newConfigOption(name, Color3.fromRGB(180,180,180), index + 1, function()
+			newConfigOption(name, Color3.fromRGB(255,255,255), index + 1, function()
 				selectedConfigName = name
 				if ConfigSelectedButton then
 					ConfigSelectedButton.Text = "   " .. tostring(selectedConfigName)
-					ConfigSelectedButton.TextColor3 = Color3.fromRGB(180,180,180)
+					ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 				end
 				configDropdownOpen = false
 				ConfigDropdownFrame.Visible = false
@@ -1924,11 +1924,11 @@ function refreshConfigList(showMessage)
 	if ConfigSelectedButton then
 		if selectedConfigName and selectedConfigName ~= "---" then
 			ConfigSelectedButton.Text = "   " .. tostring(selectedConfigName)
-			ConfigSelectedButton.TextColor3 = Color3.fromRGB(180,180,180)
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 			ConfigSelectedButton.TextTransparency = 0
 		else
 			ConfigSelectedButton.Text = "   ---"
-			ConfigSelectedButton.TextColor3 = Color3.fromRGB(180,180,180)
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 			ConfigSelectedButton.TextTransparency = 0
 		end
 	end
@@ -2252,8 +2252,8 @@ function buildMobileSettingsPage()
 	setTargetTransparency(ConfigNameTitle, 1, 0)
 
 	ConfigNameBox = Instance.new("TextBox")
-	ConfigNameBox.Size = UDim2.new(1, -14, 0, 32)
-	ConfigNameBox.Position = UDim2.new(0, 7, 0, 142)
+	ConfigNameBox.Size = UDim2.new(1, -7, 0, 32)
+	ConfigNameBox.Position = UDim2.new(0, 0, 0, 142)
 	ConfigNameBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	ConfigNameBox.TextColor3 = Color3.fromRGB(180,180,180)
 	ConfigNameBox.PlaceholderText = "---"
@@ -2273,7 +2273,7 @@ function buildMobileSettingsPage()
 	ConfigNameStroke.Parent = ConfigNameBox
 
 	ConfigNamePadding = Instance.new("UIPadding")
-	ConfigNamePadding.PaddingLeft = UDim.new(0, 18)
+	ConfigNamePadding.PaddingLeft = UDim.new(0, 16)
 	ConfigNamePadding.PaddingRight = UDim.new(0, 12)
 	ConfigNamePadding.Parent = ConfigNameBox
 
@@ -2293,7 +2293,7 @@ function buildMobileSettingsPage()
 		showSettingsNotice("The configuration file " .. name .. " was created successfully.")
 		if ConfigSelectedButton then
 			ConfigSelectedButton.Text = "   " .. name
-			ConfigSelectedButton.TextColor3 = Color3.fromRGB(180,180,180)
+			ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 			ConfigSelectedButton.TextTransparency = 0
 		end
 	end)
@@ -2305,7 +2305,7 @@ function buildMobileSettingsPage()
 
 	ConfigSelectedButton = createSettingsButton(MobileSettingsPage, 254, "   ---")
 	ConfigSelectedButton.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	ConfigSelectedButton.TextColor3 = Color3.fromRGB(180,180,180)
+	ConfigSelectedButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ConfigSelectedButton.TextXAlignment = Enum.TextXAlignment.Left
 	ConfigSelectedButton.ZIndex = 45
 
