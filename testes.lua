@@ -10,6 +10,8 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local TextChatService = game:GetService("TextChatService")
 
+local CERBER_ICON_IMAGE = "rbxassetid://117015783143364"
+
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
@@ -1777,7 +1779,7 @@ local function createModeSelector(onPick)
 	selectorGui.Parent = PlayerGui
 
 	local frame = Instance.new("Frame")
-	frame.Size = UDim2.new(0, 280, 0, 170)
+	frame.Size = UDim2.new(0, 336, 0, 170)
 	frame.Position = UDim2.new(0.5, 0, 0.5, 0)
 	frame.AnchorPoint = Vector2.new(0.5, 0.5)
 	frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -1788,8 +1790,8 @@ local function createModeSelector(onPick)
 	setTargetTransparency(frame, 0, nil)
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, -20, 0, 28)
-	title.Position = UDim2.new(0, 10, 0, 10)
+	title.Size = UDim2.new(1, -74, 0, 28)
+	title.Position = UDim2.new(0, 62, 0, 10)
 	title.BackgroundTransparency = 1
 	title.Text = "Choose Version"
 	title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -1799,17 +1801,27 @@ local function createModeSelector(onPick)
 	noTextStroke(title)
 	setTargetTransparency(title, 1, 0)
 
+
 	local sub = Instance.new("TextLabel")
-	sub.Size = UDim2.new(1, -20, 0, 16)
-	sub.Position = UDim2.new(0, 10, 0, 34)
+	sub.Size = UDim2.new(1, -74, 0, 16)
+	sub.Position = UDim2.new(0, 62, 0, 34)
 	sub.BackgroundTransparency = 1
-	sub.Text = "FtF Wallhop • made by nyhito"
+	sub.Text = "Cerber X •the best Flee the Facility script "
 	sub.TextColor3 = Color3.fromRGB(95,95,95)
 	sub.Font = Enum.Font.Gotham
 	sub.TextSize = 12
 	sub.Parent = frame
 	noTextStroke(sub)
 	setTargetTransparency(sub, 1, 0)
+
+	local selectorIcon = Instance.new("ImageLabel")
+	selectorIcon.Size = UDim2.new(0, 42, 0, 42)
+	selectorIcon.Position = UDim2.new(0, 12, 0, 10)
+	selectorIcon.BackgroundTransparency = 1
+	selectorIcon.Image = CERBER_ICON_IMAGE
+	selectorIcon.ScaleType = Enum.ScaleType.Fit
+	selectorIcon.Parent = frame
+	setTargetTransparency(selectorIcon, 1, 0)
 
 	local pcButton = Instance.new("TextButton")
 	pcButton.Size = UDim2.new(1, -20, 0, 42)
@@ -1837,7 +1849,7 @@ local function createModeSelector(onPick)
 	noTextStroke(mobileButton)
 	setTargetTransparency(mobileButton, 0, 0)
 
-	elegantShow(frame, UDim2.new(0, 280, 0, 170), UDim2.new(0.5, 0, 0.5, 0), 0)
+	elegantShow(frame, UDim2.new(0, 336, 0, 170), UDim2.new(0.5, 0, 0.5, 0), 0)
 
 	pcButton.MouseButton1Click:Connect(function()
 		elegantHide(frame, function()
@@ -1973,7 +1985,7 @@ switchPcTab = function(name)
 	end
 
 	if MainFrame and MainFrame:FindFirstChild("PcFooter") then
-		MainFrame.PcFooter.Visible = isFunctions
+		MainFrame.PcFooter.Visible = false
 	end
 end
 
@@ -2765,7 +2777,7 @@ local function buildMobileGui()
 	MobileFunctionsPage.BorderSizePixel = 0
 	MobileFunctionsPage.ScrollBarThickness = 3
 	MobileFunctionsPage.ScrollingDirection = Enum.ScrollingDirection.Y
-	MobileFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 340)
+	MobileFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 368)
 	MobileFunctionsPage.Parent = MobilePanel
 
 	MobileFlicksPage = Instance.new("ScrollingFrame")
@@ -2781,13 +2793,26 @@ local function buildMobileGui()
 
 	buildMobileSettingsPage()
 
-	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
-	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 46, "Non-spam")
-	MobileRealXrayRow, mobileRealXraySwitch, mobileRealXrayKnob = createSwitchRow(MobileFunctionsPage, 88, "X-ray")
-	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 130, "Corner Walk")
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 172, "Beast Slow")
-	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 214, "Clip Dance2")
-	MobileFloorbangEspRow, mobileFloorbangEspSwitch, mobileFloorbangEspKnob = createSwitchRow(MobileFunctionsPage, 256, "Floorbang ESP")
+	MobileAllFunctionsTitle = Instance.new("TextLabel")
+	MobileAllFunctionsTitle.Size = UDim2.new(1, -14, 0, 22)
+	MobileAllFunctionsTitle.Position = UDim2.new(0, 7, 0, 4)
+	MobileAllFunctionsTitle.BackgroundTransparency = 1
+	MobileAllFunctionsTitle.Text = "All Functions"
+	MobileAllFunctionsTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileAllFunctionsTitle.Font = Enum.Font.GothamBold
+	MobileAllFunctionsTitle.TextSize = 13
+	MobileAllFunctionsTitle.TextXAlignment = Enum.TextXAlignment.Left
+	MobileAllFunctionsTitle.Parent = MobileFunctionsPage
+	noTextStroke(MobileAllFunctionsTitle)
+	setTargetTransparency(MobileAllFunctionsTitle, 1, 0)
+
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 30, "Wallhop")
+	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 72, "Non-spam")
+	MobileRealXrayRow, mobileRealXraySwitch, mobileRealXrayKnob = createSwitchRow(MobileFunctionsPage, 114, "X-ray")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 156, "Corner Walk")
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 198, "Beast Slow")
+	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 240, "Clip Dance2")
+	MobileFloorbangEspRow, mobileFloorbangEspSwitch, mobileFloorbangEspKnob = createSwitchRow(MobileFunctionsPage, 282, "Floorbang ESP")
 
 	MobileFlickTypesTitle = Instance.new("TextLabel")
 	MobileFlickTypesTitle.Size = UDim2.new(1, -14, 0, 22)
@@ -3206,10 +3231,10 @@ local function buildPCGui()
 	setTargetTransparency(MainFrame, 0, nil)
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, -60, 0, 30)
+	title.Size = UDim2.new(0, 220, 0, 30)
 	title.Position = UDim2.new(0, 18, 0, 8)
 	title.BackgroundTransparency = 1
-	title.Text = "FtF Wallhop"
+	title.Text = "Cerber X"
 	title.TextColor3 = Color3.fromRGB(255,255,255)
 	title.Font = Enum.Font.GothamBold
 	title.TextSize = 28
@@ -3217,6 +3242,15 @@ local function buildPCGui()
 	title.Parent = MainFrame
 	noTextStroke(title)
 	setTargetTransparency(title, 1, 0)
+
+	local headerIcon = Instance.new("ImageLabel")
+	headerIcon.Size = UDim2.new(0, 42, 0, 42)
+	headerIcon.Position = UDim2.new(0, 220, 0, 7)
+	headerIcon.BackgroundTransparency = 1
+	headerIcon.Image = CERBER_ICON_IMAGE
+	headerIcon.ScaleType = Enum.ScaleType.Fit
+	headerIcon.Parent = MainFrame
+	setTargetTransparency(headerIcon, 1, 0)
 
 	local sub = Instance.new("TextLabel")
 	sub.Size = UDim2.new(1, -60, 0, 16)
@@ -3624,11 +3658,12 @@ local function buildPCGui()
 	footer.Size = UDim2.new(1, -36, 0, 14)
 	footer.Position = UDim2.new(0, 18, 1, -14)
 	footer.BackgroundTransparency = 1
-	footer.Text = "the best ftf wallhop ever - nyhito panel"
+	footer.Text = ""
 	footer.TextColor3 = Color3.fromRGB(95,95,95)
 	footer.Font = Enum.Font.Gotham
 	footer.TextSize = 11
 	footer.TextXAlignment = Enum.TextXAlignment.Left
+	footer.Visible = false
 	footer.Parent = MainFrame
 	noTextStroke(footer)
 	setTargetTransparency(footer, 1, 0)
@@ -3637,7 +3672,7 @@ local function buildPCGui()
 	MiniButton.Size = UDim2.new(0, 150, 0, 42)
 	MiniButton.Position = MainFrame.Position
 	MiniButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	MiniButton.Text = "FtF Wallhop"
+	MiniButton.Text = "Cerber X"
 	MiniButton.TextColor3 = Color3.fromRGB(220,220,220)
 	MiniButton.Font = Enum.Font.GothamBold
 	MiniButton.TextSize = 22
@@ -5452,4 +5487,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Cerber X V1.1 • Loaded Successfully ✅")
