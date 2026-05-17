@@ -3264,18 +3264,18 @@ local function buildPCGui()
 	PcTabSettings = createPcTabButton(MainFrame, 222, "Settings")
 
 	PcFunctionsPage = Instance.new("ScrollingFrame")
-	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -122)
-	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 116)
+	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -116)
+	PcFunctionsPage.Position = UDim2.new(0, 0, 0, 110)
 	PcFunctionsPage.BackgroundTransparency = 1
 	PcFunctionsPage.BorderSizePixel = 0
 	PcFunctionsPage.ScrollBarThickness = 4
 	PcFunctionsPage.ScrollingDirection = Enum.ScrollingDirection.Y
-	PcFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 220)
+	PcFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 190)
 	PcFunctionsPage.Parent = MainFrame
 
 	PcFlicksPage = Instance.new("ScrollingFrame")
-	PcFlicksPage.Size = UDim2.new(1, 0, 1, -122)
-	PcFlicksPage.Position = UDim2.new(0, 0, 0, 116)
+	PcFlicksPage.Size = UDim2.new(1, 0, 1, -94)
+	PcFlicksPage.Position = UDim2.new(0, 0, 0, 88)
 	PcFlicksPage.BackgroundTransparency = 1
 	PcFlicksPage.BorderSizePixel = 0
 	PcFlicksPage.ScrollBarThickness = 4
@@ -3285,13 +3285,13 @@ local function buildPCGui()
 	PcFlicksPage.Parent = MainFrame
 
 	PcSettingsPage = Instance.new("ScrollingFrame")
-	PcSettingsPage.Size = UDim2.new(1, 0, 1, -122)
-	PcSettingsPage.Position = UDim2.new(0, 0, 0, 116)
+	PcSettingsPage.Size = UDim2.new(1, 0, 1, -94)
+	PcSettingsPage.Position = UDim2.new(0, 0, 0, 88)
 	PcSettingsPage.BackgroundTransparency = 1
 	PcSettingsPage.BorderSizePixel = 0
 	PcSettingsPage.ScrollBarThickness = 4
 	PcSettingsPage.ScrollingDirection = Enum.ScrollingDirection.Y
-	PcSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 220)
+	PcSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 230)
 	PcSettingsPage.Visible = false
 	PcSettingsPage.Parent = MainFrame
 
@@ -3310,7 +3310,7 @@ local function buildPCGui()
 
 	HideGuiBindButton = Instance.new("TextButton")
 	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 20)
-	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 28)
+	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 22)
 	HideGuiBindButton.BackgroundTransparency = 1
 	HideGuiBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	HideGuiBindButton.Font = Enum.Font.Gotham
@@ -3323,7 +3323,7 @@ local function buildPCGui()
 
 	ToggleBindButton = Instance.new("TextButton")
 	ToggleBindButton.Size = UDim2.new(1, -36, 0, 20)
-	ToggleBindButton.Position = UDim2.new(0, 18, 0, 49)
+	ToggleBindButton.Position = UDim2.new(0, 18, 0, 42)
 	ToggleBindButton.BackgroundTransparency = 1
 	ToggleBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleBindButton.Font = Enum.Font.Gotham
@@ -3336,7 +3336,7 @@ local function buildPCGui()
 
 	BeastSlowBindButton = Instance.new("TextButton")
 	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 20)
-	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 112)
+	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 102)
 	BeastSlowBindButton.BackgroundTransparency = 1
 	BeastSlowBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	BeastSlowBindButton.Font = Enum.Font.Gotham
@@ -3349,7 +3349,7 @@ local function buildPCGui()
 
 	CornerWalkBindButton = Instance.new("TextButton")
 	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 20)
-	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 91)
+	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 82)
 	CornerWalkBindButton.BackgroundTransparency = 1
 	CornerWalkBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	CornerWalkBindButton.Font = Enum.Font.Gotham
@@ -3362,7 +3362,7 @@ local function buildPCGui()
 
 	XrayBindButton = Instance.new("TextButton")
 	XrayBindButton.Size = UDim2.new(1, -36, 0, 20)
-	XrayBindButton.Position = UDim2.new(0, 18, 0, 70)
+	XrayBindButton.Position = UDim2.new(0, 18, 0, 62)
 	XrayBindButton.BackgroundTransparency = 1
 	XrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	XrayBindButton.Font = Enum.Font.Gotham
@@ -3375,7 +3375,7 @@ local function buildPCGui()
 
 	RealXrayBindButton = Instance.new("TextButton")
 	RealXrayBindButton.Size = UDim2.new(1, -36, 0, 20)
-	RealXrayBindButton.Position = UDim2.new(0, 18, 0, 133)
+	RealXrayBindButton.Position = UDim2.new(0, 18, 0, 122)
 	RealXrayBindButton.BackgroundTransparency = 1
 	RealXrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	RealXrayBindButton.Font = Enum.Font.Gotham
@@ -3388,7 +3388,7 @@ local function buildPCGui()
 
 	ClipDance2BindButton = Instance.new("TextButton")
 	ClipDance2BindButton.Size = UDim2.new(1, -36, 0, 20)
-	ClipDance2BindButton.Position = UDim2.new(0, 18, 0, 154)
+	ClipDance2BindButton.Position = UDim2.new(0, 18, 0, 142)
 	ClipDance2BindButton.BackgroundTransparency = 1
 	ClipDance2BindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ClipDance2BindButton.Font = Enum.Font.Gotham
@@ -3401,7 +3401,7 @@ local function buildPCGui()
 
 	FloorbangEspBindButton = Instance.new("TextButton")
 	FloorbangEspBindButton.Size = UDim2.new(1, -36, 0, 20)
-	FloorbangEspBindButton.Position = UDim2.new(0, 18, 0, 175)
+	FloorbangEspBindButton.Position = UDim2.new(0, 18, 0, 162)
 	FloorbangEspBindButton.BackgroundTransparency = 1
 	FloorbangEspBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	FloorbangEspBindButton.Font = Enum.Font.Gotham
