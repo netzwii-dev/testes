@@ -560,8 +560,41 @@ local function restoreDance2Noclip()
 	dance2NoclipActive = false
 end
 
+local function isDance2AnimationPlaying()
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if not hum then
+		return false
+	end
+
+	for _, track in ipairs(hum:GetPlayingAnimationTracks()) do
+		local trackName = tostring(track.Name or ""):lower()
+		local anim = track.Animation
+		local animName = anim and tostring(anim.Name or ""):lower() or ""
+		local animId = anim and tostring(anim.AnimationId or "") or ""
+
+		if track.IsPlaying and (
+			trackName:find("dance", 1, true)
+			or animName:find("dance", 1, true)
+			or animId:find("182436842", 1, true)
+			or animId:find("182436935", 1, true)
+			or animId:find("507776043", 1, true)
+			or animId:find("507776720", 1, true)
+			or animId:find("507777268", 1, true)
+		) then
+			return true
+		end
+	end
+
+	return false
+end
+
 local function startDance2Noclip(token)
 	if token ~= dance2TurnToken or not isDance2TurnEnabled then
+		return
+	end
+
+	if not isDance2AnimationPlaying() then
 		return
 	end
 
@@ -583,46 +616,6 @@ local function startDance2Noclip(token)
 	end
 end
 
-local function rotateDance2Right(token)
-	if token ~= dance2TurnToken or not isDance2TurnEnabled then
-		return
-	end
-
-	local char = LocalPlayer.Character
-	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-	if not hum or not hrp then
-		return
-	end
-
-	pcall(function()
-		hum.AutoRotate = false
-		hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-
-		local rightVector = Camera and Camera.CFrame.RightVector or hrp.CFrame.RightVector
-		local flatRight = Vector3.new(rightVector.X, 0, rightVector.Z)
-
-		if flatRight.Magnitude <= 0.01 then
-			flatRight = Vector3.new(hrp.CFrame.RightVector.X, 0, hrp.CFrame.RightVector.Z)
-		end
-
-		if flatRight.Magnitude > 0.01 then
-			flatRight = flatRight.Unit
-			hrp.CFrame = CFrame.lookAt(hrp.Position, hrp.Position + flatRight)
-		else
-			hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(90), 0)
-		end
-	end)
-
-	task.defer(function()
-		if hum and hum.Parent then
-			pcall(function()
-				hum.AutoRotate = true
-			end)
-		end
-	end)
-end
-
 local function runDance2TurnSequence()
 	if not isDance2TurnEnabled then
 		return
@@ -631,12 +624,8 @@ local function runDance2TurnSequence()
 	dance2TurnToken += 1
 	local token = dance2TurnToken
 
-	task.delay(0.8, function()
+	task.delay(0.6, function()
 		startDance2Noclip(token)
-	end)
-
-	task.delay(1.0, function()
-		rotateDance2Right(token)
 	end)
 
 	task.delay(1.2, function()
@@ -655,7 +644,7 @@ local function setDance2TurnEnabled(state)
 	end
 
 	if PcDance2TurnButton then
-		PcDance2TurnButton.Text = isDance2TurnEnabled and "Dance2 Turn On" or "Dance2 Turn Off"
+		PcDance2TurnButton.Text = isDance2TurnEnabled and "Noclip Dance2 On" or "Noclip Dance2 Off"
 	end
 
 	updateMobilePanelButtons()
@@ -1256,7 +1245,7 @@ updateMobilePanelButtons = function()
 		MobileRealXrayRow.Label.Text = "X-ray"
 	end
 	if MobileDance2TurnRow and MobileDance2TurnRow:FindFirstChild("Label") then
-		MobileDance2TurnRow.Label.Text = "Dance2 Turn"
+		MobileDance2TurnRow.Label.Text = "Noclip Dance2"
 	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
@@ -2853,7 +2842,7 @@ local function buildMobileGui()
 	MobileRealXrayRow, mobileRealXraySwitch, mobileRealXrayKnob = createSwitchRow(MobileFunctionsPage, 88, "X-ray")
 	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 130, "Corner Walk")
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 172, "Beast Slow")
-	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 214, "Dance2 Turn")
+	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 214, "Noclip Dance2")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -3376,7 +3365,7 @@ local function buildPCGui()
 	noTextStroke(RealXrayBindButton)
 	setTargetTransparency(RealXrayBindButton, 1, 0)
 
-	PcDance2TurnButton = createPcActionButton(PcFunctionsPage, 150, isDance2TurnEnabled and "Dance2 Turn On" or "Dance2 Turn Off")
+	PcDance2TurnButton = createPcActionButton(PcFunctionsPage, 150, isDance2TurnEnabled and "Noclip Dance2 On" or "Noclip Dance2 Off")
 
 	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 0, "Non-spam Time")
 	PcSettingsNonSpamTitle.TextSize = 15
@@ -3608,7 +3597,7 @@ local function buildPCGui()
 	if PcDance2TurnButton then
 		PcDance2TurnButton.MouseButton1Click:Connect(function()
 			setDance2TurnEnabled(not isDance2TurnEnabled)
-			showNotice(isDance2TurnEnabled and "Dance2 Turn enabled" or "Dance2 Turn disabled")
+			showNotice(isDance2TurnEnabled and "Noclip Dance2 enabled" or "Noclip Dance2 disabled")
 		end)
 	end
 
