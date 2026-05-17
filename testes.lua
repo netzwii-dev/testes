@@ -48,6 +48,7 @@ local DEFAULT_TOGGLE_CORNER_WALK_KEY = Enum.KeyCode.R
 local DEFAULT_TOGGLE_XRAY_KEY = Enum.KeyCode.X
 local DEFAULT_TOGGLE_NON_SPAM_KEY = Enum.KeyCode.U
 local DEFAULT_TOGGLE_CLIP_DANCE2_KEY = Enum.KeyCode.P
+local DEFAULT_TOGGLE_FLOORBANG_ESP_KEY = Enum.KeyCode.F
 
 local KEYBINDS_FILE = "nyhito_ftf_wallhop_keybinds.json"
 local PREFS_FILE = "nyhito_ftf_wallhop_prefs.json"
@@ -61,6 +62,7 @@ toggleCornerWalkKey = DEFAULT_TOGGLE_CORNER_WALK_KEY
 toggleXrayKey = DEFAULT_TOGGLE_XRAY_KEY
 toggleNonSpamKey = DEFAULT_TOGGLE_NON_SPAM_KEY
 toggleClipDance2Key = DEFAULT_TOGGLE_CLIP_DANCE2_KEY
+toggleFloorbangEspKey = DEFAULT_TOGGLE_FLOORBANG_ESP_KEY
 
 waitingForHideKey = false
 waitingForToggleKey = false
@@ -69,6 +71,7 @@ waitingForCornerWalkKey = false
 waitingForXrayKey = false
 waitingForNonSpamKey = false
 waitingForClipDance2Key = false
+waitingForFloorbangEspKey = false
 
 guiVisible = true
 guiMinimized = false
@@ -93,6 +96,7 @@ CornerWalkBindButton = nil
 XrayBindButton = nil
 RealXrayBindButton = nil
 ClipDance2BindButton = nil
+FloorbangEspBindButton = nil
 Notice = nil
 NoticeStroke = nil
 NoticeBar = nil
@@ -139,6 +143,7 @@ MobileCornerWalkRow = nil
 MobileXrayRow = nil
 MobileRealXrayRow = nil
 MobileDance2TurnRow = nil
+MobileFloorbangEspRow = nil
 MobileHideGuiRow = nil
 
 mobileBeastSlowSwitch = nil
@@ -151,6 +156,8 @@ mobileRealXraySwitch = nil
 mobileRealXrayKnob = nil
 mobileDance2TurnSwitch = nil
 mobileDance2TurnKnob = nil
+mobileFloorbangEspSwitch = nil
+mobileFloorbangEspKnob = nil
 mobileHideGuiSwitch = nil
 mobileHideGuiKnob = nil
 mobileDragHandle = nil
@@ -174,6 +181,8 @@ isCornerWalkEnabled = false
 isXrayEnabled = false
 realXrayEnabled = false
 isDance2TurnEnabled = false
+isFloorbangEspEnabled = false
+floorbangEspMarkers = {}
 dance2TurnToken = 0
 dance2NoclipActive = false
 dance2NoclipOriginalCanCollide = {}
@@ -327,7 +336,8 @@ local function savePCKeybinds()
 		toggleCornerWalkKey = toggleCornerWalkKey.Name,
 		toggleXrayKey = toggleXrayKey.Name,
 		toggleNonSpamKey = toggleNonSpamKey.Name,
-		toggleClipDance2Key = toggleClipDance2Key.Name
+		toggleClipDance2Key = toggleClipDance2Key.Name,
+		toggleFloorbangEspKey = toggleFloorbangEspKey.Name
 	}
 
 	pcall(function()
@@ -355,6 +365,7 @@ local function loadPCKeybinds()
 		toggleXrayKey = getKeyCodeFromName(decoded.toggleXrayKey, DEFAULT_TOGGLE_XRAY_KEY)
 		toggleNonSpamKey = getKeyCodeFromName(decoded.toggleNonSpamKey, DEFAULT_TOGGLE_NON_SPAM_KEY)
 		toggleClipDance2Key = getKeyCodeFromName(decoded.toggleClipDance2Key, DEFAULT_TOGGLE_CLIP_DANCE2_KEY)
+		toggleFloorbangEspKey = getKeyCodeFromName(decoded.toggleFloorbangEspKey, DEFAULT_TOGGLE_FLOORBANG_ESP_KEY)
 	end)
 end
 
@@ -375,6 +386,7 @@ local function saveUserPreferences()
 		isNonSpamEnabled = isXrayEnabled,
 		realXrayEnabled = realXrayEnabled,
 		isDance2TurnEnabled = isDance2TurnEnabled,
+		isFloorbangEspEnabled = isFloorbangEspEnabled,
 		mobileWallhopGuiHidden = mobileWallhopGuiHidden,
 		mobileCornerWalkButtonVisible = mobileCornerWalkButtonVisible,
 		mobileBeastSlowButtonVisible = mobileBeastSlowButtonVisible,
@@ -428,6 +440,9 @@ local function loadUserPreferences()
 		end
 		if type(decoded.isDance2TurnEnabled) == "boolean" then
 			isDance2TurnEnabled = decoded.isDance2TurnEnabled
+		end
+		if type(decoded.isFloorbangEspEnabled) == "boolean" then
+			isFloorbangEspEnabled = decoded.isFloorbangEspEnabled
 		end
 		if type(decoded.mobileWallhopGuiHidden) == "boolean" then
 			mobileWallhopGuiHidden = decoded.mobileWallhopGuiHidden
@@ -566,6 +581,145 @@ local function setXrayEnabled(state)
 	updateMobilePanelButtons()
 	saveUserPreferences()
 end
+
+local function removeFloorbangESP(player)
+	local marker = floorbangEspMarkers[player]
+	if marker then
+		pcall(function()
+			marker:Destroy()
+		end)
+	end
+	floorbangEspMarkers[player] = nil
+end
+
+local function clearFloorbangESP()
+	for player in pairs(floorbangEspMarkers) do
+		removeFloorbangESP(player)
+	end
+	table.clear(floorbangEspMarkers)
+end
+
+local function createFloorbangESP(player)
+	if not isFloorbangEspEnabled or not player or player == LocalPlayer then
+		return
+	end
+
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not hrp or not humanoid or humanoid.Health <= 0 then
+		removeFloorbangESP(player)
+		return
+	end
+
+	local old = floorbangEspMarkers[player]
+	if old and old.Parent == hrp then
+		return
+	end
+
+	removeFloorbangESP(player)
+
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "FloorbangESPMarker"
+	billboard.Adornee = hrp
+	billboard.AlwaysOnTop = true
+	billboard.LightInfluence = 0
+	billboard.MaxDistance = 10000
+	billboard.Size = UDim2.new(0, 78, 0, 78)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, -3.15, 0)
+	billboard.Parent = hrp
+
+	local ring = Instance.new("TextLabel")
+	ring.Name = "Ring"
+	ring.Size = UDim2.new(1, 0, 1, 0)
+	ring.BackgroundTransparency = 1
+	ring.Text = "⭕"
+	ring.TextColor3 = Color3.fromRGB(255, 0, 0)
+	ring.TextTransparency = 0
+	ring.TextStrokeTransparency = 0.25
+	ring.TextStrokeColor3 = Color3.fromRGB(120, 0, 0)
+	ring.Font = Enum.Font.GothamBold
+	ring.TextScaled = true
+	ring.TextWrapped = false
+	ring.ZIndex = 100
+	ring.Parent = billboard
+
+	floorbangEspMarkers[player] = billboard
+end
+
+local function updateFloorbangESP()
+	if not isFloorbangEspEnabled then
+		clearFloorbangESP()
+		return
+	end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			createFloorbangESP(player)
+		end
+	end
+
+	for player in pairs(floorbangEspMarkers) do
+		if not player or not player.Parent or player == LocalPlayer then
+			removeFloorbangESP(player)
+		else
+			local character = player.Character
+			local hrp = character and character:FindFirstChild("HumanoidRootPart")
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if not hrp or not humanoid or humanoid.Health <= 0 then
+				removeFloorbangESP(player)
+			end
+		end
+	end
+end
+
+local function setFloorbangESPEnabled(state)
+	isFloorbangEspEnabled = state and true or false
+
+	if isFloorbangEspEnabled then
+		updateFloorbangESP()
+	else
+		clearFloorbangESP()
+	end
+
+	updateMobilePanelButtons()
+	saveUserPreferences()
+end
+
+Players.PlayerRemoving:Connect(function(player)
+	removeFloorbangESP(player)
+end)
+
+Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function()
+		task.wait(0.35)
+		if isFloorbangEspEnabled then
+			createFloorbangESP(player)
+		end
+	end)
+end)
+
+for _, player in ipairs(Players:GetPlayers()) do
+	if player ~= LocalPlayer then
+		player.CharacterAdded:Connect(function()
+			task.wait(0.35)
+			if isFloorbangEspEnabled then
+				createFloorbangESP(player)
+			end
+		end)
+	end
+end
+
+RunService.RenderStepped:Connect(function()
+	if not isThisScriptActive or not isThisScriptActive() then
+		clearFloorbangESP()
+		return
+	end
+
+	if isFloorbangEspEnabled then
+		updateFloorbangESP()
+	end
+end)
 
 local function restoreDance2Noclip()
 	for part, oldValue in pairs(dance2NoclipOriginalCanCollide) do
@@ -1281,6 +1435,9 @@ updateMobilePanelButtons = function()
 	if MobileDance2TurnRow and MobileDance2TurnRow:FindFirstChild("Label") then
 		MobileDance2TurnRow.Label.Text = "Clip Dance2"
 	end
+	if MobileFloorbangEspRow and MobileFloorbangEspRow:FindFirstChild("Label") then
+		MobileFloorbangEspRow.Label.Text = "Floorbang ESP"
+	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
@@ -1302,6 +1459,7 @@ updateMobilePanelButtons = function()
 	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
 	updateSwitchVisual(mobileRealXraySwitch, mobileRealXrayKnob, realXrayEnabled)
 	updateSwitchVisual(mobileDance2TurnSwitch, mobileDance2TurnKnob, isDance2TurnEnabled)
+	updateSwitchVisual(mobileFloorbangEspSwitch, mobileFloorbangEspKnob, isFloorbangEspEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
@@ -1336,6 +1494,9 @@ local function updateBindButtons()
 	end
 	if ClipDance2BindButton then
 		ClipDance2BindButton.Text = waitingForClipDance2Key and "Press any key..." or ("Keybind Toggle Clip Dance2: " .. toggleClipDance2Key.Name)
+	end
+	if FloorbangEspBindButton then
+		FloorbangEspBindButton.Text = waitingForFloorbangEspKey and "Press any key..." or ("Keybind Toggle Floorbang ESP: " .. toggleFloorbangEspKey.Name)
 	end
 end
 
@@ -2288,7 +2449,7 @@ local function buildMobileGui()
 	MobileFunctionsPage.BorderSizePixel = 0
 	MobileFunctionsPage.ScrollBarThickness = 3
 	MobileFunctionsPage.ScrollingDirection = Enum.ScrollingDirection.Y
-	MobileFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 300)
+	MobileFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 340)
 	MobileFunctionsPage.Parent = MobilePanel
 
 	MobileFlicksPage = Instance.new("Frame")
@@ -2306,6 +2467,7 @@ local function buildMobileGui()
 	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 130, "Corner Walk")
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 172, "Beast Slow")
 	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 214, "Clip Dance2")
+	MobileFloorbangEspRow, mobileFloorbangEspSwitch, mobileFloorbangEspKnob = createSwitchRow(MobileFunctionsPage, 256, "Floorbang ESP")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -2525,6 +2687,10 @@ local function buildMobileGui()
 
 	bindRowPress(MobileDance2TurnRow, function()
 		setDance2TurnEnabled(not isDance2TurnEnabled)
+	end)
+
+	bindRowPress(MobileFloorbangEspRow, function()
+		setFloorbangESPEnabled(not isFloorbangEspEnabled)
 	end)
 
 	bindRowPress(MobileNormalWallhopRow, function()
@@ -2754,12 +2920,12 @@ local function buildPCGui()
 	PcSettingsPage.Parent = MainFrame
 
 	HideGuiBindButton = Instance.new("TextButton")
-	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 22)
+	HideGuiBindButton.Size = UDim2.new(1, -36, 0, 20)
 	HideGuiBindButton.Position = UDim2.new(0, 18, 0, 0)
 	HideGuiBindButton.BackgroundTransparency = 1
 	HideGuiBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	HideGuiBindButton.Font = Enum.Font.Gotham
-	HideGuiBindButton.TextSize = 15
+	HideGuiBindButton.TextSize = 14
 	HideGuiBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	HideGuiBindButton.AutoButtonColor = false
 	HideGuiBindButton.Parent = PcFunctionsPage
@@ -2767,12 +2933,12 @@ local function buildPCGui()
 	setTargetTransparency(HideGuiBindButton, 1, 0)
 
 	ToggleBindButton = Instance.new("TextButton")
-	ToggleBindButton.Size = UDim2.new(1, -36, 0, 22)
-	ToggleBindButton.Position = UDim2.new(0, 18, 0, 24)
+	ToggleBindButton.Size = UDim2.new(1, -36, 0, 20)
+	ToggleBindButton.Position = UDim2.new(0, 18, 0, 21)
 	ToggleBindButton.BackgroundTransparency = 1
 	ToggleBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ToggleBindButton.Font = Enum.Font.Gotham
-	ToggleBindButton.TextSize = 15
+	ToggleBindButton.TextSize = 14
 	ToggleBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	ToggleBindButton.AutoButtonColor = false
 	ToggleBindButton.Parent = PcFunctionsPage
@@ -2780,12 +2946,12 @@ local function buildPCGui()
 	setTargetTransparency(ToggleBindButton, 1, 0)
 
 	BeastSlowBindButton = Instance.new("TextButton")
-	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 22)
-	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 96)
+	BeastSlowBindButton.Size = UDim2.new(1, -36, 0, 20)
+	BeastSlowBindButton.Position = UDim2.new(0, 18, 0, 84)
 	BeastSlowBindButton.BackgroundTransparency = 1
 	BeastSlowBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	BeastSlowBindButton.Font = Enum.Font.Gotham
-	BeastSlowBindButton.TextSize = 15
+	BeastSlowBindButton.TextSize = 14
 	BeastSlowBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	BeastSlowBindButton.AutoButtonColor = false
 	BeastSlowBindButton.Parent = PcFunctionsPage
@@ -2793,12 +2959,12 @@ local function buildPCGui()
 	setTargetTransparency(BeastSlowBindButton, 1, 0)
 
 	CornerWalkBindButton = Instance.new("TextButton")
-	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 22)
-	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 72)
+	CornerWalkBindButton.Size = UDim2.new(1, -36, 0, 20)
+	CornerWalkBindButton.Position = UDim2.new(0, 18, 0, 63)
 	CornerWalkBindButton.BackgroundTransparency = 1
 	CornerWalkBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	CornerWalkBindButton.Font = Enum.Font.Gotham
-	CornerWalkBindButton.TextSize = 15
+	CornerWalkBindButton.TextSize = 14
 	CornerWalkBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	CornerWalkBindButton.AutoButtonColor = false
 	CornerWalkBindButton.Parent = PcFunctionsPage
@@ -2806,12 +2972,12 @@ local function buildPCGui()
 	setTargetTransparency(CornerWalkBindButton, 1, 0)
 
 	XrayBindButton = Instance.new("TextButton")
-	XrayBindButton.Size = UDim2.new(1, -36, 0, 22)
-	XrayBindButton.Position = UDim2.new(0, 18, 0, 48)
+	XrayBindButton.Size = UDim2.new(1, -36, 0, 20)
+	XrayBindButton.Position = UDim2.new(0, 18, 0, 42)
 	XrayBindButton.BackgroundTransparency = 1
 	XrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	XrayBindButton.Font = Enum.Font.Gotham
-	XrayBindButton.TextSize = 15
+	XrayBindButton.TextSize = 14
 	XrayBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	XrayBindButton.AutoButtonColor = false
 	XrayBindButton.Parent = PcFunctionsPage
@@ -2819,12 +2985,12 @@ local function buildPCGui()
 	setTargetTransparency(XrayBindButton, 1, 0)
 
 	RealXrayBindButton = Instance.new("TextButton")
-	RealXrayBindButton.Size = UDim2.new(1, -36, 0, 22)
-	RealXrayBindButton.Position = UDim2.new(0, 18, 0, 120)
+	RealXrayBindButton.Size = UDim2.new(1, -36, 0, 20)
+	RealXrayBindButton.Position = UDim2.new(0, 18, 0, 105)
 	RealXrayBindButton.BackgroundTransparency = 1
 	RealXrayBindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	RealXrayBindButton.Font = Enum.Font.Gotham
-	RealXrayBindButton.TextSize = 15
+	RealXrayBindButton.TextSize = 14
 	RealXrayBindButton.TextXAlignment = Enum.TextXAlignment.Left
 	RealXrayBindButton.AutoButtonColor = false
 	RealXrayBindButton.Parent = PcFunctionsPage
@@ -2832,17 +2998,30 @@ local function buildPCGui()
 	setTargetTransparency(RealXrayBindButton, 1, 0)
 
 	ClipDance2BindButton = Instance.new("TextButton")
-	ClipDance2BindButton.Size = UDim2.new(1, -36, 0, 22)
-	ClipDance2BindButton.Position = UDim2.new(0, 18, 0, 144)
+	ClipDance2BindButton.Size = UDim2.new(1, -36, 0, 20)
+	ClipDance2BindButton.Position = UDim2.new(0, 18, 0, 126)
 	ClipDance2BindButton.BackgroundTransparency = 1
 	ClipDance2BindButton.TextColor3 = Color3.fromRGB(255,255,255)
 	ClipDance2BindButton.Font = Enum.Font.Gotham
-	ClipDance2BindButton.TextSize = 15
+	ClipDance2BindButton.TextSize = 14
 	ClipDance2BindButton.TextXAlignment = Enum.TextXAlignment.Left
 	ClipDance2BindButton.AutoButtonColor = false
 	ClipDance2BindButton.Parent = PcFunctionsPage
 	noTextStroke(ClipDance2BindButton)
 	setTargetTransparency(ClipDance2BindButton, 1, 0)
+
+	FloorbangEspBindButton = Instance.new("TextButton")
+	FloorbangEspBindButton.Size = UDim2.new(1, -36, 0, 20)
+	FloorbangEspBindButton.Position = UDim2.new(0, 18, 0, 147)
+	FloorbangEspBindButton.BackgroundTransparency = 1
+	FloorbangEspBindButton.TextColor3 = Color3.fromRGB(255,255,255)
+	FloorbangEspBindButton.Font = Enum.Font.Gotham
+	FloorbangEspBindButton.TextSize = 14
+	FloorbangEspBindButton.TextXAlignment = Enum.TextXAlignment.Left
+	FloorbangEspBindButton.AutoButtonColor = false
+	FloorbangEspBindButton.Parent = PcFunctionsPage
+	noTextStroke(FloorbangEspBindButton)
+	setTargetTransparency(FloorbangEspBindButton, 1, 0)
 
 	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 0, "Non-spam Time")
 	PcSettingsNonSpamTitle.TextSize = 15
@@ -3080,6 +3259,23 @@ local function buildPCGui()
 			waitingForCornerWalkKey = false
 			waitingForXrayKey = false
 			waitingForNonSpamKey = false
+			waitingForFloorbangEspKey = false
+			updateBindButtons()
+			showNotice("Press a key...")
+		end)
+	end
+
+	if FloorbangEspBindButton then
+		FloorbangEspBindButton.MouseButton1Click:Connect(function()
+			waitingForFloorbangEspKey = true
+			waitingForHideKey = false
+			waitingForToggleKey = false
+			waitingForBeastSlowKey = false
+			waitingForCornerWalkKey = false
+			waitingForXrayKey = false
+			waitingForNonSpamKey = false
+			waitingForClipDance2Key = false
+			waitingForFloorbangEspKey = false
 			updateBindButtons()
 			showNotice("Press a key...")
 		end)
@@ -3093,6 +3289,7 @@ local function buildPCGui()
 		waitingForXrayKey = false
 		waitingForNonSpamKey = false
 		waitingForClipDance2Key = false
+		waitingForFloorbangEspKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -3105,6 +3302,7 @@ local function buildPCGui()
 		waitingForXrayKey = false
 		waitingForNonSpamKey = false
 		waitingForClipDance2Key = false
+		waitingForFloorbangEspKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -3117,6 +3315,7 @@ local function buildPCGui()
 		waitingForXrayKey = false
 		waitingForNonSpamKey = false
 		waitingForClipDance2Key = false
+		waitingForFloorbangEspKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -3129,6 +3328,7 @@ local function buildPCGui()
 		waitingForXrayKey = false
 		waitingForNonSpamKey = false
 		waitingForClipDance2Key = false
+		waitingForFloorbangEspKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -3152,6 +3352,7 @@ local function buildPCGui()
 		waitingForCornerWalkKey = false
 		waitingForNonSpamKey = false
 		waitingForClipDance2Key = false
+		waitingForFloorbangEspKey = false
 		updateBindButtons()
 		showNotice("Press a key...")
 	end)
@@ -4556,7 +4757,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 
 	if selectedMode == "PC" then
 		if waitingForHideKey then
-			if key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key then
+			if key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key and key ~= toggleFloorbangEspKey then
 				hideGuiKey = key
 				waitingForHideKey = false
 				savePCKeybinds()
@@ -4569,7 +4770,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForToggleKey then
-			if key ~= hideGuiKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key then
+			if key ~= hideGuiKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key and key ~= toggleFloorbangEspKey then
 				toggleScriptKey = key
 				waitingForToggleKey = false
 				savePCKeybinds()
@@ -4582,7 +4783,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForBeastSlowKey then
-			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key and key ~= toggleFloorbangEspKey then
 				toggleBeastSlowKey = key
 				waitingForBeastSlowKey = false
 				savePCKeybinds()
@@ -4595,7 +4796,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForCornerWalkKey then
-			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key and key ~= toggleFloorbangEspKey then
 				toggleCornerWalkKey = key
 				waitingForCornerWalkKey = false
 				savePCKeybinds()
@@ -4608,7 +4809,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForNonSpamKey then
-			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleClipDance2Key then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleClipDance2Key and key ~= toggleFloorbangEspKey then
 				toggleNonSpamKey = key
 				waitingForNonSpamKey = false
 				savePCKeybinds()
@@ -4621,7 +4822,7 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForXrayKey then
-			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key and key ~= toggleFloorbangEspKey then
 				toggleXrayKey = key
 				waitingForXrayKey = false
 				savePCKeybinds()
@@ -4634,12 +4835,25 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		end
 
 		if waitingForClipDance2Key then
-			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleFloorbangEspKey then
 				toggleClipDance2Key = key
 				waitingForClipDance2Key = false
 				savePCKeybinds()
 				updateBindButtons()
 				showNotice("Clip Dance2 key updated")
+			else
+				showNotice("Key already in use")
+			end
+			return
+		end
+
+		if waitingForFloorbangEspKey then
+			if key ~= hideGuiKey and key ~= toggleScriptKey and key ~= toggleBeastSlowKey and key ~= toggleCornerWalkKey and key ~= toggleXrayKey and key ~= toggleNonSpamKey and key ~= toggleClipDance2Key then
+				toggleFloorbangEspKey = key
+				waitingForFloorbangEspKey = false
+				savePCKeybinds()
+				updateBindButtons()
+				showNotice("Floorbang ESP key updated")
 			else
 				showNotice("Key already in use")
 			end
@@ -4689,6 +4903,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 			return
 		end
 
+		if key == toggleFloorbangEspKey then
+			setFloorbangESPEnabled(not isFloorbangEspEnabled)
+			showNotice(isFloorbangEspEnabled and "Floorbang ESP enabled" or "Floorbang ESP disabled")
+			return
+		end
+
 		if key == toggleXrayKey then
 			setXrayEnabled(not realXrayEnabled)
 			saveUserPreferences()
@@ -4711,6 +4931,9 @@ createModeSelector(function(mode)
 	updateMobilePanelButtons()
 	updateFlickButtons()
 	applyVisibility()
+	if isFloorbangEspEnabled then
+		updateFloorbangESP()
+	end
 end)
 
-print("Besssst Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
+print("Best Flee The Facility | Made by Nyhito - Loaded Successfully ✅")
