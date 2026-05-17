@@ -424,7 +424,7 @@ local function loadUserPreferences()
 			nonSpamAfterValue = math.clamp(math.floor(tonumber(decoded.nonSpamAfterValue)), 0, 10)
 		end
 		if tonumber(decoded.dance2TimeValue) then
-			dance2TimeValue = math.clamp(math.floor(tonumber(decoded.dance2TimeValue)), 1, 100)
+			dance2TimeValue = math.clamp(math.floor(tonumber(decoded.dance2TimeValue)), 5, 20)
 		end
 		if tonumber(decoded.cwalkRangeValue) and setCwalkRangeValue then
 			setCwalkRangeValue(decoded.cwalkRangeValue)
@@ -499,30 +499,6 @@ end)
 local xrayOriginalTransparency = {}
 local xrayOriginalLocalTransparency = {}
 
-local function isXrayCharacterObject(instance)
-	if not instance then
-		return false
-	end
-
-	local current = instance
-	while current and current ~= workspace do
-		if current:IsA("Model") then
-			local humanoid = current:FindFirstChildOfClass("Humanoid")
-			if humanoid then
-				return true
-			end
-
-			if Players:GetPlayerFromCharacter(current) then
-				return true
-			end
-		end
-
-		current = current.Parent
-	end
-
-	return false
-end
-
 local function shouldXrayPart(part)
 	if not part or not part:IsA("BasePart") then
 		return false
@@ -541,7 +517,7 @@ local function shouldXrayPart(part)
 		return false
 	end
 
-	if isXrayCharacterObject(part) then
+	if isPlayerCharacter and isPlayerCharacter(part) then
 		return false
 	end
 
@@ -587,22 +563,9 @@ local function restoreXrayPart(part)
 end
 
 local function applyXray()
-	sanitizeXrayCharacterParts()
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("BasePart") then
-			if isXrayCharacterObject(obj) then
-				restoreXrayPart(obj)
-			else
-				applyXrayToPart(obj)
-			end
-		end
-	end
-end
-
-local function sanitizeXrayCharacterParts()
-	for part in pairs(xrayOriginalTransparency) do
-		if isXrayCharacterObject(part) then
-			restoreXrayPart(part)
+			applyXrayToPart(obj)
 		end
 	end
 end
@@ -1029,11 +992,7 @@ workspace.DescendantAdded:Connect(function(obj)
 
 	if realXrayEnabled and obj:IsA("BasePart") then
 		task.defer(function()
-			if isXrayCharacterObject(obj) then
-				restoreXrayPart(obj)
-			else
-				applyXrayToPart(obj)
-			end
+			applyXrayToPart(obj)
 		end)
 	end
 end)
@@ -1434,7 +1393,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 
 	local switch = Instance.new("Frame")
 	switch.Size = UDim2.new(0, 54, 0, 28)
-	switch.Position = UDim2.new(1, -90, 0.5, -14)
+	switch.Position = UDim2.new(1, -102, 0.5, -14)
 	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
@@ -2173,12 +2132,12 @@ function updateSettingsInputs()
 		PcSettingsNonSpamAfterBox.BackgroundTransparency = 0
 	end
 	if SettingsDance2TimeBox then
-		SettingsDance2TimeBox.Text = tostring(math.floor(tonumber(dance2TimeValue) or 10))
+		SettingsDance2TimeBox.Text = tostring(math.floor(tonumber(dance2TimeValue) or 10)) .. "ms"
 		SettingsDance2TimeBox.TextTransparency = 0
 		SettingsDance2TimeBox.BackgroundTransparency = 0
 	end
 	if PcDance2TimeBox then
-		PcDance2TimeBox.Text = tostring(math.floor(tonumber(dance2TimeValue) or 10))
+		PcDance2TimeBox.Text = tostring(math.floor(tonumber(dance2TimeValue) or 10)) .. "ms"
 		PcDance2TimeBox.TextTransparency = 0
 		PcDance2TimeBox.BackgroundTransparency = 0
 	end
@@ -2258,14 +2217,14 @@ function applyNonSpamAfterSettingFromBox(sourceBox)
 end
 
 function getDance2TimeSeconds()
-	return math.clamp((tonumber(dance2TimeValue) or 10) / 100, 0.01, 1)
+	return math.clamp((tonumber(dance2TimeValue) or 10) / 100, 0.05, 0.20)
 end
 
 function applyDance2TimeSettingFromBox(sourceBox)
 	local activeBox = sourceBox or SettingsDance2TimeBox or PcDance2TimeBox
 	value = getNumberFromSettingBox(activeBox)
-	if not value or value < 1 or value > 100 then
-		showSettingsNotice("Minimum value is 1 and the maximum value is 100.")
+	if not value or value < 5 or value > 20 then
+		showSettingsNotice("Minimum value is 5 and the maximum value is 20.")
 		updateSettingsInputs()
 		return
 	end
@@ -2470,7 +2429,7 @@ function buildMobileSettingsPage()
 	SettingsDance2TimeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsDance2TimeBox.Font = Enum.Font.GothamBold
 	SettingsDance2TimeBox.TextSize = 12
-	SettingsDance2TimeBox.Text = tostring(dance2TimeValue)
+	SettingsDance2TimeBox.Text = tostring(dance2TimeValue) .. "ms"
 	SettingsDance2TimeBox.ClearTextOnFocus = true
 	SettingsDance2TimeBox.ZIndex = 41
 	SettingsDance2TimeBox.Parent = MobileSettingsPage
@@ -3322,7 +3281,7 @@ local function buildPCGui()
 	PcDance2TimeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcDance2TimeBox.Font = Enum.Font.GothamBold
 	PcDance2TimeBox.TextSize = 13
-	PcDance2TimeBox.Text = tostring(dance2TimeValue)
+	PcDance2TimeBox.Text = tostring(dance2TimeValue) .. "ms"
 	PcDance2TimeBox.ClearTextOnFocus = true
 	PcDance2TimeBox.ZIndex = 41
 	PcDance2TimeBox.Parent = PcSettingsPage
