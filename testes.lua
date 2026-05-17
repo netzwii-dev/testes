@@ -1299,14 +1299,6 @@ local function bindRowPress(button, callback)
 	end
 end
 
-local function bindSwitchOnlyPress(switchFrame, knob, callback)
-	if switchFrame then
-		bindRowPress(switchFrame, callback)
-	end
-	if knob then
-		bindRowPress(knob, callback)
-	end
-end
 
 local function updateSwitchVisual(switchFrame, knob, enabled)
 	if not switchFrame or not knob then
@@ -1364,7 +1356,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
 	switch.ZIndex = 6
-	switch.Active = true
+	switch.Active = false
 	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(switch, 0, nil)
 
@@ -1375,7 +1367,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	knob.BorderSizePixel = 0
 	knob.Parent = switch
 	knob.ZIndex = 7
-	knob.Active = true
+	knob.Active = false
 	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(knob, 0, nil)
 
@@ -1858,7 +1850,7 @@ switchMobileTab = function(name)
 	end
 
 	if MobilePanel and MobilePanel:FindFirstChild("MobileFooter") then
-		MobilePanel.MobileFooter.Visible = mobileIsFunctions
+		MobilePanel.MobileFooter.Visible = false
 	end
 end
 
@@ -2572,6 +2564,7 @@ local function buildMobileGui()
 	MobileCurrentUsingLabel.Size = UDim2.new(1, -14, 0, 46)
 	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 176)
 	MobileCurrentUsingLabel.BackgroundTransparency = 1
+	MobileCurrentUsingLabel.Text = "Currently using: " .. currentFlickMode
 	MobileCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileCurrentUsingLabel.Font = Enum.Font.Gotham
 	MobileCurrentUsingLabel.TextSize = 12
@@ -2587,12 +2580,13 @@ local function buildMobileGui()
 	mobileFooter.Size = UDim2.new(1, -14, 0, 14)
 	mobileFooter.Position = UDim2.new(0, 7, 1, -18)
 	mobileFooter.BackgroundTransparency = 1
-	mobileFooter.Text = "the best flee the facility wallhop script"
+	mobileFooter.Text = ""
 	mobileFooter.TextColor3 = Color3.fromRGB(95,95,95)
 	mobileFooter.Font = Enum.Font.Gotham
 	mobileFooter.TextSize = 10
 	mobileFooter.TextXAlignment = Enum.TextXAlignment.Left
 	mobileFooter.ZIndex = 80
+	mobileFooter.Visible = false
 	mobileFooter.Parent = MobilePanel
 	noTextStroke(mobileFooter)
 	setTargetTransparency(mobileFooter, 1, 0)
@@ -2756,34 +2750,34 @@ local function buildMobileGui()
 		switchMobileTab("Settings")
 	end)
 
-	bindSwitchOnlyPress(mobileHideGuiSwitch, mobileHideGuiKnob, function()
+	bindRowPress(MobileHideGuiRow, function()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
 	end)
 
-	bindSwitchOnlyPress(mobileCornerWalkSwitch, mobileCornerWalkKnob, function()
+	bindRowPress(MobileCornerWalkRow, function()
 		setMobileCornerWalkButtonState(not mobileCornerWalkButtonVisible)
 	end)
 
-	bindSwitchOnlyPress(mobileBeastSlowSwitch, mobileBeastSlowKnob, function()
+	bindRowPress(MobileBeastSlowRow, function()
 		setMobileBeastSlowButtonState(not mobileBeastSlowButtonVisible)
 	end)
 
-	bindSwitchOnlyPress(mobileXraySwitch, mobileXrayKnob, function()
+	bindRowPress(MobileXrayRow, function()
 		isXrayEnabled = not isXrayEnabled
 		applyCurrentNonSpamCooldown()
 		updateMobilePanelButtons()
 		saveUserPreferences()
 	end)
 
-	bindSwitchOnlyPress(mobileRealXraySwitch, mobileRealXrayKnob, function()
+	bindRowPress(MobileRealXrayRow, function()
 		setXrayEnabled(not realXrayEnabled)
 	end)
 
-	bindSwitchOnlyPress(mobileDance2TurnSwitch, mobileDance2TurnKnob, function()
+	bindRowPress(MobileDance2TurnRow, function()
 		setDance2TurnEnabled(not isDance2TurnEnabled)
 	end)
 
-	bindSwitchOnlyPress(mobileFloorbangEspSwitch, mobileFloorbangEspKnob, function()
+	bindRowPress(MobileFloorbangEspRow, function()
 		setFloorbangESPEnabled(not isFloorbangEspEnabled)
 	end)
 
