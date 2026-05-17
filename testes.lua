@@ -1790,8 +1790,8 @@ local function createModeSelector(onPick)
 	setTargetTransparency(frame, 0, nil)
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, -74, 0, 28)
-	title.Position = UDim2.new(0, 62, 0, 10)
+	title.Size = UDim2.new(1, -106, 0, 28)
+	title.Position = UDim2.new(0, 92, 0, 14)
 	title.BackgroundTransparency = 1
 	title.Text = "Choose Version"
 	title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -1803,10 +1803,10 @@ local function createModeSelector(onPick)
 
 
 	local sub = Instance.new("TextLabel")
-	sub.Size = UDim2.new(1, -74, 0, 16)
-	sub.Position = UDim2.new(0, 62, 0, 34)
+	sub.Size = UDim2.new(1, -106, 0, 16)
+	sub.Position = UDim2.new(0, 92, 0, 42)
 	sub.BackgroundTransparency = 1
-	sub.Text = "Cerber X •the best Flee the Facility script "
+	sub.Text = "Cerber X • the best Flee the Facility script"
 	sub.TextColor3 = Color3.fromRGB(95,95,95)
 	sub.Font = Enum.Font.Gotham
 	sub.TextSize = 12
@@ -1815,8 +1815,8 @@ local function createModeSelector(onPick)
 	setTargetTransparency(sub, 1, 0)
 
 	local selectorIcon = Instance.new("ImageLabel")
-	selectorIcon.Size = UDim2.new(0, 42, 0, 42)
-	selectorIcon.Position = UDim2.new(0, 12, 0, 10)
+	selectorIcon.Size = UDim2.new(0, 56, 0, 56)
+	selectorIcon.Position = UDim2.new(0, 18, 0, 10)
 	selectorIcon.BackgroundTransparency = 1
 	selectorIcon.Image = CERBER_ICON_IMAGE
 	selectorIcon.ScaleType = Enum.ScaleType.Fit
@@ -3231,7 +3231,7 @@ local function buildPCGui()
 	setTargetTransparency(MainFrame, 0, nil)
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(0, 220, 0, 30)
+	title.Size = UDim2.new(0, 168, 0, 30)
 	title.Position = UDim2.new(0, 18, 0, 8)
 	title.BackgroundTransparency = 1
 	title.Text = "Cerber X"
@@ -3244,8 +3244,8 @@ local function buildPCGui()
 	setTargetTransparency(title, 1, 0)
 
 	local headerIcon = Instance.new("ImageLabel")
-	headerIcon.Size = UDim2.new(0, 42, 0, 42)
-	headerIcon.Position = UDim2.new(0, 220, 0, 7)
+	headerIcon.Size = UDim2.new(0, 34, 0, 34)
+	headerIcon.Position = UDim2.new(0, 178, 0, 10)
 	headerIcon.BackgroundTransparency = 1
 	headerIcon.Image = CERBER_ICON_IMAGE
 	headerIcon.ScaleType = Enum.ScaleType.Fit
