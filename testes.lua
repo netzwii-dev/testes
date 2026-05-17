@@ -8,6 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
+local TextChatService = game:GetService("TextChatService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -88,6 +89,7 @@ BeastSlowBindButton = nil
 CornerWalkBindButton = nil
 XrayBindButton = nil
 RealXrayBindButton = nil
+PcDance2TurnButton = nil
 Notice = nil
 NoticeStroke = nil
 NoticeBar = nil
@@ -137,6 +139,7 @@ MobileBeastSlowRow = nil
 MobileCornerWalkRow = nil
 MobileXrayRow = nil
 MobileRealXrayRow = nil
+MobileDance2TurnRow = nil
 MobileHideGuiRow = nil
 
 mobileBeastSlowSwitch = nil
@@ -147,6 +150,8 @@ mobileXraySwitch = nil
 mobileXrayKnob = nil
 mobileRealXraySwitch = nil
 mobileRealXrayKnob = nil
+mobileDance2TurnSwitch = nil
+mobileDance2TurnKnob = nil
 mobileHideGuiSwitch = nil
 mobileHideGuiKnob = nil
 mobileDragHandle = nil
@@ -169,6 +174,10 @@ isSlowEnabled = false
 isCornerWalkEnabled = false
 isXrayEnabled = false
 realXrayEnabled = false
+isDance2TurnEnabled = false
+dance2TurnToken = 0
+dance2NoclipActive = false
+dance2NoclipOriginalCanCollide = {}
 allowThirdPersonEnabled = true
 xrayOpacityValue = 60
 nonSpamValue = 50
@@ -368,7 +377,8 @@ local function saveUserPreferences()
 		isSlowEnabled = isSlowEnabled,
 		isCornerWalkEnabled = isCornerWalkEnabled,
 		isNonSpamEnabled = isXrayEnabled,
-		realXrayEnabled = realXrayEnabled
+		realXrayEnabled = realXrayEnabled,
+		isDance2TurnEnabled = isDance2TurnEnabled
 	}
 
 	pcall(function()
@@ -413,6 +423,9 @@ local function loadUserPreferences()
 		end
 		if type(decoded.realXrayEnabled) == "boolean" then
 			realXrayEnabled = decoded.realXrayEnabled
+		end
+		if type(decoded.isDance2TurnEnabled) == "boolean" then
+			isDance2TurnEnabled = decoded.isDance2TurnEnabled
 		end
 		applyCurrentNonSpamCooldown()
 	end)
@@ -533,6 +546,142 @@ local function setXrayEnabled(state)
 	updateMobilePanelButtons()
 	saveUserPreferences()
 end
+
+local function restoreDance2Noclip()
+	for part, oldValue in pairs(dance2NoclipOriginalCanCollide) do
+		if part and part.Parent then
+			pcall(function()
+				part.CanCollide = oldValue
+			end)
+		end
+	end
+
+	table.clear(dance2NoclipOriginalCanCollide)
+	dance2NoclipActive = false
+end
+
+local function startDance2Noclip(token)
+	if token ~= dance2TurnToken or not isDance2TurnEnabled then
+		return
+	end
+
+	restoreDance2Noclip()
+	dance2NoclipActive = true
+
+	local char = LocalPlayer.Character
+	if not char then
+		return
+	end
+
+	for _, obj in ipairs(char:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			dance2NoclipOriginalCanCollide[obj] = obj.CanCollide
+			pcall(function()
+				obj.CanCollide = false
+			end)
+		end
+	end
+end
+
+local function rotateDance2Right(token)
+	if token ~= dance2TurnToken or not isDance2TurnEnabled then
+		return
+	end
+
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hum or not hrp then
+		return
+	end
+
+	pcall(function()
+		hum.AutoRotate = false
+		hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+
+		local rightVector = Camera and Camera.CFrame.RightVector or hrp.CFrame.RightVector
+		local flatRight = Vector3.new(rightVector.X, 0, rightVector.Z)
+
+		if flatRight.Magnitude <= 0.01 then
+			flatRight = Vector3.new(hrp.CFrame.RightVector.X, 0, hrp.CFrame.RightVector.Z)
+		end
+
+		if flatRight.Magnitude > 0.01 then
+			flatRight = flatRight.Unit
+			hrp.CFrame = CFrame.lookAt(hrp.Position, hrp.Position + flatRight)
+		else
+			hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(90), 0)
+		end
+	end)
+
+	task.defer(function()
+		if hum and hum.Parent then
+			pcall(function()
+				hum.AutoRotate = true
+			end)
+		end
+	end)
+end
+
+local function runDance2TurnSequence()
+	if not isDance2TurnEnabled then
+		return
+	end
+
+	dance2TurnToken += 1
+	local token = dance2TurnToken
+
+	task.delay(0.8, function()
+		startDance2Noclip(token)
+	end)
+
+	task.delay(1.0, function()
+		rotateDance2Right(token)
+	end)
+
+	task.delay(1.2, function()
+		if token == dance2TurnToken then
+			restoreDance2Noclip()
+		end
+	end)
+end
+
+local function setDance2TurnEnabled(state)
+	isDance2TurnEnabled = state and true or false
+
+	if not isDance2TurnEnabled then
+		dance2TurnToken += 1
+		restoreDance2Noclip()
+	end
+
+	if PcDance2TurnButton then
+		PcDance2TurnButton.Text = isDance2TurnEnabled and "Dance2 Turn On" or "Dance2 Turn Off"
+	end
+
+	updateMobilePanelButtons()
+	saveUserPreferences()
+end
+
+local function isDance2Command(message)
+	local msg = tostring(message or ""):lower()
+	msg = msg:gsub("^%s+", ""):gsub("%s+$", "")
+	return msg == "/e dance2" or msg == "/emote dance2" or msg == "dance2"
+end
+
+LocalPlayer.Chatted:Connect(function(message)
+	if isDance2Command(message) then
+		runDance2TurnSequence()
+	end
+end)
+
+pcall(function()
+	TextChatService.SendingMessage:Connect(function(message)
+		local text = message and (message.Text or message.TextSource or "")
+		if isDance2Command(text) then
+			runDance2TurnSequence()
+		end
+	end)
+end)
 
 workspace.DescendantAdded:Connect(function(obj)
 	if not isThisScriptActive or not isThisScriptActive() then
@@ -1106,6 +1255,9 @@ updateMobilePanelButtons = function()
 	if MobileRealXrayRow and MobileRealXrayRow:FindFirstChild("Label") then
 		MobileRealXrayRow.Label.Text = "X-ray"
 	end
+	if MobileDance2TurnRow and MobileDance2TurnRow:FindFirstChild("Label") then
+		MobileDance2TurnRow.Label.Text = "Dance2 Turn"
+	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
@@ -1126,6 +1278,7 @@ updateMobilePanelButtons = function()
 	updateSwitchVisual(mobileCornerWalkSwitch, mobileCornerWalkKnob, mobileCornerWalkButtonVisible)
 	updateSwitchVisual(mobileXraySwitch, mobileXrayKnob, isXrayEnabled)
 	updateSwitchVisual(mobileRealXraySwitch, mobileRealXrayKnob, realXrayEnabled)
+	updateSwitchVisual(mobileDance2TurnSwitch, mobileDance2TurnKnob, isDance2TurnEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
@@ -1649,6 +1802,7 @@ function getCurrentConfigPayload()
 		isCornerWalkEnabled = isCornerWalkEnabled,
 		realXrayEnabled = realXrayEnabled,
 		isNonSpamEnabled = isXrayEnabled,
+		isDance2TurnEnabled = isDance2TurnEnabled,
 
 		guiVisible = guiVisible,
 		guiMinimized = guiMinimized,
@@ -1734,6 +1888,10 @@ function applyConfigPayload(payload)
 		isXrayEnabled = payload.isNonSpamEnabled
 	end
 	applyCurrentNonSpamCooldown()
+
+	if type(payload.isDance2TurnEnabled) == "boolean" then
+		setDance2TurnEnabled(payload.isDance2TurnEnabled)
+	end
 
 	if type(payload.realXrayEnabled) == "boolean" then
 		setXrayEnabled(payload.realXrayEnabled)
@@ -2695,6 +2853,7 @@ local function buildMobileGui()
 	MobileRealXrayRow, mobileRealXraySwitch, mobileRealXrayKnob = createSwitchRow(MobileFunctionsPage, 88, "X-ray")
 	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 130, "Corner Walk")
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 172, "Beast Slow")
+	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 214, "Dance2 Turn")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
@@ -2907,6 +3066,10 @@ local function buildMobileGui()
 
 	bindRowPress(MobileRealXrayRow, function()
 		setXrayEnabled(not realXrayEnabled)
+	end)
+
+	bindRowPress(MobileDance2TurnRow, function()
+		setDance2TurnEnabled(not isDance2TurnEnabled)
 	end)
 
 	bindRowPress(MobileNormalWallhopRow, function()
@@ -3213,6 +3376,8 @@ local function buildPCGui()
 	noTextStroke(RealXrayBindButton)
 	setTargetTransparency(RealXrayBindButton, 1, 0)
 
+	PcDance2TurnButton = createPcActionButton(PcFunctionsPage, 150, isDance2TurnEnabled and "Dance2 Turn On" or "Dance2 Turn Off")
+
 	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 0, "Non-spam Time")
 	PcSettingsNonSpamTitle.TextSize = 15
 	PcSettingsNonSpamTitle.ZIndex = 40
@@ -3439,6 +3604,13 @@ local function buildPCGui()
 	PcTabSettings.MouseButton1Click:Connect(function()
 		switchPcTab("Settings")
 	end)
+
+	if PcDance2TurnButton then
+		PcDance2TurnButton.MouseButton1Click:Connect(function()
+			setDance2TurnEnabled(not isDance2TurnEnabled)
+			showNotice(isDance2TurnEnabled and "Dance2 Turn enabled" or "Dance2 Turn disabled")
+		end)
+	end
 
 	HideGuiBindButton.MouseButton1Click:Connect(function()
 		waitingForHideKey = true
@@ -4773,6 +4945,7 @@ end
 RunService.Heartbeat:Connect(function()
 	if not isThisScriptActive() then
 		removeCornerWalkFloor()
+		restoreDance2Noclip()
 		return
 	end
 
