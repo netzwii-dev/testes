@@ -10,7 +10,7 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local TextChatService = game:GetService("TextChatService")
 
-local CERBER_ICON_IMAGE = "rbxassetid://117015783143364"
+local CERBER_ICON_IMAGE = "rbxassetid://98605939008332"
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
