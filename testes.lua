@@ -114,6 +114,8 @@ PcSettingsXrayBox = nil
 PcSettingsNonSpamBox = nil
 PcSettingsNonSpamAfterTitle = nil
 PcSettingsNonSpamAfterBox = nil
+PcDance2TimeTitle = nil
+PcDance2TimeBox = nil
 PcCwalkRangeTitle = nil
 PcCwalkRangeBox = nil
 PcNormalWallhopButton = nil
@@ -132,6 +134,8 @@ SettingsXrayBox = nil
 SettingsNonSpamBox = nil
 SettingsNonSpamAfterTitle = nil
 SettingsNonSpamAfterBox = nil
+SettingsDance2TimeTitle = nil
+SettingsDance2TimeBox = nil
 SettingsCwalkRangeTitle = nil
 SettingsCwalkRangeBox = nil
 MobileNormalWallhopRow = nil
@@ -190,6 +194,7 @@ allowThirdPersonEnabled = true
 xrayOpacityValue = 60
 nonSpamValue = 50
 nonSpamAfterValue = 0
+dance2TimeValue = 10
 cwalkRangeValue = 1
 consecutiveWallhopCount = 0
 isFlicking = false
@@ -378,6 +383,7 @@ local function saveUserPreferences()
 		xrayOpacityValue = tonumber(xrayOpacityValue) or 60,
 		nonSpamValue = tonumber(nonSpamValue) or 50,
 		nonSpamAfterValue = tonumber(nonSpamAfterValue) or 0,
+		dance2TimeValue = tonumber(dance2TimeValue) or 10,
 		cwalkRangeValue = tonumber(cwalkRangeValue) or 1,
 		currentFlickMode = tostring(currentFlickMode or "Normal Wallhop"),
 		isWallHopEnabled = isWallHopEnabled,
@@ -416,6 +422,9 @@ local function loadUserPreferences()
 		end
 		if tonumber(decoded.nonSpamAfterValue) then
 			nonSpamAfterValue = math.clamp(math.floor(tonumber(decoded.nonSpamAfterValue)), 0, 10)
+		end
+		if tonumber(decoded.dance2TimeValue) then
+			dance2TimeValue = math.clamp(math.floor(tonumber(decoded.dance2TimeValue)), 1, 100)
 		end
 		if tonumber(decoded.cwalkRangeValue) and setCwalkRangeValue then
 			setCwalkRangeValue(decoded.cwalkRangeValue)
@@ -490,6 +499,30 @@ end)
 local xrayOriginalTransparency = {}
 local xrayOriginalLocalTransparency = {}
 
+local function isXrayCharacterObject(instance)
+	if not instance then
+		return false
+	end
+
+	local current = instance
+	while current and current ~= workspace do
+		if current:IsA("Model") then
+			local humanoid = current:FindFirstChildOfClass("Humanoid")
+			if humanoid then
+				return true
+			end
+
+			if Players:GetPlayerFromCharacter(current) then
+				return true
+			end
+		end
+
+		current = current.Parent
+	end
+
+	return false
+end
+
 local function shouldXrayPart(part)
 	if not part or not part:IsA("BasePart") then
 		return false
@@ -508,7 +541,7 @@ local function shouldXrayPart(part)
 		return false
 	end
 
-	if isPlayerCharacter and isPlayerCharacter(part) then
+	if isXrayCharacterObject(part) then
 		return false
 	end
 
@@ -554,9 +587,22 @@ local function restoreXrayPart(part)
 end
 
 local function applyXray()
+	sanitizeXrayCharacterParts()
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj:IsA("BasePart") then
-			applyXrayToPart(obj)
+			if isXrayCharacterObject(obj) then
+				restoreXrayPart(obj)
+			else
+				applyXrayToPart(obj)
+			end
+		end
+	end
+end
+
+local function sanitizeXrayCharacterParts()
+	for part in pairs(xrayOriginalTransparency) do
+		if isXrayCharacterObject(part) then
+			restoreXrayPart(part)
 		end
 	end
 end
@@ -921,7 +967,7 @@ local function runDance2TurnSequence()
 			task.spawn(function()
 				while token == dance2TurnToken and isDance2TurnEnabled and dance2NoclipActive do
 					if not isDance2AnimationPlaying() then
-						task.delay(0.1, function()
+						task.delay(getDance2TimeSeconds(), function()
 							if token == dance2TurnToken and dance2NoclipActive and not isDance2AnimationPlaying() then
 								restoreDance2Noclip()
 							end
@@ -983,7 +1029,11 @@ workspace.DescendantAdded:Connect(function(obj)
 
 	if realXrayEnabled and obj:IsA("BasePart") then
 		task.defer(function()
-			applyXrayToPart(obj)
+			if isXrayCharacterObject(obj) then
+				restoreXrayPart(obj)
+			else
+				applyXrayToPart(obj)
+			end
 		end)
 	end
 end)
@@ -1384,7 +1434,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 
 	local switch = Instance.new("Frame")
 	switch.Size = UDim2.new(0, 54, 0, 28)
-	switch.Position = UDim2.new(1, -78, 0.5, -14)
+	switch.Position = UDim2.new(1, -90, 0.5, -14)
 	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
@@ -2122,6 +2172,16 @@ function updateSettingsInputs()
 		PcSettingsNonSpamAfterBox.TextTransparency = 0
 		PcSettingsNonSpamAfterBox.BackgroundTransparency = 0
 	end
+	if SettingsDance2TimeBox then
+		SettingsDance2TimeBox.Text = tostring(math.floor(tonumber(dance2TimeValue) or 10))
+		SettingsDance2TimeBox.TextTransparency = 0
+		SettingsDance2TimeBox.BackgroundTransparency = 0
+	end
+	if PcDance2TimeBox then
+		PcDance2TimeBox.Text = tostring(math.floor(tonumber(dance2TimeValue) or 10))
+		PcDance2TimeBox.TextTransparency = 0
+		PcDance2TimeBox.BackgroundTransparency = 0
+	end
 	if SettingsCwalkRangeBox then
 		SettingsCwalkRangeBox.Text = tostring(math.floor(tonumber(cwalkRangeValue) or 1)) .. "sd"
 		SettingsCwalkRangeBox.TextTransparency = 0
@@ -2132,7 +2192,7 @@ function updateSettingsInputs()
 		PcCwalkRangeBox.TextTransparency = 0
 		PcCwalkRangeBox.BackgroundTransparency = 0
 	end
-	for _, lbl in ipairs({SettingsNonSpamTitle, SettingsNonSpamAfterTitle, SettingsCwalkRangeTitle, SettingsXrayTitle, PcSettingsNonSpamTitle, PcSettingsNonSpamAfterTitle, PcCwalkRangeTitle, PcSettingsXrayTitle}) do
+	for _, lbl in ipairs({SettingsNonSpamTitle, SettingsNonSpamAfterTitle, SettingsDance2TimeTitle, SettingsCwalkRangeTitle, SettingsXrayTitle, PcSettingsNonSpamTitle, PcSettingsNonSpamAfterTitle, PcDance2TimeTitle, PcCwalkRangeTitle, PcSettingsXrayTitle}) do
 		if lbl then
 			lbl.TextTransparency = 0
 			lbl.Visible = true
@@ -2195,6 +2255,26 @@ function applyNonSpamAfterSettingFromBox(sourceBox)
 	updateSettingsInputs()
 	saveUserPreferences()
 	showSettingsNotice("Successfully changed, it will now run non-spam time after " .. tostring(nonSpamAfterValue) .. " wallhops.")
+end
+
+function getDance2TimeSeconds()
+	return math.clamp((tonumber(dance2TimeValue) or 10) / 100, 0.01, 1)
+end
+
+function applyDance2TimeSettingFromBox(sourceBox)
+	local activeBox = sourceBox or SettingsDance2TimeBox or PcDance2TimeBox
+	value = getNumberFromSettingBox(activeBox)
+	if not value or value < 1 or value > 100 then
+		showSettingsNotice("Minimum value is 1 and the maximum value is 100.")
+		updateSettingsInputs()
+		return
+	end
+
+	dance2TimeValue = math.floor(value)
+	local secondsText = string.format("%.2f", getDance2TimeSeconds())
+	updateSettingsInputs()
+	saveUserPreferences()
+	showSettingsNotice("Sucessfully changed, the noclip for /e dance2 will now be at " .. secondsText .. " seconds.")
 end
 
 function applyCwalkRangeSettingFromBox(sourceBox)
@@ -2320,7 +2400,7 @@ function buildMobileSettingsPage()
 	MobileSettingsPage.BackgroundTransparency = 1
 	MobileSettingsPage.BorderSizePixel = 0
 	MobileSettingsPage.ScrollBarThickness = 3
-	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 210)
+	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 240)
 	MobileSettingsPage.Visible = false
 	MobileSettingsPage.Parent = MobilePanel
 
@@ -2378,14 +2458,41 @@ function buildMobileSettingsPage()
 		applyNonSpamAfterSettingFromBox(SettingsNonSpamAfterBox)
 	end)
 
-	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 78, "C-walk Range")
+	SettingsDance2TimeTitle = createSettingsLabel(MobileSettingsPage, 78, "Dance2 Time")
+	SettingsDance2TimeTitle.ZIndex = 40
+	SettingsDance2TimeTitle.TextTransparency = 0
+	setTargetTransparency(SettingsDance2TimeTitle, 1, 0)
+
+	SettingsDance2TimeBox = Instance.new("TextBox")
+	SettingsDance2TimeBox.Size = UDim2.new(0, 58, 0, 28)
+	SettingsDance2TimeBox.Position = UDim2.new(1, -65, 0, 76)
+	SettingsDance2TimeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	SettingsDance2TimeBox.TextColor3 = Color3.fromRGB(255,255,255)
+	SettingsDance2TimeBox.Font = Enum.Font.GothamBold
+	SettingsDance2TimeBox.TextSize = 12
+	SettingsDance2TimeBox.Text = tostring(dance2TimeValue)
+	SettingsDance2TimeBox.ClearTextOnFocus = true
+	SettingsDance2TimeBox.ZIndex = 41
+	SettingsDance2TimeBox.Parent = MobileSettingsPage
+	Instance.new("UICorner", SettingsDance2TimeBox).CornerRadius = UDim.new(0, 8)
+	SettingsDance2TimeBoxStroke = Instance.new("UIStroke")
+	SettingsDance2TimeBoxStroke.Color = Color3.fromRGB(35,35,35)
+	SettingsDance2TimeBoxStroke.Thickness = 1
+	SettingsDance2TimeBoxStroke.Transparency = 0.08
+	SettingsDance2TimeBoxStroke.Parent = SettingsDance2TimeBox
+	noTextStroke(SettingsDance2TimeBox)
+	SettingsDance2TimeBox.FocusLost:Connect(function()
+		applyDance2TimeSettingFromBox(SettingsDance2TimeBox)
+	end)
+
+	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 114, "C-walk Range")
 	SettingsCwalkRangeTitle.ZIndex = 40
 	SettingsCwalkRangeTitle.TextTransparency = 0
 	setTargetTransparency(SettingsCwalkRangeTitle, 1, 0)
 
 	SettingsCwalkRangeBox = Instance.new("TextBox")
 	SettingsCwalkRangeBox.Size = UDim2.new(0, 58, 0, 28)
-	SettingsCwalkRangeBox.Position = UDim2.new(1, -65, 0, 76)
+	SettingsCwalkRangeBox.Position = UDim2.new(1, -65, 0, 112)
 	SettingsCwalkRangeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsCwalkRangeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsCwalkRangeBox.Font = Enum.Font.GothamBold
@@ -2405,14 +2512,14 @@ function buildMobileSettingsPage()
 		applyCwalkRangeSettingFromBox(SettingsCwalkRangeBox)
 	end)
 
-	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 114, "X-ray Opacity")
+	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 150, "X-ray Opacity")
 	SettingsXrayTitle.ZIndex = 40
 	SettingsXrayTitle.TextTransparency = 0
 	setTargetTransparency(SettingsXrayTitle, 1, 0)
 
 	SettingsXrayBox = Instance.new("TextBox")
 	SettingsXrayBox.Size = UDim2.new(0, 58, 0, 28)
-	SettingsXrayBox.Position = UDim2.new(1, -65, 0, 112)
+	SettingsXrayBox.Position = UDim2.new(1, -65, 0, 148)
 	SettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsXrayBox.Font = Enum.Font.GothamBold
@@ -3202,7 +3309,36 @@ local function buildPCGui()
 		applyNonSpamAfterSettingFromBox(PcSettingsNonSpamAfterBox)
 	end)
 
-	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 60, "C-walk Range")
+	PcDance2TimeTitle = createSettingsLabel(PcSettingsPage, 60, "Dance2 Time")
+	PcDance2TimeTitle.TextSize = 15
+	PcDance2TimeTitle.ZIndex = 40
+	PcDance2TimeTitle.TextTransparency = 0
+	setTargetTransparency(PcDance2TimeTitle, 1, 0)
+
+	PcDance2TimeBox = Instance.new("TextBox")
+	PcDance2TimeBox.Size = UDim2.new(0, 62, 0, 28)
+	PcDance2TimeBox.Position = UDim2.new(1, -80, 0, 58)
+	PcDance2TimeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	PcDance2TimeBox.TextColor3 = Color3.fromRGB(255,255,255)
+	PcDance2TimeBox.Font = Enum.Font.GothamBold
+	PcDance2TimeBox.TextSize = 13
+	PcDance2TimeBox.Text = tostring(dance2TimeValue)
+	PcDance2TimeBox.ClearTextOnFocus = true
+	PcDance2TimeBox.ZIndex = 41
+	PcDance2TimeBox.Parent = PcSettingsPage
+	Instance.new("UICorner", PcDance2TimeBox).CornerRadius = UDim.new(0, 8)
+	PcDance2TimeBoxStroke = Instance.new("UIStroke")
+	PcDance2TimeBoxStroke.Color = Color3.fromRGB(35,35,35)
+	PcDance2TimeBoxStroke.Thickness = 1
+	PcDance2TimeBoxStroke.Transparency = 0.08
+	PcDance2TimeBoxStroke.Parent = PcDance2TimeBox
+	noTextStroke(PcDance2TimeBox)
+	setTargetTransparency(PcDance2TimeBox, 0, 0)
+	PcDance2TimeBox.FocusLost:Connect(function()
+		applyDance2TimeSettingFromBox(PcDance2TimeBox)
+	end)
+
+	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 90, "C-walk Range")
 	PcCwalkRangeTitle.TextSize = 15
 	PcCwalkRangeTitle.ZIndex = 40
 	PcCwalkRangeTitle.TextTransparency = 0
@@ -3210,7 +3346,7 @@ local function buildPCGui()
 
 	PcCwalkRangeBox = Instance.new("TextBox")
 	PcCwalkRangeBox.Size = UDim2.new(0, 62, 0, 28)
-	PcCwalkRangeBox.Position = UDim2.new(1, -80, 0, 58)
+	PcCwalkRangeBox.Position = UDim2.new(1, -80, 0, 88)
 	PcCwalkRangeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcCwalkRangeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcCwalkRangeBox.Font = Enum.Font.GothamBold
@@ -3231,7 +3367,7 @@ local function buildPCGui()
 		applyCwalkRangeSettingFromBox(PcCwalkRangeBox)
 	end)
 
-	PcSettingsXrayTitle = createSettingsLabel(PcSettingsPage, 90, "X-ray Opacity")
+	PcSettingsXrayTitle = createSettingsLabel(PcSettingsPage, 120, "X-ray Opacity")
 	PcSettingsXrayTitle.TextSize = 15
 	PcSettingsXrayTitle.ZIndex = 40
 	PcSettingsXrayTitle.TextTransparency = 0
@@ -3239,7 +3375,7 @@ local function buildPCGui()
 
 	PcSettingsXrayBox = Instance.new("TextBox")
 	PcSettingsXrayBox.Size = UDim2.new(0, 62, 0, 28)
-	PcSettingsXrayBox.Position = UDim2.new(1, -80, 0, 88)
+	PcSettingsXrayBox.Position = UDim2.new(1, -80, 0, 118)
 	PcSettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcSettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcSettingsXrayBox.Font = Enum.Font.GothamBold
