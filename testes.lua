@@ -627,6 +627,35 @@ local function clearFloorbangESP()
 	purgeFloorbangESPOrphans()
 end
 
+local function isPlayerAboveLocalPlayer(character, hrp)
+	local localChar = LocalPlayer.Character
+	local localHrp = localChar and localChar:FindFirstChild("HumanoidRootPart")
+	if not localHrp or not hrp then
+		return false
+	end
+
+	local okTarget, targetBoxCFrame, targetBoxSize = pcall(function()
+		return character:GetBoundingBox()
+	end)
+
+	local okLocal, localBoxCFrame, localBoxSize = pcall(function()
+		return localChar:GetBoundingBox()
+	end)
+
+	local targetBottomY = hrp.Position.Y
+	local localTopY = localHrp.Position.Y
+
+	if okTarget and targetBoxCFrame and targetBoxSize then
+		targetBottomY = targetBoxCFrame.Position.Y - (targetBoxSize.Y / 2)
+	end
+
+	if okLocal and localBoxCFrame and localBoxSize then
+		localTopY = localBoxCFrame.Position.Y + (localBoxSize.Y / 2)
+	end
+
+	return targetBottomY > (localTopY + 0.25)
+end
+
 local function getFloorbangBasePosition(character, hrp)
 	if not character or not hrp then
 		return nil
@@ -709,7 +738,7 @@ local function positionFloorbangRing(player)
 	local character = player.Character
 	local hrp = character and character:FindFirstChild("HumanoidRootPart")
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not character or not hrp or not humanoid or humanoid.Health <= 0 then
+	if not character or not hrp or not humanoid or humanoid.Health <= 0 or not isPlayerAboveLocalPlayer(character, hrp) then
 		removeFloorbangESP(player)
 		return
 	end
@@ -752,7 +781,7 @@ local function createFloorbangESP(player)
 	local character = player.Character
 	local hrp = character and character:FindFirstChild("HumanoidRootPart")
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not hrp or not humanoid or humanoid.Health <= 0 then
+	if not hrp or not humanoid or humanoid.Health <= 0 or not isPlayerAboveLocalPlayer(character, hrp) then
 		removeFloorbangESP(player)
 		return
 	end
@@ -790,7 +819,7 @@ local function updateFloorbangESP()
 			local character = player.Character
 			local hrp = character and character:FindFirstChild("HumanoidRootPart")
 			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			if not hrp or not humanoid or humanoid.Health <= 0 then
+			if not hrp or not humanoid or humanoid.Health <= 0 or not isPlayerAboveLocalPlayer(character, hrp) then
 				removeFloorbangESP(player)
 			end
 		end
