@@ -1791,7 +1791,7 @@ local function createModeSelector(onPick)
 
 	local title = Instance.new("TextLabel")
 	title.Size = UDim2.new(1, -92, 0, 28)
-	title.Position = UDim2.new(0, 12, 0, 14)
+	title.Position = UDim2.new(0, 18, 0, 14)
 	title.BackgroundTransparency = 1
 	title.Text = "Choose Version"
 	title.TextColor3 = Color3.fromRGB(255,255,255)
