@@ -1779,7 +1779,7 @@ local function createModeSelector(onPick)
 	selectorGui.Parent = PlayerGui
 
 	local frame = Instance.new("Frame")
-	frame.Size = UDim2.new(0, 336, 0, 170)
+	frame.Size = UDim2.new(0, 314, 0, 170)
 	frame.Position = UDim2.new(0.5, 0, 0.5, 0)
 	frame.AnchorPoint = Vector2.new(0.5, 0.5)
 	frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
@@ -1790,8 +1790,8 @@ local function createModeSelector(onPick)
 	setTargetTransparency(frame, 0, nil)
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, -92, 0, 28)
-	title.Position = UDim2.new(0, 18, 0, 14)
+	title.Size = UDim2.new(1, -86, 0, 28)
+	title.Position = UDim2.new(0, 78, 0, 14)
 	title.BackgroundTransparency = 1
 	title.Text = "Choose Version"
 	title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -1803,8 +1803,8 @@ local function createModeSelector(onPick)
 
 
 	local sub = Instance.new("TextLabel")
-	sub.Size = UDim2.new(1, -92, 0, 16)
-	sub.Position = UDim2.new(0, 42, 0, 42)
+	sub.Size = UDim2.new(1, -86, 0, 16)
+	sub.Position = UDim2.new(0, 78, 0, 42)
 	sub.BackgroundTransparency = 1
 	sub.Text = "Cerber X • the best Flee the Facility script"
 	sub.TextColor3 = Color3.fromRGB(95,95,95)
@@ -3231,7 +3231,7 @@ local function buildPCGui()
 	setTargetTransparency(MainFrame, 0, nil)
 
 	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(0, 130, 0, 30)
+	title.Size = UDim2.new(0, 146, 0, 30)
 	title.Position = UDim2.new(0, 18, 0, 8)
 	title.BackgroundTransparency = 1
 	title.Text = "Cerber X"
@@ -3244,8 +3244,8 @@ local function buildPCGui()
 	setTargetTransparency(title, 1, 0)
 
 	local headerIcon = Instance.new("ImageLabel")
-	headerIcon.Size = UDim2.new(0, 42, 0, 42)
-	headerIcon.Position = UDim2.new(0, 128, 0, 10)
+	headerIcon.Size = UDim2.new(0, 34, 0, 34)
+	headerIcon.Position = UDim2.new(0, 152, 0, 8)
 	headerIcon.BackgroundTransparency = 1
 	headerIcon.Image = CERBER_ICON_IMAGE
 	headerIcon.ScaleType = Enum.ScaleType.Fit
