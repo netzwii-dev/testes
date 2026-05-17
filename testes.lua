@@ -599,6 +599,110 @@ local function clearFloorbangESP()
 	table.clear(floorbangEspMarkers)
 end
 
+local function getFloorbangBasePosition(character, hrp)
+	if not character or not hrp then
+		return nil
+	end
+
+	local ok, boxCFrame, boxSize = pcall(function()
+		return character:GetBoundingBox()
+	end)
+
+	if ok and boxCFrame and boxSize then
+		return Vector3.new(hrp.Position.X, boxCFrame.Position.Y - (boxSize.Y / 2) - 0.045, hrp.Position.Z)
+	end
+
+	return hrp.Position - Vector3.new(0, 3.08, 0)
+end
+
+local function buildFloorbangRing(player)
+	local folder = Instance.new("Folder")
+	folder.Name = "FloorbangESP3DRing"
+	folder.Parent = workspace
+
+	local parts = {}
+	local segments = 28
+	local radius = 1.45
+	local thickness = 0.075
+	local height = 0.075
+	local segmentLength = ((math.pi * 2 * radius) / segments) * 0.92
+
+	for i = 1, segments do
+		local glow = Instance.new("Part")
+		glow.Name = "Glow"
+		glow.Anchored = true
+		glow.CanCollide = false
+		glow.CanTouch = false
+		glow.CanQuery = false
+		glow.CastShadow = false
+		glow.Material = Enum.Material.Neon
+		glow.Color = Color3.fromRGB(255, 0, 0)
+		glow.Transparency = 0.58
+		glow.Size = Vector3.new(segmentLength * 1.15, height * 0.55, thickness * 3.2)
+		glow.Parent = folder
+
+		local segment = Instance.new("Part")
+		segment.Name = "Ring"
+		segment.Anchored = true
+		segment.CanCollide = false
+		segment.CanTouch = false
+		segment.CanQuery = false
+		segment.CastShadow = false
+		segment.Material = Enum.Material.Neon
+		segment.Color = Color3.fromRGB(255, 0, 0)
+		segment.Transparency = 0.03
+		segment.Size = Vector3.new(segmentLength, height, thickness)
+		segment.Parent = folder
+
+		table.insert(parts, {segment = segment, glow = glow, angle = ((i - 1) / segments) * math.pi * 2})
+	end
+
+	folder:SetAttribute("Radius", radius)
+	folder:SetAttribute("Segments", segments)
+
+	return {
+		folder = folder,
+		parts = parts
+	}
+end
+
+local function positionFloorbangRing(player)
+	local marker = floorbangEspMarkers[player]
+	if not marker then
+		return
+	end
+
+	local character = player.Character
+	local hrp = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not character or not hrp or not humanoid or humanoid.Health <= 0 then
+		removeFloorbangESP(player)
+		return
+	end
+
+	local basePosition = getFloorbangBasePosition(character, hrp)
+	if not basePosition then
+		return
+	end
+
+	local radius = marker.folder and marker.folder:GetAttribute("Radius") or 1.45
+
+	for _, data in ipairs(marker.parts or {}) do
+		local angle = data.angle
+		local x = math.cos(angle) * radius
+		local z = math.sin(angle) * radius
+		local pos = basePosition + Vector3.new(x, 0, z)
+		local cframe = CFrame.new(pos) * CFrame.Angles(0, -angle, 0)
+
+		if data.segment and data.segment.Parent then
+			data.segment.CFrame = cframe
+		end
+		if data.glow and data.glow.Parent then
+			data.glow.CFrame = cframe
+		end
+	end
+end
+
 local function createFloorbangESP(player)
 	if not isFloorbangEspEnabled or not player or player == LocalPlayer then
 		return
@@ -613,38 +717,16 @@ local function createFloorbangESP(player)
 	end
 
 	local old = floorbangEspMarkers[player]
-	if old and old.Parent == hrp then
+	if old and old.folder and old.folder.Parent then
+		positionFloorbangRing(player)
 		return
 	end
 
 	removeFloorbangESP(player)
 
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "FloorbangESPMarker"
-	billboard.Adornee = hrp
-	billboard.AlwaysOnTop = true
-	billboard.LightInfluence = 0
-	billboard.MaxDistance = 10000
-	billboard.Size = UDim2.new(0, 78, 0, 78)
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, -3.15, 0)
-	billboard.Parent = hrp
-
-	local ring = Instance.new("TextLabel")
-	ring.Name = "Ring"
-	ring.Size = UDim2.new(1, 0, 1, 0)
-	ring.BackgroundTransparency = 1
-	ring.Text = "⭕"
-	ring.TextColor3 = Color3.fromRGB(255, 0, 0)
-	ring.TextTransparency = 0
-	ring.TextStrokeTransparency = 0.25
-	ring.TextStrokeColor3 = Color3.fromRGB(120, 0, 0)
-	ring.Font = Enum.Font.GothamBold
-	ring.TextScaled = true
-	ring.TextWrapped = false
-	ring.ZIndex = 100
-	ring.Parent = billboard
-
-	floorbangEspMarkers[player] = billboard
+	local marker = buildFloorbangRing(player)
+	floorbangEspMarkers[player] = marker
+	positionFloorbangRing(player)
 end
 
 local function updateFloorbangESP()
@@ -656,6 +738,7 @@ local function updateFloorbangESP()
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player ~= LocalPlayer then
 			createFloorbangESP(player)
+			positionFloorbangRing(player)
 		end
 	end
 
@@ -1207,11 +1290,22 @@ local function bindRowPress(button, callback)
 		end
 	end)
 
-	button.Activated:Connect(function()
-		if canUseMobileTap(button) then
-			fire()
-		end
-	end)
+	if button:IsA("GuiButton") then
+		button.Activated:Connect(function()
+			if canUseMobileTap(button) then
+				fire()
+			end
+		end)
+	end
+end
+
+local function bindSwitchOnlyPress(switchFrame, knob, callback)
+	if switchFrame then
+		bindRowPress(switchFrame, callback)
+	end
+	if knob then
+		bindRowPress(knob, callback)
+	end
 end
 
 local function updateSwitchVisual(switchFrame, knob, enabled)
@@ -1270,7 +1364,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
 	switch.ZIndex = 6
-	switch.Active = false
+	switch.Active = true
 	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(switch, 0, nil)
 
@@ -1281,7 +1375,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	knob.BorderSizePixel = 0
 	knob.Parent = switch
 	knob.ZIndex = 7
-	knob.Active = false
+	knob.Active = true
 	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(knob, 0, nil)
 
@@ -2662,34 +2756,34 @@ local function buildMobileGui()
 		switchMobileTab("Settings")
 	end)
 
-	bindRowPress(MobileHideGuiRow, function()
+	bindSwitchOnlyPress(mobileHideGuiSwitch, mobileHideGuiKnob, function()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
 	end)
 
-	bindRowPress(MobileCornerWalkRow, function()
+	bindSwitchOnlyPress(mobileCornerWalkSwitch, mobileCornerWalkKnob, function()
 		setMobileCornerWalkButtonState(not mobileCornerWalkButtonVisible)
 	end)
 
-	bindRowPress(MobileBeastSlowRow, function()
+	bindSwitchOnlyPress(mobileBeastSlowSwitch, mobileBeastSlowKnob, function()
 		setMobileBeastSlowButtonState(not mobileBeastSlowButtonVisible)
 	end)
 
-	bindRowPress(MobileXrayRow, function()
+	bindSwitchOnlyPress(mobileXraySwitch, mobileXrayKnob, function()
 		isXrayEnabled = not isXrayEnabled
 		applyCurrentNonSpamCooldown()
 		updateMobilePanelButtons()
 		saveUserPreferences()
 	end)
 
-	bindRowPress(MobileRealXrayRow, function()
+	bindSwitchOnlyPress(mobileRealXraySwitch, mobileRealXrayKnob, function()
 		setXrayEnabled(not realXrayEnabled)
 	end)
 
-	bindRowPress(MobileDance2TurnRow, function()
+	bindSwitchOnlyPress(mobileDance2TurnSwitch, mobileDance2TurnKnob, function()
 		setDance2TurnEnabled(not isDance2TurnEnabled)
 	end)
 
-	bindRowPress(MobileFloorbangEspRow, function()
+	bindSwitchOnlyPress(mobileFloorbangEspSwitch, mobileFloorbangEspKnob, function()
 		setFloorbangESPEnabled(not isFloorbangEspEnabled)
 	end)
 
