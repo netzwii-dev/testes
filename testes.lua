@@ -646,23 +646,6 @@ local function runDance2TurnSequence()
 
 	task.delay(0.6, function()
 		startDance2Noclip(token)
-
-		if token == dance2TurnToken and dance2NoclipActive then
-			task.spawn(function()
-				while token == dance2TurnToken and isDance2TurnEnabled and dance2NoclipActive do
-					if not isDance2AnimationPlaying() then
-						task.delay(0.1, function()
-							if token == dance2TurnToken and dance2NoclipActive and not isDance2AnimationPlaying() then
-								restoreDance2Noclip()
-							end
-						end)
-						break
-					end
-
-					task.wait(0.03)
-				end
-			end)
-		end
 	end)
 
 	task.delay(1.2, function()
@@ -1065,8 +1048,9 @@ local function updateSwitchVisual(switchFrame, knob, enabled)
 		return
 	end
 
-	local offPos = UDim2.new(0, 3, 0.5, -13)
-	local onPos = UDim2.new(1, -29, 0.5, -13)
+	local isCompact = switchFrame.Size.X.Offset <= 36
+	local offPos = isCompact and UDim2.new(0, 2, 0.5, -7) or UDim2.new(0, 3, 0.5, -13)
+	local onPos = isCompact and UDim2.new(1, -16, 0.5, -7) or UDim2.new(1, -29, 0.5, -13)
 
 	TweenService:Create(switchFrame, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		BackgroundColor3 = enabled and Color3.fromRGB(190,190,190) or Color3.fromRGB(20,20,24)
@@ -1123,6 +1107,64 @@ local function createSwitchRow(parent, yOffset, labelText)
 	local knob = Instance.new("Frame")
 	knob.Size = UDim2.new(0, 26, 0, 26)
 	knob.Position = UDim2.new(0, 3, 0.5, -13)
+	knob.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	knob.BorderSizePixel = 0
+	knob.Parent = switch
+	knob.ZIndex = 7
+	knob.Active = false
+	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+	setTargetTransparency(knob, 0, nil)
+
+	return row, switch, knob
+end
+
+local function createCompactSwitchRow(parent, xOffset, yOffset, labelText)
+	local row = Instance.new("TextButton")
+	row.Size = UDim2.new(0.5, -10, 0, 40)
+	row.Position = UDim2.new(0, xOffset, 0, yOffset)
+	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	row.AutoButtonColor = false
+	row.Text = ""
+	row.BorderSizePixel = 0
+	row.Parent = parent
+	row.ZIndex = 5
+	row.Active = true
+	row.Selectable = false
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+	setTargetTransparency(row, 0, 1)
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Size = UDim2.new(1, -42, 1, 0)
+	label.Position = UDim2.new(0, 8, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 10
+	label.TextWrapped = true
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.Parent = row
+	label.ZIndex = 6
+	label.Active = false
+	noTextStroke(label)
+	setTargetTransparency(label, 1, 0)
+
+	local switch = Instance.new("Frame")
+	switch.Size = UDim2.new(0, 30, 0, 16)
+	switch.Position = UDim2.new(1, -36, 0.5, -8)
+	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
+	switch.BorderSizePixel = 0
+	switch.Parent = row
+	switch.ZIndex = 6
+	switch.Active = false
+	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
+	setTargetTransparency(switch, 0, nil)
+
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 14, 0, 14)
+	knob.Position = UDim2.new(0, 2, 0.5, -7)
 	knob.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	knob.BorderSizePixel = 0
 	knob.Parent = switch
@@ -2296,12 +2338,12 @@ local function buildMobileGui()
 
 	buildMobileSettingsPage()
 
-	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
-	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 46, "Non-spam")
-	MobileRealXrayRow, mobileRealXraySwitch, mobileRealXrayKnob = createSwitchRow(MobileFunctionsPage, 88, "X-ray")
-	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 130, "Corner Walk")
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 172, "Beast Slow")
-	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 214, "Clip Dance2")
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createCompactSwitchRow(MobileFunctionsPage, 7, 4, "Wallhop")
+	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createCompactSwitchRow(MobileFunctionsPage, 7, 46, "Non-spam")
+	MobileRealXrayRow, mobileRealXraySwitch, mobileRealXrayKnob = createCompactSwitchRow(MobileFunctionsPage, 7, 88, "X-ray")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createCompactSwitchRow(MobileFunctionsPage, 97, 4, "Corner Walk")
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createCompactSwitchRow(MobileFunctionsPage, 97, 46, "Beast Slow")
+	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createCompactSwitchRow(MobileFunctionsPage, 97, 88, "Clip Dance2")
 
 	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
 	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
