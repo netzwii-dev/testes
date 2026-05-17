@@ -646,6 +646,23 @@ local function runDance2TurnSequence()
 
 	task.delay(0.6, function()
 		startDance2Noclip(token)
+
+		if token == dance2TurnToken and dance2NoclipActive then
+			task.spawn(function()
+				while token == dance2TurnToken and isDance2TurnEnabled and dance2NoclipActive do
+					if not isDance2AnimationPlaying() then
+						task.delay(0.1, function()
+							if token == dance2TurnToken and dance2NoclipActive and not isDance2AnimationPlaying() then
+								restoreDance2Noclip()
+							end
+						end)
+						break
+					end
+
+					task.wait(0.03)
+				end
+			end)
+		end
 	end)
 
 	task.delay(1.2, function()
