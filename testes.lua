@@ -586,10 +586,28 @@ local function removeFloorbangESP(player)
 	local marker = floorbangEspMarkers[player]
 	if marker then
 		pcall(function()
-			marker:Destroy()
+			if typeof(marker) == "Instance" then
+				marker:Destroy()
+			elseif type(marker) == "table" then
+				if marker.folder and marker.folder.Parent then
+					marker.folder:Destroy()
+				elseif marker.anchor and marker.anchor.Parent then
+					marker.anchor:Destroy()
+				end
+			end
 		end)
 	end
 	floorbangEspMarkers[player] = nil
+end
+
+local function purgeFloorbangESPOrphans()
+	pcall(function()
+		for _, obj in ipairs(workspace:GetDescendants()) do
+			if obj.Name == "FloorbangESP3DRing" or obj.Name == "FloorbangESPAnchor" or obj.Name == "FloorbangESPMarker" then
+				obj:Destroy()
+			end
+		end
+	end)
 end
 
 local function clearFloorbangESP()
@@ -597,6 +615,7 @@ local function clearFloorbangESP()
 		removeFloorbangESP(player)
 	end
 	table.clear(floorbangEspMarkers)
+	purgeFloorbangESPOrphans()
 end
 
 local function getFloorbangBasePosition(character, hrp)
@@ -632,11 +651,11 @@ local function buildFloorbangRing(player)
 	anchor.Parent = folder
 
 	local parts = {}
-	local segments = 84
-	local radius = 1.6
-	local thickness = 0.09
-	local height = 0.08
-	local segmentLength = ((math.pi * 2 * radius) / segments) * 1.18
+	local segments = 180
+	local radius = 1.66
+	local thickness = 0.115
+	local height = 0.085
+	local segmentLength = ((math.pi * 2 * radius) / segments) * 1.42
 
 	for i = 1, segments do
 		local glow = Instance.new("BoxHandleAdornment")
@@ -645,8 +664,8 @@ local function buildFloorbangRing(player)
 		glow.AlwaysOnTop = true
 		glow.ZIndex = 9
 		glow.Color3 = Color3.fromRGB(255, 0, 0)
-		glow.Transparency = 0.62
-		glow.Size = Vector3.new(segmentLength * 1.08, height * 0.85, thickness * 3.4)
+		glow.Transparency = 0.58
+		glow.Size = Vector3.new(segmentLength * 1.02, height * 0.9, thickness * 3.2)
 		glow.Parent = anchor
 
 		local segment = Instance.new("BoxHandleAdornment")
@@ -655,7 +674,7 @@ local function buildFloorbangRing(player)
 		segment.AlwaysOnTop = true
 		segment.ZIndex = 10
 		segment.Color3 = Color3.fromRGB(255, 0, 0)
-		segment.Transparency = 0.02
+		segment.Transparency = 0.01
 		segment.Size = Vector3.new(segmentLength, height, thickness)
 		segment.Parent = anchor
 
@@ -699,7 +718,7 @@ local function positionFloorbangRing(player)
 
 	anchor.CFrame = CFrame.new(basePosition)
 
-	local radius = marker.folder and marker.folder:GetAttribute("Radius") or 1.6
+	local radius = marker.folder and marker.folder:GetAttribute("Radius") or 1.66
 
 	for _, data in ipairs(marker.parts or {}) do
 		local angle = data.angle
@@ -730,7 +749,7 @@ local function createFloorbangESP(player)
 	end
 
 	local old = floorbangEspMarkers[player]
-	if old and old.folder and old.folder.Parent then
+	if old and old.folder and old.folder.Parent and old.anchor and old.anchor.Parent then
 		positionFloorbangRing(player)
 		return
 	end
@@ -773,6 +792,7 @@ local function setFloorbangESPEnabled(state)
 	isFloorbangEspEnabled = state and true or false
 
 	if isFloorbangEspEnabled then
+		purgeFloorbangESPOrphans()
 		updateFloorbangESP()
 	else
 		clearFloorbangESP()
@@ -1348,13 +1368,13 @@ local function createSwitchRow(parent, yOffset, labelText)
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
-	label.Size = UDim2.new(0, 88, 1, 0)
+	label.Size = UDim2.new(0, 130, 1, 0)
 	label.Position = UDim2.new(0, 12, 0, 0)
 	label.BackgroundTransparency = 1
 	label.Text = labelText
 	label.TextColor3 = Color3.fromRGB(255,255,255)
 	label.Font = Enum.Font.GothamBold
-	label.TextSize = 13
+	label.TextSize = 15
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = row
 	label.ZIndex = 6
@@ -1364,7 +1384,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 
 	local switch = Instance.new("Frame")
 	switch.Size = UDim2.new(0, 54, 0, 28)
-	switch.Position = UDim2.new(1, -66, 0.5, -14)
+	switch.Position = UDim2.new(1, -78, 0.5, -14)
 	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
