@@ -187,6 +187,7 @@ realXrayEnabled = false
 isDance2TurnEnabled = false
 isFloorbangEspEnabled = false
 floorbangEspMarkers = {}
+FLOORBANG_HORIZONTAL_RANGE = 85
 dance2TurnToken = 0
 dance2NoclipActive = false
 dance2NoclipOriginalCanCollide = {}
@@ -631,6 +632,16 @@ local function isPlayerAboveLocalPlayer(character, hrp)
 	local localChar = LocalPlayer.Character
 	local localHrp = localChar and localChar:FindFirstChild("HumanoidRootPart")
 	if not localHrp or not hrp then
+		return false
+	end
+
+	local horizontalDelta = Vector3.new(
+		hrp.Position.X - localHrp.Position.X,
+		0,
+		hrp.Position.Z - localHrp.Position.Z
+	)
+
+	if horizontalDelta.Magnitude > FLOORBANG_HORIZONTAL_RANGE then
 		return false
 	end
 
