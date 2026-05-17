@@ -1791,7 +1791,7 @@ local function createModeSelector(onPick)
 
 	local title = Instance.new("TextLabel")
 	title.Size = UDim2.new(1, -92, 0, 28)
-	title.Position = UDim2.new(0, 58, 0, 14)
+	title.Position = UDim2.new(0, 12, 0, 14)
 	title.BackgroundTransparency = 1
 	title.Text = "Choose Version"
 	title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -3244,7 +3244,7 @@ local function buildPCGui()
 	setTargetTransparency(title, 1, 0)
 
 	local headerIcon = Instance.new("ImageLabel")
-	headerIcon.Size = UDim2.new(0, 34, 0, 34)
+	headerIcon.Size = UDim2.new(0, 42, 0, 42)
 	headerIcon.Position = UDim2.new(0, 128, 0, 10)
 	headerIcon.BackgroundTransparency = 1
 	headerIcon.Image = CERBER_ICON_IMAGE
