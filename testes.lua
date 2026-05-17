@@ -122,6 +122,10 @@ PcNormalWallhopButton = nil
 PcNoMoveWallhopButton = nil
 Pc360WallhopButton = nil
 PcConsoleWallhopButton = nil
+PcFlickSettingsTitle = nil
+PcNormalFlickButton = nil
+PcSpeedFlickButton = nil
+PcSlowFlickButton = nil
 
 MobileTabFunctions = nil
 MobileTabFlicks = nil
@@ -142,6 +146,10 @@ MobileNormalWallhopRow = nil
 MobileNoMoveWallhopRow = nil
 Mobile360WallhopRow = nil
 MobileConsoleWallhopRow = nil
+MobileFlickSettingsTitle = nil
+MobileNormalFlickRow = nil
+MobileSpeedFlickRow = nil
+MobileSlowFlickRow = nil
 MobileBeastSlowRow = nil
 MobileCornerWalkRow = nil
 MobileXrayRow = nil
@@ -187,7 +195,7 @@ realXrayEnabled = false
 isDance2TurnEnabled = false
 isFloorbangEspEnabled = false
 floorbangEspMarkers = {}
-FLOORBANG_HORIZONTAL_RANGE = 85
+FLOORBANG_HORIZONTAL_RANGE = 35
 dance2TurnToken = 0
 dance2NoclipActive = false
 dance2NoclipOriginalCanCollide = {}
@@ -235,6 +243,7 @@ hasWallhoppedSinceLanding = false
 specialFirstFlickArmed = false
 
 currentFlickMode = "Normal Wallhop"
+currentFlickSetting = "Normal Flick"
 next360Direction = 1
 
 local function destroyOld()
@@ -387,6 +396,7 @@ local function saveUserPreferences()
 		dance2TimeValue = tonumber(dance2TimeValue) or 10,
 		cwalkRangeValue = tonumber(cwalkRangeValue) or 1,
 		currentFlickMode = tostring(currentFlickMode or "Normal Wallhop"),
+		currentFlickSetting = tostring(currentFlickSetting or "Normal Flick"),
 		isWallHopEnabled = isWallHopEnabled,
 		isSlowEnabled = isSlowEnabled,
 		isCornerWalkEnabled = isCornerWalkEnabled,
@@ -432,6 +442,11 @@ local function loadUserPreferences()
 		end
 		if type(decoded.currentFlickMode) == "string" and decoded.currentFlickMode ~= "" then
 			currentFlickMode = decoded.currentFlickMode
+		end
+		if type(decoded.currentFlickSetting) == "string" and decoded.currentFlickSetting ~= "" then
+			if decoded.currentFlickSetting == "Normal Flick" or decoded.currentFlickSetting == "Speed Flick" or decoded.currentFlickSetting == "Slow Flick" then
+				currentFlickSetting = decoded.currentFlickSetting
+			end
 		end
 		if type(decoded.isWallHopEnabled) == "boolean" then
 			isWallHopEnabled = decoded.isWallHopEnabled
@@ -1537,53 +1552,74 @@ setMobileBeastSlowButtonVisible = function(visible)
 	setHostShadowVisible(MobileBeastSlowButton, visible)
 end
 
+function setFlickSetting(settingName)
+	if settingName ~= "Normal Flick" and settingName ~= "Speed Flick" and settingName ~= "Slow Flick" then
+		settingName = "Normal Flick"
+	end
+
+	currentFlickSetting = settingName
+	updateFlickButtons()
+	saveUserPreferences()
+end
+
 updateFlickButtons = function()
 	if PcCurrentUsingLabel then
-		PcCurrentUsingLabel.Text = "Currently using: " .. currentFlickMode
+		PcCurrentUsingLabel.Text = "Currently config: " .. currentFlickMode .. ", " .. currentFlickSetting
 	end
 
 	if MobileCurrentUsingLabel then
-		MobileCurrentUsingLabel.Text = "Currently using: " .. currentFlickMode
+		MobileCurrentUsingLabel.Text = "Currently config: " .. currentFlickMode .. ", " .. currentFlickSetting
 	end
 
 	if PcNormalWallhopButton then
 		PcNormalWallhopButton.BackgroundColor3 =
 			currentFlickMode == "Normal Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
 	end
-
 	if PcNoMoveWallhopButton then
 		PcNoMoveWallhopButton.BackgroundColor3 =
 			currentFlickMode == "Visual Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
 	end
-
 	if Pc360WallhopButton then
 		Pc360WallhopButton.BackgroundColor3 =
 			currentFlickMode == "360° Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
 	end
-
 	if PcConsoleWallhopButton then
 		PcConsoleWallhopButton.BackgroundColor3 =
 			currentFlickMode == "Console Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
 	end
-
 	if MobileNormalWallhopRow then
 		MobileNormalWallhopRow.BackgroundColor3 =
 			currentFlickMode == "Normal Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
 	end
-
 	if MobileNoMoveWallhopRow then
 		MobileNoMoveWallhopRow.BackgroundColor3 =
 			currentFlickMode == "Visual Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
 	end
-
 	if Mobile360WallhopRow then
 		Mobile360WallhopRow.BackgroundColor3 =
 			currentFlickMode == "360° Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
 	end
-
 	if MobileConsoleWallhopRow then
 		MobileConsoleWallhopRow.BackgroundColor3 =
 			currentFlickMode == "Console Wallhop" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
+	end
+	if PcNormalFlickButton then
+		PcNormalFlickButton.BackgroundColor3 = currentFlickSetting == "Normal Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
+	end
+	if PcSpeedFlickButton then
+		PcSpeedFlickButton.BackgroundColor3 = currentFlickSetting == "Speed Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
+	end
+	if PcSlowFlickButton then
+		PcSlowFlickButton.BackgroundColor3 = currentFlickSetting == "Slow Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(6,6,6)
+	end
+	if MobileNormalFlickRow then
+		MobileNormalFlickRow.BackgroundColor3 = currentFlickSetting == "Normal Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
+	end
+	if MobileSpeedFlickRow then
+		MobileSpeedFlickRow.BackgroundColor3 = currentFlickSetting == "Speed Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
+	end
+	if MobileSlowFlickRow then
+		MobileSlowFlickRow.BackgroundColor3 = currentFlickSetting == "Slow Flick" and Color3.fromRGB(20,20,20) or Color3.fromRGB(0,0,0)
 	end
 end
 
@@ -2677,10 +2713,14 @@ local function buildMobileGui()
 	MobileFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 340)
 	MobileFunctionsPage.Parent = MobilePanel
 
-	MobileFlicksPage = Instance.new("Frame")
+	MobileFlicksPage = Instance.new("ScrollingFrame")
 	MobileFlicksPage.Size = UDim2.new(1, 0, 1, -58)
 	MobileFlicksPage.Position = UDim2.new(0, 0, 0, 58)
 	MobileFlicksPage.BackgroundTransparency = 1
+	MobileFlicksPage.BorderSizePixel = 0
+	MobileFlicksPage.ScrollBarThickness = 3
+	MobileFlicksPage.ScrollingDirection = Enum.ScrollingDirection.Y
+	MobileFlicksPage.CanvasSize = UDim2.new(0, 0, 0, 390)
 	MobileFlicksPage.Parent = MobilePanel
 	MobileFlicksPage.Visible = false
 
@@ -2699,11 +2739,28 @@ local function buildMobileGui()
 	Mobile360WallhopRow = createSimpleRow(MobileFlicksPage, 88, "360° Wallhop")
 	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 130, "Console Wallhop")
 
+	MobileFlickSettingsTitle = Instance.new("TextLabel")
+	MobileFlickSettingsTitle.Size = UDim2.new(1, -14, 0, 22)
+	MobileFlickSettingsTitle.Position = UDim2.new(0, 7, 0, 176)
+	MobileFlickSettingsTitle.BackgroundTransparency = 1
+	MobileFlickSettingsTitle.Text = "Flick Settings"
+	MobileFlickSettingsTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileFlickSettingsTitle.Font = Enum.Font.GothamBold
+	MobileFlickSettingsTitle.TextSize = 13
+	MobileFlickSettingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+	MobileFlickSettingsTitle.Parent = MobileFlicksPage
+	noTextStroke(MobileFlickSettingsTitle)
+	setTargetTransparency(MobileFlickSettingsTitle, 1, 0)
+
+	MobileNormalFlickRow = createSimpleRow(MobileFlicksPage, 202, "Normal Flick")
+	MobileSpeedFlickRow = createSimpleRow(MobileFlicksPage, 244, "Speed Flick")
+	MobileSlowFlickRow = createSimpleRow(MobileFlicksPage, 286, "Slow Flick")
+
 	MobileCurrentUsingLabel = Instance.new("TextLabel")
 	MobileCurrentUsingLabel.Size = UDim2.new(1, -14, 0, 46)
-	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 176)
+	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 328)
 	MobileCurrentUsingLabel.BackgroundTransparency = 1
-	MobileCurrentUsingLabel.Text = "Currently using: " .. currentFlickMode
+	MobileCurrentUsingLabel.Text = "Currently config: " .. currentFlickMode .. ", " .. currentFlickSetting
 	MobileCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileCurrentUsingLabel.Font = Enum.Font.Gotham
 	MobileCurrentUsingLabel.TextSize = 12
@@ -2934,6 +2991,18 @@ local function buildMobileGui()
 
 	bindRowPress(MobileConsoleWallhopRow, function()
 		setFlickMode("Console Wallhop")
+	end)
+
+	bindRowPress(MobileNormalFlickRow, function()
+		setFlickSetting("Normal Flick")
+	end)
+
+	bindRowPress(MobileSpeedFlickRow, function()
+		setFlickSetting("Speed Flick")
+	end)
+
+	bindRowPress(MobileSlowFlickRow, function()
+		setFlickSetting("Slow Flick")
 	end)
 
 	switchMobileTab("Functions")
@@ -3400,9 +3469,26 @@ local function buildPCGui()
 	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 56, "360° Wallhop")
 	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 84, "Console Wallhop")
 
+	PcFlickSettingsTitle = Instance.new("TextLabel")
+	PcFlickSettingsTitle.Size = UDim2.new(1, -36, 0, 20)
+	PcFlickSettingsTitle.Position = UDim2.new(0, 18, 0, 116)
+	PcFlickSettingsTitle.BackgroundTransparency = 1
+	PcFlickSettingsTitle.Text = "Flick Settings"
+	PcFlickSettingsTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	PcFlickSettingsTitle.Font = Enum.Font.GothamBold
+	PcFlickSettingsTitle.TextSize = 14
+	PcFlickSettingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+	PcFlickSettingsTitle.Parent = PcFlicksPage
+	noTextStroke(PcFlickSettingsTitle)
+	setTargetTransparency(PcFlickSettingsTitle, 1, 0)
+
+	PcNormalFlickButton = createPcActionButton(PcFlicksPage, 140, "Normal Flick")
+	PcSpeedFlickButton = createPcActionButton(PcFlicksPage, 168, "Speed Flick")
+	PcSlowFlickButton = createPcActionButton(PcFlicksPage, 196, "Slow Flick")
+
 	PcCurrentUsingLabel = Instance.new("TextLabel")
-	PcCurrentUsingLabel.Size = UDim2.new(1, -36, 0, 26)
-	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 116)
+	PcCurrentUsingLabel.Size = UDim2.new(1, -36, 0, 32)
+	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 226)
 	PcCurrentUsingLabel.BackgroundTransparency = 1
 	PcCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcCurrentUsingLabel.Font = Enum.Font.Gotham
@@ -3634,6 +3720,18 @@ local function buildPCGui()
 
 	PcConsoleWallhopButton.MouseButton1Click:Connect(function()
 		setFlickMode("Console Wallhop")
+	end)
+
+	PcNormalFlickButton.MouseButton1Click:Connect(function()
+		setFlickSetting("Normal Flick")
+	end)
+
+	PcSpeedFlickButton.MouseButton1Click:Connect(function()
+		setFlickSetting("Speed Flick")
+	end)
+
+	PcSlowFlickButton.MouseButton1Click:Connect(function()
+		setFlickSetting("Slow Flick")
 	end)
 
 	switchPcTab("Functions")
@@ -3919,9 +4017,43 @@ local function pickNextFlick(useSpecialFirst)
 	return math.rad(angle)
 end
 
+local function getFlickSettingSpeedScale()
+	if currentFlickSetting == "Speed Flick" then
+		return 0.62
+	elseif currentFlickSetting == "Slow Flick" then
+		return 1.48
+	end
+	return 1
+end
+
+local function getFlickSettingStepAdd()
+	if currentFlickSetting == "Speed Flick" then
+		return -1
+	elseif currentFlickSetting == "Slow Flick" then
+		return 2
+	end
+	return 0
+end
+
+local function applyFlickSettingProfile(profile)
+	local scale = getFlickSettingSpeedScale()
+	local stepAdd = getFlickSettingStepAdd()
+
+	profile.goSteps = math.max(1, (tonumber(profile.goSteps) or 1) + stepAdd)
+	profile.returnSteps = math.max(1, (tonumber(profile.returnSteps) or 1) + stepAdd)
+	profile.goDelayMin = (tonumber(profile.goDelayMin) or 0) * scale
+	profile.goDelayMax = (tonumber(profile.goDelayMax) or 0) * scale
+	profile.returnDelayMin = (tonumber(profile.returnDelayMin) or 0) * scale
+	profile.returnDelayMax = (tonumber(profile.returnDelayMax) or 0) * scale
+	profile.holdTime = (tonumber(profile.holdTime) or 0) * (currentFlickSetting == "Speed Flick" and 0.55 or currentFlickSetting == "Slow Flick" and 1.35 or 1)
+	profile.overshootBaseDelay = (tonumber(profile.overshootBaseDelay) or 0) * scale
+
+	return profile
+end
+
 local function getFlickProfile(useSpecialFirst)
 	if useSpecialFirst then
-		return {
+		return applyFlickSettingProfile({
 			goSteps = math.random(3, 4),
 			goDelayMin = 0.0130,
 			goDelayMax = 0.0165,
@@ -3932,13 +4064,13 @@ local function getFlickProfile(useSpecialFirst)
 			overshootMin = 22,
 			overshootMax = 25,
 			overshootBaseDelay = 0.0085
-		}
+		})
 	end
 
 	local flickRoll = math.random()
 
 	if flickRoll < 0.10 then
-		return {
+		return applyFlickSettingProfile({
 			goSteps = math.random(3, 4),
 			goDelayMin = 0.0118,
 			goDelayMax = 0.0148,
@@ -3949,9 +4081,9 @@ local function getFlickProfile(useSpecialFirst)
 			overshootMin = 12,
 			overshootMax = 18,
 			overshootBaseDelay = 0.0068
-		}
+		})
 	elseif flickRoll < 0.40 then
-		return {
+		return applyFlickSettingProfile({
 			goSteps = math.random(4, 5),
 			goDelayMin = 0.0122,
 			goDelayMax = 0.0155,
@@ -3962,9 +4094,9 @@ local function getFlickProfile(useSpecialFirst)
 			overshootMin = 14,
 			overshootMax = 20,
 			overshootBaseDelay = 0.0075
-		}
+		})
 	else
-		return {
+		return applyFlickSettingProfile({
 			goSteps = math.random(3, 4),
 			goDelayMin = 0.0128,
 			goDelayMax = 0.0162,
@@ -3975,7 +4107,7 @@ local function getFlickProfile(useSpecialFirst)
 			overshootMin = 16,
 			overshootMax = 22,
 			overshootBaseDelay = 0.0085
-		}
+		})
 	end
 end
 
@@ -4170,24 +4302,33 @@ local function performNormalWallhop()
 end
 
 
+local function apply360FlickSettingProfile(profile)
+	local scale = getFlickSettingSpeedScale()
+	local stepAdd = currentFlickSetting == "Speed Flick" and -2 or currentFlickSetting == "Slow Flick" and 2 or 0
+
+	profile.steps = math.max(4, (tonumber(profile.steps) or 8) + stepAdd)
+	profile.stepDelay = (tonumber(profile.stepDelay) or 0.0042) * scale
+	return profile
+end
+
 local function get360FlickProfile()
 	local flickRoll = math.random()
 
 	if flickRoll < 0.10 then
-		return {
+		return apply360FlickSettingProfile({
 			steps = 8,
 			stepDelay = 0.0038
-		}
+		})
 	elseif flickRoll < 0.40 then
-		return {
+		return apply360FlickSettingProfile({
 			steps = 9,
 			stepDelay = 0.0042
-		}
+		})
 	else
-		return {
+		return apply360FlickSettingProfile({
 			steps = 10,
 			stepDelay = 0.0045
-		}
+		})
 	end
 end
 
@@ -4427,7 +4568,7 @@ local function performConsoleWallhop()
 	specialFirstFlickArmed = false
 
 	forceWallhopJump(hum)
-	lockBodyRotation(hum, 0.62)
+	lockBodyRotation(hum, currentFlickSetting == "Speed Flick" and 0.48 or currentFlickSetting == "Slow Flick" and 0.80 or 0.62)
 	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
 
 	local function getCameraFlat()
@@ -4455,8 +4596,8 @@ local function performConsoleWallhop()
 		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, flickYaw, 0)
 
 		task.spawn(function()
-			local returnSteps = 20
-			local stepDelay = 0.040
+			local returnSteps = currentFlickSetting == "Speed Flick" and 14 or currentFlickSetting == "Slow Flick" and 26 or 20
+			local stepDelay = currentFlickSetting == "Speed Flick" and 0.025 or currentFlickSetting == "Slow Flick" and 0.058 or 0.040
 
 			for i = 1, returnSteps do
 				if not hrp or not hrp.Parent then
@@ -4471,7 +4612,7 @@ local function performConsoleWallhop()
 				local liveTargetYaw = getYawFromVector(liveFlat)
 				local currentYaw = math.atan2(-hrp.CFrame.LookVector.X, -hrp.CFrame.LookVector.Z)
 				local delta = wrapAngle(liveTargetYaw - currentYaw)
-				local nextYaw = currentYaw + (delta * 0.03)
+				local nextYaw = currentYaw + (delta * (currentFlickSetting == "Speed Flick" and 0.055 or currentFlickSetting == "Slow Flick" and 0.018 or 0.03))
 
 				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, nextYaw, 0)
 
