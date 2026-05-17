@@ -1,4 +1,4 @@
--- Wallhop Script (Made by nyhito)
+-- Cerber X V1.1 (Made by nyhito)
 -- All Credits: nyhito (tester, config and uploader)
 -- The Best Flee the Facility Script
 
