@@ -646,6 +646,23 @@ local function runDance2TurnSequence()
 
 	task.delay(0.6, function()
 		startDance2Noclip(token)
+
+		if token == dance2TurnToken and dance2NoclipActive then
+			task.spawn(function()
+				while token == dance2TurnToken and isDance2TurnEnabled and dance2NoclipActive do
+					if not isDance2AnimationPlaying() then
+						task.delay(0.1, function()
+							if token == dance2TurnToken and dance2NoclipActive and not isDance2AnimationPlaying() then
+								restoreDance2Noclip()
+							end
+						end)
+						break
+					end
+
+					task.wait(0.03)
+				end
+			end)
+		end
 	end)
 
 	task.delay(1.2, function()
@@ -1048,9 +1065,8 @@ local function updateSwitchVisual(switchFrame, knob, enabled)
 		return
 	end
 
-	local isCompact = switchFrame.Size.X.Offset <= 40
-	local offPos = isCompact and UDim2.new(0, 2, 0.5, -9) or UDim2.new(0, 3, 0.5, -13)
-	local onPos = isCompact and UDim2.new(1, -20, 0.5, -9) or UDim2.new(1, -29, 0.5, -13)
+	local offPos = UDim2.new(0, 3, 0.5, -13)
+	local onPos = UDim2.new(1, -29, 0.5, -13)
 
 	TweenService:Create(switchFrame, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		BackgroundColor3 = enabled and Color3.fromRGB(190,190,190) or Color3.fromRGB(20,20,24)
@@ -1118,10 +1134,10 @@ local function createSwitchRow(parent, yOffset, labelText)
 	return row, switch, knob
 end
 
-local function createCompactSwitchRow(parent, xOffset, yOffset, labelText)
+local function createSimpleRow(parent, yOffset, labelText)
 	local row = Instance.new("TextButton")
-	row.Size = UDim2.new(0, 184, 0, 52)
-	row.Position = UDim2.new(0, xOffset, 0, yOffset)
+	row.Size = UDim2.new(1, -14, 0, 40)
+	row.Position = UDim2.new(0, 7, 0, yOffset)
 	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	row.AutoButtonColor = false
 	row.Text = ""
@@ -1135,73 +1151,14 @@ local function createCompactSwitchRow(parent, xOffset, yOffset, labelText)
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
-	label.Size = UDim2.new(1, -58, 1, 0)
-	label.Position = UDim2.new(0, 12, 0, 0)
-	label.BackgroundTransparency = 1
-	label.Text = labelText
-	label.TextColor3 = Color3.fromRGB(255,255,255)
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 15
-	label.TextWrapped = true
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.TextYAlignment = Enum.TextYAlignment.Center
-	label.Parent = row
-	label.ZIndex = 6
-	label.Active = false
-	noTextStroke(label)
-	setTargetTransparency(label, 1, 0)
-
-	local switch = Instance.new("Frame")
-	switch.Size = UDim2.new(0, 40, 0, 22)
-	switch.Position = UDim2.new(1, -50, 0.5, -11)
-	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
-	switch.BorderSizePixel = 0
-	switch.Parent = row
-	switch.ZIndex = 6
-	switch.Active = false
-	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
-	setTargetTransparency(switch, 0, nil)
-
-	local knob = Instance.new("Frame")
-	knob.Size = UDim2.new(0, 18, 0, 18)
-	knob.Position = UDim2.new(0, 2, 0.5, -9)
-	knob.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	knob.BorderSizePixel = 0
-	knob.Parent = switch
-	knob.ZIndex = 7
-	knob.Active = false
-	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-	setTargetTransparency(knob, 0, nil)
-
-	return row, switch, knob
-end
-
-local function createSimpleRow(parent, yOffset, labelText)
-	local row = Instance.new("TextButton")
-	row.Size = UDim2.new(1, -24, 0, 52)
-	row.Position = UDim2.new(0, 12, 0, yOffset)
-	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	row.AutoButtonColor = false
-	row.Text = ""
-	row.BorderSizePixel = 0
-	row.Parent = parent
-	row.ZIndex = 5
-	row.Active = true
-	row.Selectable = false
-	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 14)
-	setTargetTransparency(row, 0, 1)
-
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
 	label.Size = UDim2.new(1, -24, 1, 0)
 	label.Position = UDim2.new(0, 12, 0, 0)
 	label.BackgroundTransparency = 1
 	label.Text = labelText
 	label.TextColor3 = Color3.fromRGB(255,255,255)
 	label.Font = Enum.Font.GothamBold
-	label.TextSize = 15
-	label.TextXAlignment = Enum.TextXAlignment.Center
-	label.TextYAlignment = Enum.TextYAlignment.Center
+	label.TextSize = 13
+	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.Parent = row
 	label.ZIndex = 6
 	label.Active = false
@@ -2078,30 +2035,27 @@ end
 
 function buildMobileSettingsPage()
 	MobileSettingsPage = Instance.new("ScrollingFrame")
-	MobileSettingsPage.Size = UDim2.new(1, 0, 1, -66)
-	MobileSettingsPage.Position = UDim2.new(0, 0, 0, 66)
+	MobileSettingsPage.Size = UDim2.new(1, 0, 1, -58)
+	MobileSettingsPage.Position = UDim2.new(0, 0, 0, 58)
 	MobileSettingsPage.BackgroundTransparency = 1
 	MobileSettingsPage.BorderSizePixel = 0
 	MobileSettingsPage.ScrollBarThickness = 3
-	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 150)
+	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 210)
 	MobileSettingsPage.Visible = false
 	MobileSettingsPage.Parent = MobilePanel
 
-	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 14, "Non-spam Time")
+	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 6, "Non-spam Time")
 	SettingsNonSpamTitle.ZIndex = 40
 	SettingsNonSpamTitle.TextTransparency = 0
-	SettingsNonSpamTitle.Size = UDim2.new(0, 110, 0, 28)
-	SettingsNonSpamTitle.Position = UDim2.new(0, 12, 0, 14)
-	SettingsNonSpamTitle.TextSize = 15
 	setTargetTransparency(SettingsNonSpamTitle, 1, 0)
 
 	SettingsNonSpamBox = Instance.new("TextBox")
-	SettingsNonSpamBox.Size = UDim2.new(0, 60, 0, 30)
-	SettingsNonSpamBox.Position = UDim2.new(0, 122, 0, 12)
+	SettingsNonSpamBox.Size = UDim2.new(0, 58, 0, 28)
+	SettingsNonSpamBox.Position = UDim2.new(1, -65, 0, 4)
 	SettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsNonSpamBox.Font = Enum.Font.GothamBold
-	SettingsNonSpamBox.TextSize = 15
+	SettingsNonSpamBox.TextSize = 12
 	SettingsNonSpamBox.Text = tostring(nonSpamValue) .. "ms"
 	SettingsNonSpamBox.ClearTextOnFocus = true
 	SettingsNonSpamBox.ZIndex = 41
@@ -2117,21 +2071,18 @@ function buildMobileSettingsPage()
 		applyNonSpamSettingFromBox(SettingsNonSpamBox)
 	end)
 
-	SettingsNonSpamAfterTitle = createSettingsLabel(MobileSettingsPage, 76, "Non-spam After")
+	SettingsNonSpamAfterTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam After")
 	SettingsNonSpamAfterTitle.ZIndex = 40
 	SettingsNonSpamAfterTitle.TextTransparency = 0
-	SettingsNonSpamAfterTitle.Size = UDim2.new(0, 118, 0, 28)
-	SettingsNonSpamAfterTitle.Position = UDim2.new(0, 12, 0, 76)
-	SettingsNonSpamAfterTitle.TextSize = 15
 	setTargetTransparency(SettingsNonSpamAfterTitle, 1, 0)
 
 	SettingsNonSpamAfterBox = Instance.new("TextBox")
-	SettingsNonSpamAfterBox.Size = UDim2.new(0, 60, 0, 30)
-	SettingsNonSpamAfterBox.Position = UDim2.new(0, 122, 0, 74)
+	SettingsNonSpamAfterBox.Size = UDim2.new(0, 58, 0, 28)
+	SettingsNonSpamAfterBox.Position = UDim2.new(1, -65, 0, 40)
 	SettingsNonSpamAfterBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsNonSpamAfterBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsNonSpamAfterBox.Font = Enum.Font.GothamBold
-	SettingsNonSpamAfterBox.TextSize = 15
+	SettingsNonSpamAfterBox.TextSize = 12
 	SettingsNonSpamAfterBox.Text = tostring(nonSpamAfterValue) .. "wh"
 	SettingsNonSpamAfterBox.ClearTextOnFocus = true
 	SettingsNonSpamAfterBox.ZIndex = 41
@@ -2147,21 +2098,18 @@ function buildMobileSettingsPage()
 		applyNonSpamAfterSettingFromBox(SettingsNonSpamAfterBox)
 	end)
 
-	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 14, "C-walk Range")
+	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 78, "C-walk Range")
 	SettingsCwalkRangeTitle.ZIndex = 40
 	SettingsCwalkRangeTitle.TextTransparency = 0
-	SettingsCwalkRangeTitle.Size = UDim2.new(0, 110, 0, 28)
-	SettingsCwalkRangeTitle.Position = UDim2.new(0, 204, 0, 14)
-	SettingsCwalkRangeTitle.TextSize = 15
 	setTargetTransparency(SettingsCwalkRangeTitle, 1, 0)
 
 	SettingsCwalkRangeBox = Instance.new("TextBox")
-	SettingsCwalkRangeBox.Size = UDim2.new(0, 60, 0, 30)
-	SettingsCwalkRangeBox.Position = UDim2.new(0, 314, 0, 12)
+	SettingsCwalkRangeBox.Size = UDim2.new(0, 58, 0, 28)
+	SettingsCwalkRangeBox.Position = UDim2.new(1, -65, 0, 76)
 	SettingsCwalkRangeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsCwalkRangeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsCwalkRangeBox.Font = Enum.Font.GothamBold
-	SettingsCwalkRangeBox.TextSize = 15
+	SettingsCwalkRangeBox.TextSize = 12
 	SettingsCwalkRangeBox.Text = tostring(cwalkRangeValue) .. "sd"
 	SettingsCwalkRangeBox.ClearTextOnFocus = true
 	SettingsCwalkRangeBox.ZIndex = 41
@@ -2177,21 +2125,18 @@ function buildMobileSettingsPage()
 		applyCwalkRangeSettingFromBox(SettingsCwalkRangeBox)
 	end)
 
-	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 76, "X-ray Opacity")
+	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 114, "X-ray Opacity")
 	SettingsXrayTitle.ZIndex = 40
 	SettingsXrayTitle.TextTransparency = 0
-	SettingsXrayTitle.Size = UDim2.new(0, 110, 0, 28)
-	SettingsXrayTitle.Position = UDim2.new(0, 204, 0, 76)
-	SettingsXrayTitle.TextSize = 15
 	setTargetTransparency(SettingsXrayTitle, 1, 0)
 
 	SettingsXrayBox = Instance.new("TextBox")
-	SettingsXrayBox.Size = UDim2.new(0, 60, 0, 30)
-	SettingsXrayBox.Position = UDim2.new(0, 314, 0, 74)
+	SettingsXrayBox.Size = UDim2.new(0, 58, 0, 28)
+	SettingsXrayBox.Position = UDim2.new(1, -65, 0, 112)
 	SettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsXrayBox.Font = Enum.Font.GothamBold
-	SettingsXrayBox.TextSize = 15
+	SettingsXrayBox.TextSize = 12
 	SettingsXrayBox.Text = tostring(xrayOpacityValue) .. "%"
 	SettingsXrayBox.ClearTextOnFocus = true
 	SettingsXrayBox.ZIndex = 41
@@ -2275,7 +2220,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 396, 0, 324)
+	MobilePanel.Size = UDim2.new(0, 198, 0, 324)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -2285,8 +2230,8 @@ local function buildMobileGui()
 	setTargetTransparency(MobilePanel, 0, nil)
 
 	mobileDragHandle = Instance.new("Frame")
-	mobileDragHandle.Size = UDim2.new(1, -20, 0, 14)
-	mobileDragHandle.Position = UDim2.new(0, 10, 0, 5)
+	mobileDragHandle.Size = UDim2.new(1, -14, 0, 14)
+	mobileDragHandle.Position = UDim2.new(0, 7, 0, 5)
 	mobileDragHandle.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
 	mobileDragHandle.BorderSizePixel = 0
 	mobileDragHandle.Parent = MobilePanel
@@ -2295,13 +2240,13 @@ local function buildMobileGui()
 	setTargetTransparency(mobileDragHandle, 0, nil)
 
 	MobileTabFunctions = Instance.new("TextButton")
-	MobileTabFunctions.Size = UDim2.new(0, 118, 0, 34)
-	MobileTabFunctions.Position = UDim2.new(0, 12, 0, 24)
+	MobileTabFunctions.Size = UDim2.new(0, 54, 0, 26)
+	MobileTabFunctions.Position = UDim2.new(0, 7, 0, 24)
 	MobileTabFunctions.BackgroundColor3 = Color3.fromRGB(20,20,20)
 	MobileTabFunctions.Text = "Functions"
 	MobileTabFunctions.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFunctions.Font = Enum.Font.GothamBold
-	MobileTabFunctions.TextSize = 15
+	MobileTabFunctions.TextSize = 10
 	MobileTabFunctions.Parent = MobilePanel
 	MobileTabFunctions.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabFunctions).CornerRadius = UDim.new(0, 10)
@@ -2309,13 +2254,13 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFunctions)
 
 	MobileTabFlicks = Instance.new("TextButton")
-	MobileTabFlicks.Size = UDim2.new(0, 118, 0, 34)
-	MobileTabFlicks.Position = UDim2.new(0, 139, 0, 24)
+	MobileTabFlicks.Size = UDim2.new(0, 54, 0, 26)
+	MobileTabFlicks.Position = UDim2.new(0, 67, 0, 24)
 	MobileTabFlicks.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabFlicks.Text = "Flicks"
 	MobileTabFlicks.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFlicks.Font = Enum.Font.GothamBold
-	MobileTabFlicks.TextSize = 15
+	MobileTabFlicks.TextSize = 10
 	MobileTabFlicks.Parent = MobilePanel
 	MobileTabFlicks.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabFlicks).CornerRadius = UDim.new(0, 10)
@@ -2323,56 +2268,60 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFlicks)
 
 	MobileTabSettings = Instance.new("TextButton")
-	MobileTabSettings.Size = UDim2.new(0, 118, 0, 34)
-	MobileTabSettings.Position = UDim2.new(0, 266, 0, 24)
+	MobileTabSettings.Size = UDim2.new(0, 58, 0, 26)
+	MobileTabSettings.Position = UDim2.new(0, 127, 0, 24)
 	MobileTabSettings.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabSettings.Text = "Settings"
 	MobileTabSettings.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabSettings.Font = Enum.Font.GothamBold
-	MobileTabSettings.TextSize = 15
+	MobileTabSettings.TextSize = 10
 	MobileTabSettings.Parent = MobilePanel
 	MobileTabSettings.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabSettings).CornerRadius = UDim.new(0, 10)
 	setTargetTransparency(MobileTabSettings, 0, 0)
 	noTextStroke(MobileTabSettings)
 
-	MobileFunctionsPage = Instance.new("Frame")
-	MobileFunctionsPage.Size = UDim2.new(1, 0, 1, -66)
-	MobileFunctionsPage.Position = UDim2.new(0, 0, 0, 66)
+	MobileFunctionsPage = Instance.new("ScrollingFrame")
+	MobileFunctionsPage.Size = UDim2.new(1, 0, 1, -58)
+	MobileFunctionsPage.Position = UDim2.new(0, 0, 0, 58)
 	MobileFunctionsPage.BackgroundTransparency = 1
+	MobileFunctionsPage.BorderSizePixel = 0
+	MobileFunctionsPage.ScrollBarThickness = 3
+	MobileFunctionsPage.ScrollingDirection = Enum.ScrollingDirection.Y
+	MobileFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 300)
 	MobileFunctionsPage.Parent = MobilePanel
 
 	MobileFlicksPage = Instance.new("Frame")
-	MobileFlicksPage.Size = UDim2.new(1, 0, 1, -66)
-	MobileFlicksPage.Position = UDim2.new(0, 0, 0, 66)
+	MobileFlicksPage.Size = UDim2.new(1, 0, 1, -58)
+	MobileFlicksPage.Position = UDim2.new(0, 0, 0, 58)
 	MobileFlicksPage.BackgroundTransparency = 1
 	MobileFlicksPage.Parent = MobilePanel
 	MobileFlicksPage.Visible = false
 
 	buildMobileSettingsPage()
 
-	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createCompactSwitchRow(MobileFunctionsPage, 12, 8, "Wallhop")
-	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createCompactSwitchRow(MobileFunctionsPage, 12, 70, "Non-spam")
-	MobileRealXrayRow, mobileRealXraySwitch, mobileRealXrayKnob = createCompactSwitchRow(MobileFunctionsPage, 12, 132, "X-ray")
-	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createCompactSwitchRow(MobileFunctionsPage, 200, 8, "Corner Walk")
-	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createCompactSwitchRow(MobileFunctionsPage, 200, 70, "Beast Slow")
-	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createCompactSwitchRow(MobileFunctionsPage, 200, 132, "Clip Dance2")
+	MobileHideGuiRow, mobileHideGuiSwitch, mobileHideGuiKnob = createSwitchRow(MobileFunctionsPage, 4, "Wallhop")
+	MobileXrayRow, mobileXraySwitch, mobileXrayKnob = createSwitchRow(MobileFunctionsPage, 46, "Non-spam")
+	MobileRealXrayRow, mobileRealXraySwitch, mobileRealXrayKnob = createSwitchRow(MobileFunctionsPage, 88, "X-ray")
+	MobileCornerWalkRow, mobileCornerWalkSwitch, mobileCornerWalkKnob = createSwitchRow(MobileFunctionsPage, 130, "Corner Walk")
+	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 172, "Beast Slow")
+	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 214, "Clip Dance2")
 
-	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 8, "Normal Wallhop")
-	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 70, "Visual Wallhop")
-	Mobile360WallhopRow = createSimpleRow(MobileFlicksPage, 132, "360° Wallhop")
-	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 194, "Console Wallhop")
+	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
+	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
+	Mobile360WallhopRow = createSimpleRow(MobileFlicksPage, 88, "360° Wallhop")
+	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 130, "Console Wallhop")
 
 	MobileCurrentUsingLabel = Instance.new("TextLabel")
-	MobileCurrentUsingLabel.Size = UDim2.new(1, -24, 0, 26)
-	MobileCurrentUsingLabel.Position = UDim2.new(0, 12, 0, 252)
+	MobileCurrentUsingLabel.Size = UDim2.new(1, -14, 0, 46)
+	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 176)
 	MobileCurrentUsingLabel.BackgroundTransparency = 1
 	MobileCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileCurrentUsingLabel.Font = Enum.Font.Gotham
-	MobileCurrentUsingLabel.TextSize = 15
+	MobileCurrentUsingLabel.TextSize = 12
 	MobileCurrentUsingLabel.TextWrapped = true
-	MobileCurrentUsingLabel.TextXAlignment = Enum.TextXAlignment.Center
-	MobileCurrentUsingLabel.TextYAlignment = Enum.TextYAlignment.Center
+	MobileCurrentUsingLabel.TextXAlignment = Enum.TextXAlignment.Left
+	MobileCurrentUsingLabel.TextYAlignment = Enum.TextYAlignment.Top
 	MobileCurrentUsingLabel.Parent = MobileFlicksPage
 	noTextStroke(MobileCurrentUsingLabel)
 	setTargetTransparency(MobileCurrentUsingLabel, 1, 0)
