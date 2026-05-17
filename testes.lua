@@ -1950,6 +1950,10 @@ switchPcTab = function(name)
 	PcFlicksPage.Visible = isFlicks
 	PcSettingsPage.Visible = isSettings
 
+	if isFlicks and PcFlicksPage:IsA("ScrollingFrame") then
+		PcFlicksPage.CanvasPosition = Vector2.new(0, 0)
+	end
+
 	PcTabFunctions.BackgroundColor3 = isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	PcTabFlicks.BackgroundColor3 = isFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	PcTabSettings.BackgroundColor3 = isSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
@@ -3244,10 +3248,14 @@ local function buildPCGui()
 	PcFunctionsPage.BackgroundTransparency = 1
 	PcFunctionsPage.Parent = MainFrame
 
-	PcFlicksPage = Instance.new("Frame")
+	PcFlicksPage = Instance.new("ScrollingFrame")
 	PcFlicksPage.Size = UDim2.new(1, 0, 1, -122)
 	PcFlicksPage.Position = UDim2.new(0, 0, 0, 116)
 	PcFlicksPage.BackgroundTransparency = 1
+	PcFlicksPage.BorderSizePixel = 0
+	PcFlicksPage.ScrollBarThickness = 4
+	PcFlicksPage.ScrollingDirection = Enum.ScrollingDirection.Y
+	PcFlicksPage.CanvasSize = UDim2.new(0, 0, 0, 295)
 	PcFlicksPage.Visible = false
 	PcFlicksPage.Parent = MainFrame
 
