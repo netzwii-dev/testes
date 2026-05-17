@@ -620,6 +620,17 @@ local function buildFloorbangRing(player)
 	folder.Name = "FloorbangESP3DRing"
 	folder.Parent = workspace
 
+	local anchor = Instance.new("Part")
+	anchor.Name = "FloorbangESPAnchor"
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanTouch = false
+	anchor.CanQuery = false
+	anchor.CastShadow = false
+	anchor.Transparency = 1
+	anchor.Size = Vector3.new(0.15, 0.15, 0.15)
+	anchor.Parent = folder
+
 	local parts = {}
 	local segments = 28
 	local radius = 1.45
@@ -628,31 +639,25 @@ local function buildFloorbangRing(player)
 	local segmentLength = ((math.pi * 2 * radius) / segments) * 0.92
 
 	for i = 1, segments do
-		local glow = Instance.new("Part")
+		local glow = Instance.new("BoxHandleAdornment")
 		glow.Name = "Glow"
-		glow.Anchored = true
-		glow.CanCollide = false
-		glow.CanTouch = false
-		glow.CanQuery = false
-		glow.CastShadow = false
-		glow.Material = Enum.Material.Neon
-		glow.Color = Color3.fromRGB(255, 0, 0)
-		glow.Transparency = 0.58
-		glow.Size = Vector3.new(segmentLength * 1.15, height * 0.55, thickness * 3.2)
-		glow.Parent = folder
+		glow.Adornee = anchor
+		glow.AlwaysOnTop = true
+		glow.ZIndex = 9
+		glow.Color3 = Color3.fromRGB(255, 0, 0)
+		glow.Transparency = 0.68
+		glow.Size = Vector3.new(segmentLength * 1.18, height * 0.7, thickness * 3.6)
+		glow.Parent = anchor
 
-		local segment = Instance.new("Part")
+		local segment = Instance.new("BoxHandleAdornment")
 		segment.Name = "Ring"
-		segment.Anchored = true
-		segment.CanCollide = false
-		segment.CanTouch = false
-		segment.CanQuery = false
-		segment.CastShadow = false
-		segment.Material = Enum.Material.Neon
-		segment.Color = Color3.fromRGB(255, 0, 0)
-		segment.Transparency = 0.03
+		segment.Adornee = anchor
+		segment.AlwaysOnTop = true
+		segment.ZIndex = 10
+		segment.Color3 = Color3.fromRGB(255, 0, 0)
+		segment.Transparency = 0.04
 		segment.Size = Vector3.new(segmentLength, height, thickness)
-		segment.Parent = folder
+		segment.Parent = anchor
 
 		table.insert(parts, {segment = segment, glow = glow, angle = ((i - 1) / segments) * math.pi * 2})
 	end
@@ -662,6 +667,7 @@ local function buildFloorbangRing(player)
 
 	return {
 		folder = folder,
+		anchor = anchor,
 		parts = parts
 	}
 end
@@ -685,20 +691,27 @@ local function positionFloorbangRing(player)
 		return
 	end
 
+	local anchor = marker.anchor
+	if not anchor or not anchor.Parent then
+		removeFloorbangESP(player)
+		return
+	end
+
+	anchor.CFrame = CFrame.new(basePosition)
+
 	local radius = marker.folder and marker.folder:GetAttribute("Radius") or 1.45
 
 	for _, data in ipairs(marker.parts or {}) do
 		local angle = data.angle
 		local x = math.cos(angle) * radius
 		local z = math.sin(angle) * radius
-		local pos = basePosition + Vector3.new(x, 0, z)
-		local cframe = CFrame.new(pos) * CFrame.Angles(0, -angle, 0)
+		local localCFrame = CFrame.new(x, 0, z) * CFrame.Angles(0, -angle, 0)
 
 		if data.segment and data.segment.Parent then
-			data.segment.CFrame = cframe
+			data.segment.CFrame = localCFrame
 		end
 		if data.glow and data.glow.Parent then
-			data.glow.CFrame = cframe
+			data.glow.CFrame = localCFrame
 		end
 	end
 end
@@ -1398,7 +1411,7 @@ local function createSimpleRow(parent, yOffset, labelText)
 	label.TextColor3 = Color3.fromRGB(255,255,255)
 	label.Font = Enum.Font.GothamBold
 	label.TextSize = 13
-	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextXAlignment = Enum.TextXAlignment.Center
 	label.Parent = row
 	label.ZIndex = 6
 	label.Active = false
@@ -2467,7 +2480,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 198, 0, 324)
+	MobilePanel.Size = UDim2.new(0, 218, 0, 324)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -2487,7 +2500,7 @@ local function buildMobileGui()
 	setTargetTransparency(mobileDragHandle, 0, nil)
 
 	MobileTabFunctions = Instance.new("TextButton")
-	MobileTabFunctions.Size = UDim2.new(0, 54, 0, 26)
+	MobileTabFunctions.Size = UDim2.new(0, 60, 0, 26)
 	MobileTabFunctions.Position = UDim2.new(0, 7, 0, 24)
 	MobileTabFunctions.BackgroundColor3 = Color3.fromRGB(20,20,20)
 	MobileTabFunctions.Text = "Functions"
@@ -2501,8 +2514,8 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFunctions)
 
 	MobileTabFlicks = Instance.new("TextButton")
-	MobileTabFlicks.Size = UDim2.new(0, 54, 0, 26)
-	MobileTabFlicks.Position = UDim2.new(0, 67, 0, 24)
+	MobileTabFlicks.Size = UDim2.new(0, 60, 0, 26)
+	MobileTabFlicks.Position = UDim2.new(0, 76, 0, 24)
 	MobileTabFlicks.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabFlicks.Text = "Flicks"
 	MobileTabFlicks.TextColor3 = Color3.fromRGB(255,255,255)
@@ -2515,8 +2528,8 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFlicks)
 
 	MobileTabSettings = Instance.new("TextButton")
-	MobileTabSettings.Size = UDim2.new(0, 58, 0, 26)
-	MobileTabSettings.Position = UDim2.new(0, 127, 0, 24)
+	MobileTabSettings.Size = UDim2.new(0, 64, 0, 26)
+	MobileTabSettings.Position = UDim2.new(0, 145, 0, 24)
 	MobileTabSettings.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabSettings.Text = "Settings"
 	MobileTabSettings.TextColor3 = Color3.fromRGB(255,255,255)
