@@ -107,6 +107,7 @@ PcTabSettings = nil
 PcFunctionsPage = nil
 PcFlicksPage = nil
 PcSettingsPage = nil
+PcMinimalSettingsTitle = nil
 PcCurrentUsingLabel = nil
 PcSettingsXrayTitle = nil
 PcSettingsNonSpamTitle = nil
@@ -122,6 +123,7 @@ PcNormalWallhopButton = nil
 PcNoMoveWallhopButton = nil
 Pc360WallhopButton = nil
 PcConsoleWallhopButton = nil
+PcFlickTypesTitle = nil
 PcFlickSettingsTitle = nil
 PcNormalFlickButton = nil
 PcSpeedFlickButton = nil
@@ -133,6 +135,7 @@ MobileTabSettings = nil
 MobileFunctionsPage = nil
 MobileFlicksPage = nil
 MobileSettingsPage = nil
+MobileMinimalSettingsTitle = nil
 MobileCurrentUsingLabel = nil
 SettingsXrayBox = nil
 SettingsNonSpamBox = nil
@@ -146,6 +149,7 @@ MobileNormalWallhopRow = nil
 MobileNoMoveWallhopRow = nil
 Mobile360WallhopRow = nil
 MobileConsoleWallhopRow = nil
+MobileFlickTypesTitle = nil
 MobileFlickSettingsTitle = nil
 MobileNormalFlickRow = nil
 MobileSpeedFlickRow = nil
@@ -1448,7 +1452,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 
 	local switch = Instance.new("Frame")
 	switch.Size = UDim2.new(0, 54, 0, 28)
-	switch.Position = UDim2.new(1, -102, 0.5, -14)
+	switch.Position = UDim2.new(1, -94, 0.5, -14)
 	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
 	switch.BorderSizePixel = 0
 	switch.Parent = row
@@ -1467,6 +1471,19 @@ local function createSwitchRow(parent, yOffset, labelText)
 	knob.Active = false
 	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
 	setTargetTransparency(knob, 0, nil)
+
+	local switchHitbox = Instance.new("TextButton")
+	switchHitbox.Name = "SwitchHitbox"
+	switchHitbox.Size = UDim2.new(0, 68, 0, 38)
+	switchHitbox.Position = UDim2.new(1, -101, 0.5, -19)
+	switchHitbox.BackgroundTransparency = 1
+	switchHitbox.Text = ""
+	switchHitbox.AutoButtonColor = false
+	switchHitbox.BorderSizePixel = 0
+	switchHitbox.ZIndex = 20
+	switchHitbox.Parent = row
+	switchHitbox.Active = true
+	switchHitbox.Selectable = false
 
 	return row, switch, knob
 end
@@ -2227,7 +2244,7 @@ function updateSettingsInputs()
 		PcCwalkRangeBox.TextTransparency = 0
 		PcCwalkRangeBox.BackgroundTransparency = 0
 	end
-	for _, lbl in ipairs({SettingsNonSpamTitle, SettingsNonSpamAfterTitle, SettingsDance2TimeTitle, SettingsCwalkRangeTitle, SettingsXrayTitle, PcSettingsNonSpamTitle, PcSettingsNonSpamAfterTitle, PcDance2TimeTitle, PcCwalkRangeTitle, PcSettingsXrayTitle}) do
+	for _, lbl in ipairs({MobileMinimalSettingsTitle, SettingsNonSpamTitle, SettingsNonSpamAfterTitle, SettingsDance2TimeTitle, SettingsCwalkRangeTitle, SettingsXrayTitle, PcMinimalSettingsTitle, PcSettingsNonSpamTitle, PcSettingsNonSpamAfterTitle, PcDance2TimeTitle, PcCwalkRangeTitle, PcSettingsXrayTitle}) do
 		if lbl then
 			lbl.TextTransparency = 0
 			lbl.Visible = true
@@ -2435,18 +2452,31 @@ function buildMobileSettingsPage()
 	MobileSettingsPage.BackgroundTransparency = 1
 	MobileSettingsPage.BorderSizePixel = 0
 	MobileSettingsPage.ScrollBarThickness = 3
-	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 240)
+	MobileSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 270)
 	MobileSettingsPage.Visible = false
 	MobileSettingsPage.Parent = MobilePanel
 
-	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 6, "Non-spam Time")
+	MobileMinimalSettingsTitle = Instance.new("TextLabel")
+	MobileMinimalSettingsTitle.Size = UDim2.new(1, -14, 0, 22)
+	MobileMinimalSettingsTitle.Position = UDim2.new(0, 7, 0, 4)
+	MobileMinimalSettingsTitle.BackgroundTransparency = 1
+	MobileMinimalSettingsTitle.Text = "Minimal Settings"
+	MobileMinimalSettingsTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileMinimalSettingsTitle.Font = Enum.Font.GothamBold
+	MobileMinimalSettingsTitle.TextSize = 13
+	MobileMinimalSettingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+	MobileMinimalSettingsTitle.Parent = MobileSettingsPage
+	noTextStroke(MobileMinimalSettingsTitle)
+	setTargetTransparency(MobileMinimalSettingsTitle, 1, 0)
+
+	SettingsNonSpamTitle = createSettingsLabel(MobileSettingsPage, 32, "Non-spam Time")
 	SettingsNonSpamTitle.ZIndex = 40
 	SettingsNonSpamTitle.TextTransparency = 0
 	setTargetTransparency(SettingsNonSpamTitle, 1, 0)
 
 	SettingsNonSpamBox = Instance.new("TextBox")
 	SettingsNonSpamBox.Size = UDim2.new(0, 58, 0, 28)
-	SettingsNonSpamBox.Position = UDim2.new(1, -65, 0, 4)
+	SettingsNonSpamBox.Position = UDim2.new(1, -65, 0, 30)
 	SettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsNonSpamBox.Font = Enum.Font.GothamBold
@@ -2466,14 +2496,14 @@ function buildMobileSettingsPage()
 		applyNonSpamSettingFromBox(SettingsNonSpamBox)
 	end)
 
-	SettingsNonSpamAfterTitle = createSettingsLabel(MobileSettingsPage, 42, "Non-spam After")
+	SettingsNonSpamAfterTitle = createSettingsLabel(MobileSettingsPage, 68, "Non-spam After")
 	SettingsNonSpamAfterTitle.ZIndex = 40
 	SettingsNonSpamAfterTitle.TextTransparency = 0
 	setTargetTransparency(SettingsNonSpamAfterTitle, 1, 0)
 
 	SettingsNonSpamAfterBox = Instance.new("TextBox")
 	SettingsNonSpamAfterBox.Size = UDim2.new(0, 58, 0, 28)
-	SettingsNonSpamAfterBox.Position = UDim2.new(1, -65, 0, 40)
+	SettingsNonSpamAfterBox.Position = UDim2.new(1, -65, 0, 66)
 	SettingsNonSpamAfterBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsNonSpamAfterBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsNonSpamAfterBox.Font = Enum.Font.GothamBold
@@ -2493,14 +2523,14 @@ function buildMobileSettingsPage()
 		applyNonSpamAfterSettingFromBox(SettingsNonSpamAfterBox)
 	end)
 
-	SettingsDance2TimeTitle = createSettingsLabel(MobileSettingsPage, 78, "Dance2 Time")
+	SettingsDance2TimeTitle = createSettingsLabel(MobileSettingsPage, 104, "Dance2 Time")
 	SettingsDance2TimeTitle.ZIndex = 40
 	SettingsDance2TimeTitle.TextTransparency = 0
 	setTargetTransparency(SettingsDance2TimeTitle, 1, 0)
 
 	SettingsDance2TimeBox = Instance.new("TextBox")
 	SettingsDance2TimeBox.Size = UDim2.new(0, 58, 0, 28)
-	SettingsDance2TimeBox.Position = UDim2.new(1, -65, 0, 76)
+	SettingsDance2TimeBox.Position = UDim2.new(1, -65, 0, 102)
 	SettingsDance2TimeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsDance2TimeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsDance2TimeBox.Font = Enum.Font.GothamBold
@@ -2520,14 +2550,14 @@ function buildMobileSettingsPage()
 		applyDance2TimeSettingFromBox(SettingsDance2TimeBox)
 	end)
 
-	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 114, "C-walk Range")
+	SettingsCwalkRangeTitle = createSettingsLabel(MobileSettingsPage, 140, "C-walk Range")
 	SettingsCwalkRangeTitle.ZIndex = 40
 	SettingsCwalkRangeTitle.TextTransparency = 0
 	setTargetTransparency(SettingsCwalkRangeTitle, 1, 0)
 
 	SettingsCwalkRangeBox = Instance.new("TextBox")
 	SettingsCwalkRangeBox.Size = UDim2.new(0, 58, 0, 28)
-	SettingsCwalkRangeBox.Position = UDim2.new(1, -65, 0, 112)
+	SettingsCwalkRangeBox.Position = UDim2.new(1, -65, 0, 138)
 	SettingsCwalkRangeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsCwalkRangeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsCwalkRangeBox.Font = Enum.Font.GothamBold
@@ -2547,14 +2577,14 @@ function buildMobileSettingsPage()
 		applyCwalkRangeSettingFromBox(SettingsCwalkRangeBox)
 	end)
 
-	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 150, "X-ray Opacity")
+	SettingsXrayTitle = createSettingsLabel(MobileSettingsPage, 176, "X-ray Opacity")
 	SettingsXrayTitle.ZIndex = 40
 	SettingsXrayTitle.TextTransparency = 0
 	setTargetTransparency(SettingsXrayTitle, 1, 0)
 
 	SettingsXrayBox = Instance.new("TextBox")
 	SettingsXrayBox.Size = UDim2.new(0, 58, 0, 28)
-	SettingsXrayBox.Position = UDim2.new(1, -65, 0, 148)
+	SettingsXrayBox.Position = UDim2.new(1, -65, 0, 174)
 	SettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	SettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
 	SettingsXrayBox.Font = Enum.Font.GothamBold
@@ -2720,7 +2750,7 @@ local function buildMobileGui()
 	MobileFlicksPage.BorderSizePixel = 0
 	MobileFlicksPage.ScrollBarThickness = 3
 	MobileFlicksPage.ScrollingDirection = Enum.ScrollingDirection.Y
-	MobileFlicksPage.CanvasSize = UDim2.new(0, 0, 0, 390)
+	MobileFlicksPage.CanvasSize = UDim2.new(0, 0, 0, 420)
 	MobileFlicksPage.Parent = MobilePanel
 	MobileFlicksPage.Visible = false
 
@@ -2734,14 +2764,27 @@ local function buildMobileGui()
 	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 214, "Clip Dance2")
 	MobileFloorbangEspRow, mobileFloorbangEspSwitch, mobileFloorbangEspKnob = createSwitchRow(MobileFunctionsPage, 256, "Floorbang ESP")
 
-	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 4, "Normal Wallhop")
-	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 46, "Visual Wallhop")
-	Mobile360WallhopRow = createSimpleRow(MobileFlicksPage, 88, "360° Wallhop")
-	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 130, "Console Wallhop")
+	MobileFlickTypesTitle = Instance.new("TextLabel")
+	MobileFlickTypesTitle.Size = UDim2.new(1, -14, 0, 22)
+	MobileFlickTypesTitle.Position = UDim2.new(0, 7, 0, 4)
+	MobileFlickTypesTitle.BackgroundTransparency = 1
+	MobileFlickTypesTitle.Text = "Flick Types"
+	MobileFlickTypesTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileFlickTypesTitle.Font = Enum.Font.GothamBold
+	MobileFlickTypesTitle.TextSize = 13
+	MobileFlickTypesTitle.TextXAlignment = Enum.TextXAlignment.Left
+	MobileFlickTypesTitle.Parent = MobileFlicksPage
+	noTextStroke(MobileFlickTypesTitle)
+	setTargetTransparency(MobileFlickTypesTitle, 1, 0)
+
+	MobileNormalWallhopRow = createSimpleRow(MobileFlicksPage, 30, "Normal Wallhop")
+	MobileNoMoveWallhopRow = createSimpleRow(MobileFlicksPage, 72, "Visual Wallhop")
+	Mobile360WallhopRow = createSimpleRow(MobileFlicksPage, 114, "360° Wallhop")
+	MobileConsoleWallhopRow = createSimpleRow(MobileFlicksPage, 156, "Console Wallhop")
 
 	MobileFlickSettingsTitle = Instance.new("TextLabel")
 	MobileFlickSettingsTitle.Size = UDim2.new(1, -14, 0, 22)
-	MobileFlickSettingsTitle.Position = UDim2.new(0, 7, 0, 176)
+	MobileFlickSettingsTitle.Position = UDim2.new(0, 7, 0, 202)
 	MobileFlickSettingsTitle.BackgroundTransparency = 1
 	MobileFlickSettingsTitle.Text = "Flick Settings"
 	MobileFlickSettingsTitle.TextColor3 = Color3.fromRGB(255,255,255)
@@ -2752,18 +2795,18 @@ local function buildMobileGui()
 	noTextStroke(MobileFlickSettingsTitle)
 	setTargetTransparency(MobileFlickSettingsTitle, 1, 0)
 
-	MobileNormalFlickRow = createSimpleRow(MobileFlicksPage, 202, "Normal Flick")
-	MobileSpeedFlickRow = createSimpleRow(MobileFlicksPage, 244, "Speed Flick")
-	MobileSlowFlickRow = createSimpleRow(MobileFlicksPage, 286, "Slow Flick")
+	MobileNormalFlickRow = createSimpleRow(MobileFlicksPage, 228, "Normal Flick")
+	MobileSpeedFlickRow = createSimpleRow(MobileFlicksPage, 270, "Speed Flick")
+	MobileSlowFlickRow = createSimpleRow(MobileFlicksPage, 312, "Slow Flick")
 
 	MobileCurrentUsingLabel = Instance.new("TextLabel")
 	MobileCurrentUsingLabel.Size = UDim2.new(1, -14, 0, 46)
-	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 328)
+	MobileCurrentUsingLabel.Position = UDim2.new(0, 7, 0, 354)
 	MobileCurrentUsingLabel.BackgroundTransparency = 1
 	MobileCurrentUsingLabel.Text = "Currently config: " .. currentFlickMode .. ", " .. currentFlickSetting
 	MobileCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileCurrentUsingLabel.Font = Enum.Font.Gotham
-	MobileCurrentUsingLabel.TextSize = 12
+	MobileCurrentUsingLabel.TextSize = 10
 	MobileCurrentUsingLabel.TextWrapped = true
 	MobileCurrentUsingLabel.TextXAlignment = Enum.TextXAlignment.Left
 	MobileCurrentUsingLabel.TextYAlignment = Enum.TextYAlignment.Top
@@ -2946,34 +2989,34 @@ local function buildMobileGui()
 		switchMobileTab("Settings")
 	end)
 
-	bindRowPress(MobileHideGuiRow, function()
+	bindRowPress(MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("SwitchHitbox"), function()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
 	end)
 
-	bindRowPress(MobileCornerWalkRow, function()
+	bindRowPress(MobileCornerWalkRow and MobileCornerWalkRow:FindFirstChild("SwitchHitbox"), function()
 		setMobileCornerWalkButtonState(not mobileCornerWalkButtonVisible)
 	end)
 
-	bindRowPress(MobileBeastSlowRow, function()
+	bindRowPress(MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("SwitchHitbox"), function()
 		setMobileBeastSlowButtonState(not mobileBeastSlowButtonVisible)
 	end)
 
-	bindRowPress(MobileXrayRow, function()
+	bindRowPress(MobileXrayRow and MobileXrayRow:FindFirstChild("SwitchHitbox"), function()
 		isXrayEnabled = not isXrayEnabled
 		applyCurrentNonSpamCooldown()
 		updateMobilePanelButtons()
 		saveUserPreferences()
 	end)
 
-	bindRowPress(MobileRealXrayRow, function()
+	bindRowPress(MobileRealXrayRow and MobileRealXrayRow:FindFirstChild("SwitchHitbox"), function()
 		setXrayEnabled(not realXrayEnabled)
 	end)
 
-	bindRowPress(MobileDance2TurnRow, function()
+	bindRowPress(MobileDance2TurnRow and MobileDance2TurnRow:FindFirstChild("SwitchHitbox"), function()
 		setDance2TurnEnabled(not isDance2TurnEnabled)
 	end)
 
-	bindRowPress(MobileFloorbangEspRow, function()
+	bindRowPress(MobileFloorbangEspRow and MobileFloorbangEspRow:FindFirstChild("SwitchHitbox"), function()
 		setFloorbangESPEnabled(not isFloorbangEspEnabled)
 	end)
 
@@ -3319,7 +3362,20 @@ local function buildPCGui()
 	noTextStroke(FloorbangEspBindButton)
 	setTargetTransparency(FloorbangEspBindButton, 1, 0)
 
-	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 0, "Non-spam Time")
+	PcMinimalSettingsTitle = Instance.new("TextLabel")
+	PcMinimalSettingsTitle.Size = UDim2.new(1, -36, 0, 20)
+	PcMinimalSettingsTitle.Position = UDim2.new(0, 18, 0, 0)
+	PcMinimalSettingsTitle.BackgroundTransparency = 1
+	PcMinimalSettingsTitle.Text = "Minimal Settings"
+	PcMinimalSettingsTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	PcMinimalSettingsTitle.Font = Enum.Font.GothamBold
+	PcMinimalSettingsTitle.TextSize = 14
+	PcMinimalSettingsTitle.TextXAlignment = Enum.TextXAlignment.Left
+	PcMinimalSettingsTitle.Parent = PcSettingsPage
+	noTextStroke(PcMinimalSettingsTitle)
+	setTargetTransparency(PcMinimalSettingsTitle, 1, 0)
+
+	PcSettingsNonSpamTitle = createSettingsLabel(PcSettingsPage, 30, "Non-spam Time")
 	PcSettingsNonSpamTitle.TextSize = 15
 	PcSettingsNonSpamTitle.ZIndex = 40
 	PcSettingsNonSpamTitle.TextTransparency = 0
@@ -3327,7 +3383,7 @@ local function buildPCGui()
 
 	PcSettingsNonSpamBox = Instance.new("TextBox")
 	PcSettingsNonSpamBox.Size = UDim2.new(0, 62, 0, 28)
-	PcSettingsNonSpamBox.Position = UDim2.new(1, -80, 0, -2)
+	PcSettingsNonSpamBox.Position = UDim2.new(1, -80, 0, 28)
 	PcSettingsNonSpamBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcSettingsNonSpamBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcSettingsNonSpamBox.Font = Enum.Font.GothamBold
@@ -3348,7 +3404,7 @@ local function buildPCGui()
 		applyNonSpamSettingFromBox(PcSettingsNonSpamBox)
 	end)
 
-	PcSettingsNonSpamAfterTitle = createSettingsLabel(PcSettingsPage, 30, "Non-spam After")
+	PcSettingsNonSpamAfterTitle = createSettingsLabel(PcSettingsPage, 60, "Non-spam After")
 	PcSettingsNonSpamAfterTitle.TextSize = 15
 	PcSettingsNonSpamAfterTitle.ZIndex = 40
 	PcSettingsNonSpamAfterTitle.TextTransparency = 0
@@ -3356,7 +3412,7 @@ local function buildPCGui()
 
 	PcSettingsNonSpamAfterBox = Instance.new("TextBox")
 	PcSettingsNonSpamAfterBox.Size = UDim2.new(0, 62, 0, 28)
-	PcSettingsNonSpamAfterBox.Position = UDim2.new(1, -80, 0, 28)
+	PcSettingsNonSpamAfterBox.Position = UDim2.new(1, -80, 0, 58)
 	PcSettingsNonSpamAfterBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcSettingsNonSpamAfterBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcSettingsNonSpamAfterBox.Font = Enum.Font.GothamBold
@@ -3377,7 +3433,7 @@ local function buildPCGui()
 		applyNonSpamAfterSettingFromBox(PcSettingsNonSpamAfterBox)
 	end)
 
-	PcDance2TimeTitle = createSettingsLabel(PcSettingsPage, 60, "Dance2 Time")
+	PcDance2TimeTitle = createSettingsLabel(PcSettingsPage, 90, "Dance2 Time")
 	PcDance2TimeTitle.TextSize = 15
 	PcDance2TimeTitle.ZIndex = 40
 	PcDance2TimeTitle.TextTransparency = 0
@@ -3385,7 +3441,7 @@ local function buildPCGui()
 
 	PcDance2TimeBox = Instance.new("TextBox")
 	PcDance2TimeBox.Size = UDim2.new(0, 62, 0, 28)
-	PcDance2TimeBox.Position = UDim2.new(1, -80, 0, 58)
+	PcDance2TimeBox.Position = UDim2.new(1, -80, 0, 88)
 	PcDance2TimeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcDance2TimeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcDance2TimeBox.Font = Enum.Font.GothamBold
@@ -3406,7 +3462,7 @@ local function buildPCGui()
 		applyDance2TimeSettingFromBox(PcDance2TimeBox)
 	end)
 
-	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 90, "C-walk Range")
+	PcCwalkRangeTitle = createSettingsLabel(PcSettingsPage, 120, "C-walk Range")
 	PcCwalkRangeTitle.TextSize = 15
 	PcCwalkRangeTitle.ZIndex = 40
 	PcCwalkRangeTitle.TextTransparency = 0
@@ -3414,7 +3470,7 @@ local function buildPCGui()
 
 	PcCwalkRangeBox = Instance.new("TextBox")
 	PcCwalkRangeBox.Size = UDim2.new(0, 62, 0, 28)
-	PcCwalkRangeBox.Position = UDim2.new(1, -80, 0, 88)
+	PcCwalkRangeBox.Position = UDim2.new(1, -80, 0, 118)
 	PcCwalkRangeBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcCwalkRangeBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcCwalkRangeBox.Font = Enum.Font.GothamBold
@@ -3435,7 +3491,7 @@ local function buildPCGui()
 		applyCwalkRangeSettingFromBox(PcCwalkRangeBox)
 	end)
 
-	PcSettingsXrayTitle = createSettingsLabel(PcSettingsPage, 120, "X-ray Opacity")
+	PcSettingsXrayTitle = createSettingsLabel(PcSettingsPage, 150, "X-ray Opacity")
 	PcSettingsXrayTitle.TextSize = 15
 	PcSettingsXrayTitle.ZIndex = 40
 	PcSettingsXrayTitle.TextTransparency = 0
@@ -3443,7 +3499,7 @@ local function buildPCGui()
 
 	PcSettingsXrayBox = Instance.new("TextBox")
 	PcSettingsXrayBox.Size = UDim2.new(0, 62, 0, 28)
-	PcSettingsXrayBox.Position = UDim2.new(1, -80, 0, 118)
+	PcSettingsXrayBox.Position = UDim2.new(1, -80, 0, 148)
 	PcSettingsXrayBox.BackgroundColor3 = Color3.fromRGB(0,0,0)
 	PcSettingsXrayBox.TextColor3 = Color3.fromRGB(255,255,255)
 	PcSettingsXrayBox.Font = Enum.Font.GothamBold
@@ -3464,14 +3520,27 @@ local function buildPCGui()
 		applyXraySettingFromBox(PcSettingsXrayBox)
 	end)
 
-	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 0, "Normal Wallhop")
-	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 28, "Visual Wallhop")
-	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 56, "360° Wallhop")
-	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 84, "Console Wallhop")
+	PcFlickTypesTitle = Instance.new("TextLabel")
+	PcFlickTypesTitle.Size = UDim2.new(1, -36, 0, 20)
+	PcFlickTypesTitle.Position = UDim2.new(0, 18, 0, 0)
+	PcFlickTypesTitle.BackgroundTransparency = 1
+	PcFlickTypesTitle.Text = "Flick Types"
+	PcFlickTypesTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	PcFlickTypesTitle.Font = Enum.Font.GothamBold
+	PcFlickTypesTitle.TextSize = 14
+	PcFlickTypesTitle.TextXAlignment = Enum.TextXAlignment.Left
+	PcFlickTypesTitle.Parent = PcFlicksPage
+	noTextStroke(PcFlickTypesTitle)
+	setTargetTransparency(PcFlickTypesTitle, 1, 0)
+
+	PcNormalWallhopButton = createPcActionButton(PcFlicksPage, 24, "Normal Wallhop")
+	PcNoMoveWallhopButton = createPcActionButton(PcFlicksPage, 52, "Visual Wallhop")
+	Pc360WallhopButton = createPcActionButton(PcFlicksPage, 80, "360° Wallhop")
+	PcConsoleWallhopButton = createPcActionButton(PcFlicksPage, 108, "Console Wallhop")
 
 	PcFlickSettingsTitle = Instance.new("TextLabel")
 	PcFlickSettingsTitle.Size = UDim2.new(1, -36, 0, 20)
-	PcFlickSettingsTitle.Position = UDim2.new(0, 18, 0, 116)
+	PcFlickSettingsTitle.Position = UDim2.new(0, 18, 0, 140)
 	PcFlickSettingsTitle.BackgroundTransparency = 1
 	PcFlickSettingsTitle.Text = "Flick Settings"
 	PcFlickSettingsTitle.TextColor3 = Color3.fromRGB(255,255,255)
@@ -3482,17 +3551,17 @@ local function buildPCGui()
 	noTextStroke(PcFlickSettingsTitle)
 	setTargetTransparency(PcFlickSettingsTitle, 1, 0)
 
-	PcNormalFlickButton = createPcActionButton(PcFlicksPage, 140, "Normal Flick")
-	PcSpeedFlickButton = createPcActionButton(PcFlicksPage, 168, "Speed Flick")
-	PcSlowFlickButton = createPcActionButton(PcFlicksPage, 196, "Slow Flick")
+	PcNormalFlickButton = createPcActionButton(PcFlicksPage, 164, "Normal Flick")
+	PcSpeedFlickButton = createPcActionButton(PcFlicksPage, 192, "Speed Flick")
+	PcSlowFlickButton = createPcActionButton(PcFlicksPage, 220, "Slow Flick")
 
 	PcCurrentUsingLabel = Instance.new("TextLabel")
 	PcCurrentUsingLabel.Size = UDim2.new(1, -36, 0, 32)
-	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 226)
+	PcCurrentUsingLabel.Position = UDim2.new(0, 18, 0, 250)
 	PcCurrentUsingLabel.BackgroundTransparency = 1
 	PcCurrentUsingLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcCurrentUsingLabel.Font = Enum.Font.Gotham
-	PcCurrentUsingLabel.TextSize = 14
+	PcCurrentUsingLabel.TextSize = 12
 	PcCurrentUsingLabel.TextWrapped = true
 	PcCurrentUsingLabel.TextXAlignment = Enum.TextXAlignment.Left
 	PcCurrentUsingLabel.TextYAlignment = Enum.TextYAlignment.Top
@@ -4019,18 +4088,18 @@ end
 
 local function getFlickSettingSpeedScale()
 	if currentFlickSetting == "Speed Flick" then
-		return 0.62
+		return 0.78
 	elseif currentFlickSetting == "Slow Flick" then
-		return 1.48
+		return 1.24
 	end
 	return 1
 end
 
 local function getFlickSettingStepAdd()
 	if currentFlickSetting == "Speed Flick" then
-		return -1
+		return 0
 	elseif currentFlickSetting == "Slow Flick" then
-		return 2
+		return 1
 	end
 	return 0
 end
@@ -4304,7 +4373,7 @@ end
 
 local function apply360FlickSettingProfile(profile)
 	local scale = getFlickSettingSpeedScale()
-	local stepAdd = currentFlickSetting == "Speed Flick" and -2 or currentFlickSetting == "Slow Flick" and 2 or 0
+	local stepAdd = currentFlickSetting == "Speed Flick" and -1 or currentFlickSetting == "Slow Flick" and 1 or 0
 
 	profile.steps = math.max(4, (tonumber(profile.steps) or 8) + stepAdd)
 	profile.stepDelay = (tonumber(profile.stepDelay) or 0.0042) * scale
@@ -4568,7 +4637,7 @@ local function performConsoleWallhop()
 	specialFirstFlickArmed = false
 
 	forceWallhopJump(hum)
-	lockBodyRotation(hum, currentFlickSetting == "Speed Flick" and 0.48 or currentFlickSetting == "Slow Flick" and 0.80 or 0.62)
+	lockBodyRotation(hum, currentFlickSetting == "Speed Flick" and 0.54 or currentFlickSetting == "Slow Flick" and 0.70 or 0.62)
 	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
 
 	local function getCameraFlat()
@@ -4596,8 +4665,8 @@ local function performConsoleWallhop()
 		hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, flickYaw, 0)
 
 		task.spawn(function()
-			local returnSteps = currentFlickSetting == "Speed Flick" and 14 or currentFlickSetting == "Slow Flick" and 26 or 20
-			local stepDelay = currentFlickSetting == "Speed Flick" and 0.025 or currentFlickSetting == "Slow Flick" and 0.058 or 0.040
+			local returnSteps = currentFlickSetting == "Speed Flick" and 16 or currentFlickSetting == "Slow Flick" and 22 or 20
+			local stepDelay = currentFlickSetting == "Speed Flick" and 0.032 or currentFlickSetting == "Slow Flick" and 0.046 or 0.040
 
 			for i = 1, returnSteps do
 				if not hrp or not hrp.Parent then
@@ -4612,7 +4681,7 @@ local function performConsoleWallhop()
 				local liveTargetYaw = getYawFromVector(liveFlat)
 				local currentYaw = math.atan2(-hrp.CFrame.LookVector.X, -hrp.CFrame.LookVector.Z)
 				local delta = wrapAngle(liveTargetYaw - currentYaw)
-				local nextYaw = currentYaw + (delta * (currentFlickSetting == "Speed Flick" and 0.055 or currentFlickSetting == "Slow Flick" and 0.018 or 0.03))
+				local nextYaw = currentYaw + (delta * (currentFlickSetting == "Speed Flick" and 0.040 or currentFlickSetting == "Slow Flick" and 0.024 or 0.03))
 
 				hrp.CFrame = CFrame.new(hrp.Position) * CFrame.Angles(0, nextYaw, 0)
 
