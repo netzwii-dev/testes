@@ -632,11 +632,11 @@ local function buildFloorbangRing(player)
 	anchor.Parent = folder
 
 	local parts = {}
-	local segments = 28
-	local radius = 1.45
-	local thickness = 0.075
-	local height = 0.075
-	local segmentLength = ((math.pi * 2 * radius) / segments) * 0.92
+	local segments = 84
+	local radius = 1.6
+	local thickness = 0.09
+	local height = 0.08
+	local segmentLength = ((math.pi * 2 * radius) / segments) * 1.18
 
 	for i = 1, segments do
 		local glow = Instance.new("BoxHandleAdornment")
@@ -645,8 +645,8 @@ local function buildFloorbangRing(player)
 		glow.AlwaysOnTop = true
 		glow.ZIndex = 9
 		glow.Color3 = Color3.fromRGB(255, 0, 0)
-		glow.Transparency = 0.68
-		glow.Size = Vector3.new(segmentLength * 1.18, height * 0.7, thickness * 3.6)
+		glow.Transparency = 0.62
+		glow.Size = Vector3.new(segmentLength * 1.08, height * 0.85, thickness * 3.4)
 		glow.Parent = anchor
 
 		local segment = Instance.new("BoxHandleAdornment")
@@ -655,7 +655,7 @@ local function buildFloorbangRing(player)
 		segment.AlwaysOnTop = true
 		segment.ZIndex = 10
 		segment.Color3 = Color3.fromRGB(255, 0, 0)
-		segment.Transparency = 0.04
+		segment.Transparency = 0.02
 		segment.Size = Vector3.new(segmentLength, height, thickness)
 		segment.Parent = anchor
 
@@ -699,7 +699,7 @@ local function positionFloorbangRing(player)
 
 	anchor.CFrame = CFrame.new(basePosition)
 
-	local radius = marker.folder and marker.folder:GetAttribute("Radius") or 1.45
+	local radius = marker.folder and marker.folder:GetAttribute("Radius") or 1.6
 
 	for _, data in ipairs(marker.parts or {}) do
 		local angle = data.angle
@@ -2480,7 +2480,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobileMenuButton, 0, 0)
 
 	MobilePanel = Instance.new("Frame")
-	MobilePanel.Size = UDim2.new(0, 218, 0, 324)
+	MobilePanel.Size = UDim2.new(0, 232, 0, 324)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -2490,7 +2490,7 @@ local function buildMobileGui()
 	setTargetTransparency(MobilePanel, 0, nil)
 
 	mobileDragHandle = Instance.new("Frame")
-	mobileDragHandle.Size = UDim2.new(1, -14, 0, 14)
+	mobileDragHandle.Size = UDim2.new(1, -16, 0, 14)
 	mobileDragHandle.Position = UDim2.new(0, 7, 0, 5)
 	mobileDragHandle.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
 	mobileDragHandle.BorderSizePixel = 0
@@ -2500,13 +2500,13 @@ local function buildMobileGui()
 	setTargetTransparency(mobileDragHandle, 0, nil)
 
 	MobileTabFunctions = Instance.new("TextButton")
-	MobileTabFunctions.Size = UDim2.new(0, 60, 0, 26)
-	MobileTabFunctions.Position = UDim2.new(0, 7, 0, 24)
+	MobileTabFunctions.Size = UDim2.new(0, 62, 0, 26)
+	MobileTabFunctions.Position = UDim2.new(0, 8, 0, 24)
 	MobileTabFunctions.BackgroundColor3 = Color3.fromRGB(20,20,20)
 	MobileTabFunctions.Text = "Functions"
 	MobileTabFunctions.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFunctions.Font = Enum.Font.GothamBold
-	MobileTabFunctions.TextSize = 10
+	MobileTabFunctions.TextSize = 11
 	MobileTabFunctions.Parent = MobilePanel
 	MobileTabFunctions.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabFunctions).CornerRadius = UDim.new(0, 10)
@@ -2514,13 +2514,13 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFunctions)
 
 	MobileTabFlicks = Instance.new("TextButton")
-	MobileTabFlicks.Size = UDim2.new(0, 60, 0, 26)
-	MobileTabFlicks.Position = UDim2.new(0, 76, 0, 24)
+	MobileTabFlicks.Size = UDim2.new(0, 62, 0, 26)
+	MobileTabFlicks.Position = UDim2.new(0, 84, 0, 24)
 	MobileTabFlicks.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabFlicks.Text = "Flicks"
 	MobileTabFlicks.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFlicks.Font = Enum.Font.GothamBold
-	MobileTabFlicks.TextSize = 10
+	MobileTabFlicks.TextSize = 11
 	MobileTabFlicks.Parent = MobilePanel
 	MobileTabFlicks.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabFlicks).CornerRadius = UDim.new(0, 10)
@@ -2528,13 +2528,13 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFlicks)
 
 	MobileTabSettings = Instance.new("TextButton")
-	MobileTabSettings.Size = UDim2.new(0, 64, 0, 26)
-	MobileTabSettings.Position = UDim2.new(0, 145, 0, 24)
+	MobileTabSettings.Size = UDim2.new(0, 66, 0, 26)
+	MobileTabSettings.Position = UDim2.new(0, 160, 0, 24)
 	MobileTabSettings.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabSettings.Text = "Settings"
 	MobileTabSettings.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabSettings.Font = Enum.Font.GothamBold
-	MobileTabSettings.TextSize = 10
+	MobileTabSettings.TextSize = 11
 	MobileTabSettings.Parent = MobilePanel
 	MobileTabSettings.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabSettings).CornerRadius = UDim.new(0, 10)
@@ -2743,9 +2743,9 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 184, 0, 316)
+			MobilePanel.Size = UDim2.new(0, 224, 0, 316)
 
-			elegantShow(MobilePanel, UDim2.new(0, 190, 0, 324), MobilePanel.Position, 0)
+			elegantShow(MobilePanel, UDim2.new(0, 232, 0, 324), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
