@@ -4872,19 +4872,13 @@ local function hasValidHorizontalEdge(rayResult, params)
 end
 
 local function findValidWall(hrp, params, directions)
-	local offsets = {
-		Vector3.new(0, -1.0, 0)
-	}
-
 	for _, dir in ipairs(directions) do
-		for _, offset in ipairs(offsets) do
-			local origin = hrp.Position + offset
-			local ray = workspace:Raycast(origin, dir, params)
+		local origin = hrp.Position
+		local ray = workspace:Raycast(origin, dir, params)
 
-			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-				if isWallLikeSurface(ray.Normal) then
-					return ray
-				end
+		if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
+			if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
+				return ray
 			end
 		end
 	end
