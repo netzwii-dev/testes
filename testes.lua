@@ -4870,15 +4870,29 @@ local function hasValidHorizontalEdge(rayResult, params)
 end
 
 local function findValidWall(hrp, params, directions)
-	local forcedOffset = Vector3.new(0, -1.0, 0)
+	local offsets = {
+		Vector3.new(0, -1.5, 0),
+		Vector3.new(0, -1.4, 0),
+		Vector3.new(0, -1.3, 0),
+		Vector3.new(0, -1.2, 0),
+		Vector3.new(0, -1.1, 0),
+		Vector3.new(0, -1.0, 0),
+		Vector3.new(0, -0.9, 0),
+		Vector3.new(0, -0.8, 0),
+		Vector3.new(0, -0.7, 0),
+		Vector3.new(0, -0.6, 0),
+		Vector3.new(0, -0.5, 0)
+	}
 
 	for _, dir in ipairs(directions) do
-		local origin = hrp.Position + forcedOffset
-		local ray = workspace:Raycast(origin, dir, params)
+		for _, offset in ipairs(offsets) do
+			local origin = hrp.Position + offset
+			local ray = workspace:Raycast(origin, dir, params)
 
-		if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-			if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
-				return ray
+			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
+				if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
+					return ray
+				end
 			end
 		end
 	end
@@ -5479,4 +5493,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Suuuccessfully ✅")
+print("Cerber X V1.1 • Loaded Successfully ✅")
