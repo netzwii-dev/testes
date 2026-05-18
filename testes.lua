@@ -1,4 +1,4 @@
--- Cerber X V1.1 (Made by nyhito)
+-- Wallhop Script (Made by nyhito)
 -- All Credits: nyhito (tester, config and uploader)
 -- The Best Flee the Facility Script
 
@@ -4873,9 +4873,8 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-		Vector3.new(0, -2.3, 0),
-		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -2.1, 0)
+		Vector3.new(0, -2.1, 0),
+		Vector3.new(0, -2.0, 0)
 	}
 
 	for _, dir in ipairs(directions) do
