@@ -4141,7 +4141,7 @@ local function forceWallhopJump(hum)
 	if hrp then
 		pcall(function()
 			local velocity = hrp.AssemblyLinearVelocity
-			local boostY = math.max(velocity.Y, 50 + WALLHOP_VERTICAL_BOOST)
+			local boostY = math.max(velocity.Y, 34 + WALLHOP_VERTICAL_BOOST)
 			hrp.AssemblyLinearVelocity = Vector3.new(velocity.X, boostY, velocity.Z)
 		end)
 	end
@@ -5510,4 +5510,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Successfully ✅")
+print("Cerber X V1.1 • Loaddded Successfully ✅")
