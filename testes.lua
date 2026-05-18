@@ -4882,7 +4882,7 @@ local function findValidWall(hrp, params, directions)
 			local ray = workspace:Raycast(origin, dir, params)
 
 			if ray and ray.Instance and ray.Instance.CanCollide and not isPlayerCharacter(ray.Instance) then
-				if isWallLikeSurface(ray.Normal) and hasValidHorizontalEdge(ray, params) then
+				if isWallLikeSurface(ray.Normal) then
 					return ray
 				end
 			end
@@ -5485,4 +5485,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("CerberR X V1.1 • Loaded Successfully ✅")
+print("Cerber X V1.1 • Loaded Successfully ✅")
