@@ -4873,9 +4873,6 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-		Vector3.new(0, -0.7, 0),
-		Vector3.new(0, -0.8, 0),
-		Vector3.new(0, -0.9, 0),
 		Vector3.new(0, -1.0, 0)
 	}
 
@@ -5488,4 +5485,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.11 • Loaded Successfully ✅")
+print("CerberR X V1.1 • Loaded Successfully ✅")
