@@ -219,6 +219,7 @@ isWallHopping = false
 lastWallHopTime = 0
 WALLHOP_GRACE_TIME = 1.5
 WALLHOP_COOLDOWN = 0
+WALLHOP_VERTICAL_BOOST = 4
 
 canDoubleJump = false
 lastDoubleJump = 0
@@ -4125,6 +4126,9 @@ local function forceWallhopJump(hum)
 		return
 	end
 
+	local char = hum.Parent
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
 	jumpAnimToken += 1
 	local myToken = jumpAnimToken
 
@@ -4133,6 +4137,14 @@ local function forceWallhopJump(hum)
 	pcall(function()
 		hum:ChangeState(Enum.HumanoidStateType.Jumping)
 	end)
+
+	if hrp then
+		pcall(function()
+			local velocity = hrp.AssemblyLinearVelocity
+			local boostY = math.max(velocity.Y, 50 + WALLHOP_VERTICAL_BOOST)
+			hrp.AssemblyLinearVelocity = Vector3.new(velocity.X, boostY, velocity.Z)
+		end)
+	end
 
 	task.delay(0.085, function()
 		if myToken ~= jumpAnimToken then
@@ -5498,4 +5510,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Successsssfully ✅")
+print("Cerber X V1.1 • Loaded Successsssssfully ✅")
