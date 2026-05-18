@@ -4873,8 +4873,10 @@ end
 
 local function findValidWall(hrp, params, directions)
 	local offsets = {
-		Vector3.new(0, -2.1, 0),
-		Vector3.new(0, -2.0, 0)
+		Vector3.new(0, -2.5, 0),
+		Vector3.new(0, -2.4, 0),
+		Vector3.new(0, -2.3, 0),
+		Vector3.new(0, -2.2, 0)
 	}
 
 	for _, dir in ipairs(directions) do
