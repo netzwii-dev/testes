@@ -219,7 +219,7 @@ isWallHopping = false
 lastWallHopTime = 0
 WALLHOP_GRACE_TIME = 1.5
 WALLHOP_COOLDOWN = 0
-WALLHOP_VERTICAL_BOOST = 4
+WALLHOP_VERTICAL_BOOST = 0.8
 
 canDoubleJump = false
 lastDoubleJump = 0
@@ -5510,4 +5510,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Successsssssfully ✅")
+print("Cerber X V1.1 • Loaded Successfully ✅")
