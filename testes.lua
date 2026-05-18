@@ -4121,7 +4121,7 @@ local function lockBodyRotation(hum, duration)
 	end)
 end
 
-local function forceWallhopJump(hum)
+local function forceWallhopJump(hum, useVerticalBoost)
 	if not hum or not hum.Parent then
 		return
 	end
@@ -4138,7 +4138,7 @@ local function forceWallhopJump(hum)
 		hum:ChangeState(Enum.HumanoidStateType.Jumping)
 	end)
 
-	if hrp then
+	if useVerticalBoost and hrp then
 		pcall(function()
 			local velocity = hrp.AssemblyLinearVelocity
 			local boostY = math.max(velocity.Y, 46 + WALLHOP_VERTICAL_BOOST)
@@ -4366,13 +4366,14 @@ local function performNormalWallhop()
 		end)
 	end
 
+	local useVerticalBoost = not hasWallhoppedSinceLanding
 	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
 	if useSpecialFirst then
 		specialFirstFlickArmed = false
 	end
 	hasWallhoppedSinceLanding = true
 
-	forceWallhopJump(hum)
+	forceWallhopJump(hum, useVerticalBoost)
 	lockBodyRotation(hum, 0.36)
 	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
 
@@ -4525,13 +4526,14 @@ local function perform360Wallhop()
 		end)
 	end
 
+	local useVerticalBoost = not hasWallhoppedSinceLanding
 	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
 	if useSpecialFirst then
 		specialFirstFlickArmed = false
 	end
 	hasWallhoppedSinceLanding = true
 
-	forceWallhopJump(hum)
+	forceWallhopJump(hum, useVerticalBoost)
 	lockBodyRotation(hum, 0.36)
 	pcall(function()
 		hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
@@ -4605,13 +4607,14 @@ local function performNoMoveWallhop()
 		return
 	end
 
+	local useVerticalBoost = not hasWallhoppedSinceLanding
 	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
 	if useSpecialFirst then
 		specialFirstFlickArmed = false
 	end
 	hasWallhoppedSinceLanding = true
 
-	forceWallhopJump(hum)
+	forceWallhopJump(hum, useVerticalBoost)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick(useSpecialFirst)
@@ -4730,10 +4733,11 @@ local function performConsoleWallhop()
 		end)
 	end
 
+	local useVerticalBoost = not hasWallhoppedSinceLanding
 	hasWallhoppedSinceLanding = true
 	specialFirstFlickArmed = false
 
-	forceWallhopJump(hum)
+	forceWallhopJump(hum, useVerticalBoost)
 	lockBodyRotation(hum, currentFlickSetting == "Speed Flick" and 0.54 or currentFlickSetting == "Slow Flick" and 0.70 or 0.62)
 	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
 
@@ -5513,4 +5517,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Successfullyyy ✅")
+print("Cerber X V1.1 • Loaded Successfully ✅")
