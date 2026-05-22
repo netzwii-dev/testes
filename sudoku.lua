@@ -1,35 +1,28 @@
--- sudoku with friends solver real scan
--- detecta workspace.PlacedBoards, lê Row/Col/ClueValue e coloca o número em cada quadrado
+-- sudoku with friends solver sem gui
+-- mostra os números azuis nas casas vazias
+-- quando você preencher a casa, o número azul some sozinho
 
 local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
-
 local player = Players.LocalPlayer
+
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 
-local function getGuiParent()
-	local ok, cg = pcall(function()
-		return CoreGui
-	end)
-
-	if ok and cg then
-		return cg
-	end
-
-	return player:WaitForChild("PlayerGui")
-end
+local connections = {}
 
 local function clearOld()
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj.Name == "SolverValue" or obj.Name == "SolverStroke" then
-			obj:Destroy()
-		end
+	for _, conn in ipairs(connections) do
+		pcall(function()
+			conn:Disconnect()
+		end)
 	end
 
-	local old = getGuiParent():FindFirstChild("SudokuSolverPanel")
-	if old then
-		old:Destroy()
+	table.clear(connections)
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj.Name == "SolverValue" then
+			obj:Destroy()
+		end
 	end
 end
 
@@ -101,10 +94,12 @@ local function readNumberFromCell(cell)
 
 	for _, obj in ipairs(cell:GetChildren()) do
 		if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-			local t = tostring(obj.Text or ""):gsub("%s+", "")
+			if obj.Name ~= "SolverValue" then
+				local t = tostring(obj.Text or ""):gsub("%s+", "")
 
-			if t:match("^[1-9]$") then
-				return tonumber(t)
+				if t:match("^[1-9]$") then
+					return tonumber(t)
+				end
 			end
 		end
 	end
@@ -245,11 +240,16 @@ local function solve(grid)
 	return false
 end
 
-local function addNumberOnCell(cell, number)
-	local old = cell:FindFirstChild("SolverValue")
-	if old then
-		old:Destroy()
+local function removeSolverNumber(cell)
+	local solver = cell:FindFirstChild("SolverValue")
+
+	if solver then
+		solver:Destroy()
 	end
+end
+
+local function addNumberOnCell(cell, number)
+	removeSolverNumber(cell)
 
 	local value = Instance.new("TextLabel")
 	value.Name = "SolverValue"
@@ -265,89 +265,39 @@ local function addNumberOnCell(cell, number)
 	value.Parent = cell
 end
 
-local function createPanel(lines)
-	local guiParent = getGuiParent()
+local function watchCell(cell)
+	local function check()
+		task.wait()
 
-	local gui = Instance.new("ScreenGui")
-	gui.Name = "SudokuSolverPanel"
-	gui.ResetOnSpawn = false
-	gui.Parent = guiParent
+		local current = readNumberFromCell(cell)
 
-	local frame = Instance.new("Frame")
-	frame.Size = UDim2.new(0, 300, 0, 390)
-	frame.Position = UDim2.new(0, 20, 0.5, -195)
-	frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-	frame.BorderSizePixel = 0
-	frame.Parent = gui
-
-	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, -45, 0, 38)
-	title.Position = UDim2.new(0, 10, 0, 0)
-	title.BackgroundTransparency = 1
-	title.Text = "sudoku resolvido"
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.TextSize = 18
-	title.Font = Enum.Font.GothamBold
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.Parent = frame
-
-	local close = Instance.new("TextButton")
-	close.Size = UDim2.new(0, 32, 0, 30)
-	close.Position = UDim2.new(1, -37, 0, 5)
-	close.BackgroundColor3 = Color3.fromRGB(180, 45, 45)
-	close.Text = "X"
-	close.TextColor3 = Color3.fromRGB(255, 255, 255)
-	close.TextSize = 16
-	close.Font = Enum.Font.GothamBold
-	close.Parent = frame
-
-	Instance.new("UICorner", close).CornerRadius = UDim.new(0, 8)
-
-	close.MouseButton1Click:Connect(function()
-		gui:Destroy()
-	end)
-
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Size = UDim2.new(1, -20, 1, -50)
-	scroll.Position = UDim2.new(0, 10, 0, 42)
-	scroll.BackgroundColor3 = Color3.fromRGB(32, 32, 32)
-	scroll.BorderSizePixel = 0
-	scroll.ScrollBarThickness = 6
-	scroll.Parent = frame
-
-	Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 10)
-
-	local layout = Instance.new("UIListLayout")
-	layout.Padding = UDim.new(0, 5)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder
-	layout.Parent = scroll
-
-	local padding = Instance.new("UIPadding")
-	padding.PaddingTop = UDim.new(0, 7)
-	padding.PaddingLeft = UDim.new(0, 7)
-	padding.PaddingRight = UDim.new(0, 7)
-	padding.PaddingBottom = UDim.new(0, 7)
-	padding.Parent = scroll
-
-	for _, text in ipairs(lines) do
-		local item = Instance.new("TextLabel")
-		item.Size = UDim2.new(1, -8, 0, 29)
-		item.BackgroundColor3 = Color3.fromRGB(48, 48, 48)
-		item.Text = "  " .. text
-		item.TextColor3 = Color3.fromRGB(255, 255, 255)
-		item.TextSize = 13
-		item.Font = Enum.Font.Gotham
-		item.TextXAlignment = Enum.TextXAlignment.Left
-		item.Parent = scroll
-
-		Instance.new("UICorner", item).CornerRadius = UDim.new(0, 7)
+		if current ~= 0 then
+			removeSolverNumber(cell)
+		end
 	end
 
-	task.defer(function()
-		scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 15)
-	end)
+	local clue = cell:FindFirstChild("ClueValue")
+
+	if clue and clue:IsA("TextLabel") then
+		table.insert(connections, clue:GetPropertyChangedSignal("Text"):Connect(check))
+	end
+
+	table.insert(connections, cell.ChildAdded:Connect(function(child)
+		task.wait()
+
+		if child.Name ~= "SolverValue" then
+			check()
+
+			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
+				table.insert(connections, child:GetPropertyChangedSignal("Text"):Connect(check))
+			end
+		end
+	end))
+
+	table.insert(connections, cell.ChildRemoved:Connect(function()
+		task.wait()
+		check()
+	end))
 end
 
 clearOld()
@@ -376,7 +326,6 @@ if not solve(solved) then
 	return
 end
 
-local lines = {}
 local count = 0
 
 for r = 1, 9 do
@@ -389,17 +338,10 @@ for r = 1, 9 do
 
 			if cell then
 				addNumberOnCell(cell, number)
+				watchCell(cell)
 			end
-
-			table.insert(lines, "linha " .. r .. " | coluna " .. c .. " = " .. number)
 		end
 	end
 end
 
-if count == 0 then
-	table.insert(lines, "tabuleiro já está completo")
-end
-
-createPanel(lines)
-
-print("sudoku resolvido. casas preenchidas pelo helper: " .. count)
+print("sudoku resolvido. números mostrados: " .. count)
