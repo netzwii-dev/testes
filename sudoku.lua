@@ -1340,6 +1340,42 @@ local function getCellRowCol(cell)
 	return row, col
 end
 
+local function isStillOnCurrentBoard()
+	if not currentBoard or not currentBoard.Parent then
+		return false
+	end
+
+	local board = findBoardUnderPlayer()
+	if not board then
+		return false
+	end
+
+	return getBoardKey(board) == currentBoardKey
+end
+
+local function isCellSelectedLikeGame(cell)
+	if not cell or not cell.Parent then
+		return false
+	end
+
+	for _, attrName in ipairs({"Selected", "IsSelected", "Focused", "Current", "ActiveCell"}) do
+		local v = cell:GetAttribute(attrName)
+		if v == true then
+			return true
+		end
+	end
+
+	local c = cell.BackgroundColor3
+
+	-- selected cells in this game usually turn light/blue.
+	-- this is only a safety gate to avoid delayed note actions after leaving the cell.
+	if c.B >= 0.65 and c.G >= 0.55 and c.B > c.R + 0.08 then
+		return true
+	end
+
+	return false
+end
+
 local function autoFillExactCell(cell)
 	if not autoFillEnabled then
 		return
@@ -1798,4 +1834,4 @@ end)
 print("Sudoku helper carregado.")
 print("Botão Sudoku e menu no estilo Cerber X.")
 print("Auto-preencher: apenas com Preencher selecionado.")
-print("Auto-notas: apenas com Notas selecionado e só anota o númmero correto.")
+print("Auto-notas: apenas com Notas selecionado e só anota o número correto.")
