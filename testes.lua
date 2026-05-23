@@ -1119,8 +1119,6 @@ local function setChamsESPEnabled(state)
 end
 
 local computerCandidateCache = {}
-local lastComputerTableScan = 0
-local computerTableScanRunning = false
 
 local function isRealFTFComputerTable(model)
 	if not model or not model.Parent or not model:IsA("Model") then
@@ -1149,26 +1147,25 @@ local function isRealFTFComputerTable(model)
 	return triggerCount >= 1
 end
 
-local function getComputerScreenPart(model)
+local function getComputerBox(model)
 	if not model or not model.Parent then
-		return nil
+		return nil, nil
 	end
 
-	local screen = model:FindFirstChild("Screen", true)
-	if screen and screen:IsA("BasePart") then
-		return screen
+	local ok, cf, size = pcall(function()
+		return model:GetBoundingBox()
+	end)
+
+	if ok and cf and size then
+		return cf, size
 	end
 
-	for _, obj in ipairs(model:GetDescendants()) do
-		if obj:IsA("BasePart") then
-			local n = tostring(obj.Name or ""):lower()
-			if n:find("screen", 1, true) or n:find("monitor", 1, true) then
-				return obj
-			end
-		end
+	local part = model:FindFirstChildWhichIsA("BasePart", true)
+	if part then
+		return part.CFrame, part.Size
 	end
 
-	return model:FindFirstChildWhichIsA("BasePart", true)
+	return nil, nil
 end
 
 local function isComputerCompleted(model)
@@ -1176,66 +1173,142 @@ local function isComputerCompleted(model)
 		return true
 	end
 
+	local screen = model:FindFirstChild("Screen", true)
+	if screen and screen:IsA("BasePart") then
+		local c = screen.Color
+		-- FTF geralmente deixa a tela verde quando o PC termina.
+		if c.G > 0.55 and c.G > c.R * 1.25 and c.G > c.B * 1.10 then
+			return true
+		end
+	end
+
+	-- Alguns mapas/versões usam valores de status/progresso.
 	for _, obj in ipairs(model:GetDescendants()) do
 		if obj:IsA("BoolValue") then
 			local n = tostring(obj.Name or ""):lower()
-			if (n:find("complete", 1, true) or n:find("completed", 1, true) or n:find("hacked", 1, true)) and obj.Value == true then
+			if (n:find("complete", 1, true) or n:find("completed", 1, true) or n:find("hacked", 1, true) or n:find("finished", 1, true)) and obj.Value == true then
 				return true
 			end
 		elseif obj:IsA("IntValue") or obj:IsA("NumberValue") then
 			local n = tostring(obj.Name or ""):lower()
-			if (n:find("progress", 1, true) or n:find("percent", 1, true) or n:find("percentage", 1, true)) and tonumber(obj.Value) and tonumber(obj.Value) >= 100 then
+			local v = tonumber(obj.Value)
+			if v and (n:find("progress", 1, true) or n:find("percent", 1, true) or n:find("percentage", 1, true)) and v >= 100 then
 				return true
 			end
 		elseif obj:IsA("StringValue") then
 			local n = tostring(obj.Name or ""):lower()
 			local v = tostring(obj.Value or ""):lower()
-			if (n:find("status", 1, true) or n:find("state", 1, true) or n:find("complete", 1, true)) and (v:find("complete", 1, true) or v:find("hacked", 1, true) or v == "done") then
+			if (n:find("status", 1, true) or n:find("state", 1, true) or n:find("complete", 1, true))
+				and (v:find("complete", 1, true) or v:find("hacked", 1, true) or v:find("finished", 1, true) or v == "done") then
 				return true
 			end
 		end
 	end
 
-	local screen = getComputerScreenPart(model)
-	if screen and screen:IsA("BasePart") then
-		local c = screen.Color
-		-- Muitos mapas deixam a tela verde quando o PC é concluído.
-		if c.G > 0.55 and c.G > c.R * 1.35 and c.G > c.B * 1.15 then
-			return true
-		end
-	end
-
-	-- Fallback conservador: só considera completo se todos os triggers BoolValue "Value" estiverem true.
-	local totalValues = 0
-	local trueValues = 0
+	-- Fallback pelo ActionSign: quando todos zeram/ficam negativos, o PC geralmente não é mais hackável.
+	local totalSigns = 0
+	local inactiveSigns = 0
 
 	for i = 1, 3 do
 		local trigger = model:FindFirstChild("ComputerTrigger" .. tostring(i), true)
 		if trigger then
-			local value = trigger:FindFirstChild("Value")
-			if value and value:IsA("BoolValue") then
-				totalValues += 1
-				if value.Value == true then
-					trueValues += 1
+			local actionSign = trigger:FindFirstChild("ActionSign")
+			if actionSign and (actionSign:IsA("IntValue") or actionSign:IsA("NumberValue")) then
+				totalSigns += 1
+				if tonumber(actionSign.Value) and tonumber(actionSign.Value) <= 0 then
+					inactiveSigns += 1
 				end
 			end
 		end
 	end
 
-	return totalValues >= 3 and trueValues >= totalValues
+	return totalSigns >= 3 and inactiveSigns >= totalSigns
+end
+
+local function destroyComputerMarker(marker)
+	if not marker then
+		return
+	end
+
+	pcall(function()
+		if marker.fill then marker.fill:Destroy() end
+		if marker.outline then marker.outline:Destroy() end
+		if marker.proxy then marker.proxy:Destroy() end
+	end)
 end
 
 local function removeComputerESP(root)
 	local marker = computerESPMarkers[root]
-	if marker then
-		pcall(function()
-			if marker.fill then marker.fill:Destroy() end
-			if marker.outline then marker.outline:Destroy() end
-		end)
-	end
-
+	destroyComputerMarker(marker)
 	computerESPMarkers[root] = nil
 	computerCandidateCache[root] = nil
+end
+
+local function updateComputerMarkerBox(root, marker)
+	local cf, size = getComputerBox(root)
+	if not cf or not size or not marker or not marker.proxy then
+		return
+	end
+
+	local paddedSize = Vector3.new(
+		math.max(size.X + 0.18, 0.25),
+		math.max(size.Y + 0.18, 0.25),
+		math.max(size.Z + 0.18, 0.25)
+	)
+
+	marker.proxy.CFrame = cf
+	marker.proxy.Size = paddedSize
+
+	if marker.fill then
+		marker.fill.Size = paddedSize
+	end
+end
+
+local function createComputerMarker(root)
+	local cf, size = getComputerBox(root)
+	if not cf or not size then
+		return nil
+	end
+
+	local proxy = Instance.new("Part")
+	proxy.Name = "CerberXComputerESPBox"
+	proxy.Anchored = true
+	proxy.CanCollide = false
+	proxy.CanTouch = false
+	proxy.CanQuery = false
+	proxy.CastShadow = false
+	proxy.Transparency = 1
+	proxy.CFrame = cf
+	proxy.Size = size + Vector3.new(0.18, 0.18, 0.18)
+	proxy.Parent = workspace
+
+	local fill = Instance.new("BoxHandleAdornment")
+	fill.Name = "CerberXComputerOuterFill"
+	fill.Adornee = proxy
+	fill.AlwaysOnTop = true
+	fill.ZIndex = 8
+	fill.Color3 = Color3.fromRGB(0, 185, 255)
+	fill.Transparency = 0.78
+	fill.Size = proxy.Size
+	fill.Parent = proxy
+
+	local outline = Instance.new("SelectionBox")
+	outline.Name = "CerberXComputerOuterOutline"
+	outline.Adornee = proxy
+	outline.LineThickness = 0.035
+	outline.Color3 = Color3.fromRGB(0, 255, 170)
+	outline.SurfaceTransparency = 1
+	outline.Parent = proxy
+
+	local marker = {
+		proxy = proxy,
+		fill = fill,
+		outline = outline
+	}
+
+	updateComputerMarkerBox(root, marker)
+
+	return marker
 end
 
 local function addComputerCandidate(model)
@@ -1245,61 +1318,11 @@ local function addComputerCandidate(model)
 end
 
 local function scanComputerTables()
-	if computerTableScanRunning then
-		return
-	end
-
-	computerTableScanRunning = true
-
-	task.spawn(function()
-		for root in pairs(computerCandidateCache) do
-			if not root or not root.Parent or not isRealFTFComputerTable(root) or isComputerCompleted(root) then
-				removeComputerESP(root)
-			end
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") and obj.Name == "ComputerTable" then
+			addComputerCandidate(obj)
 		end
-
-		for _, obj in ipairs(workspace:GetDescendants()) do
-			if obj:IsA("Model") and obj.Name == "ComputerTable" then
-				addComputerCandidate(obj)
-			end
-		end
-
-		lastComputerTableScan = tick()
-		computerTableScanRunning = false
-		updateComputerESP()
-	end)
-end
-
-local function createComputerMarker(root)
-	local screen = getComputerScreenPart(root)
-	if not screen then
-		return nil
 	end
-
-	-- BoxHandleAdornment em uma peça só é muito mais leve que Highlight no model inteiro.
-	local fill = Instance.new("BoxHandleAdornment")
-	fill.Name = "CerberXComputerFill"
-	fill.Adornee = screen
-	fill.AlwaysOnTop = true
-	fill.ZIndex = 8
-	fill.Color3 = Color3.fromRGB(0, 185, 255)
-	fill.Transparency = 0.68
-	fill.Size = screen.Size + Vector3.new(0.05, 0.05, 0.05)
-	fill.Parent = screen
-
-	local outline = Instance.new("SelectionBox")
-	outline.Name = "CerberXComputerOutline"
-	outline.Adornee = screen
-	outline.LineThickness = 0.035
-	outline.Color3 = Color3.fromRGB(0, 255, 170)
-	outline.SurfaceTransparency = 1
-	outline.Parent = screen
-
-	return {
-		fill = fill,
-		outline = outline,
-		adornee = screen
-	}
 end
 
 local function updateComputerESP()
@@ -1307,29 +1330,16 @@ local function updateComputerESP()
 		if not root or not root.Parent or not isRealFTFComputerTable(root) or isComputerCompleted(root) then
 			removeComputerESP(root)
 		else
-			local screen = getComputerScreenPart(root)
-			if not screen then
-				removeComputerESP(root)
-			else
-				local marker = computerESPMarkers[root]
-
-				if not marker or not marker.fill or not marker.fill.Parent or marker.adornee ~= screen then
-					removeComputerESP(root)
-					marker = createComputerMarker(root)
-					if marker then
-						computerESPMarkers[root] = marker
-					end
-				else
-					marker.fill.Adornee = screen
-					marker.fill.Size = screen.Size + Vector3.new(0.05, 0.05, 0.05)
-					marker.outline.Adornee = screen
+			local marker = computerESPMarkers[root]
+			if not marker or not marker.proxy or not marker.proxy.Parent then
+				marker = createComputerMarker(root)
+				if marker then
+					computerESPMarkers[root] = marker
 				end
+			else
+				updateComputerMarkerBox(root, marker)
 			end
 		end
-	end
-
-	if tick() - lastComputerTableScan >= 25 then
-		scanComputerTables()
 	end
 end
 
@@ -1350,17 +1360,23 @@ local function watchComputerCompletion(model)
 					end
 				end)
 			end)
+		elseif obj:IsA("BasePart") and obj.Name == "Screen" then
+			pcall(function()
+				obj:GetPropertyChangedSignal("Color"):Connect(function()
+					if isComputerCompleted(model) then
+						removeComputerESP(model)
+					end
+				end)
+			end)
 		end
 	end
 end
 
 workspace.DescendantAdded:Connect(function(obj)
 	if obj:IsA("Model") and obj.Name == "ComputerTable" then
-		task.defer(function()
-			addComputerCandidate(obj)
-			watchComputerCompletion(obj)
-			updateComputerESP()
-		end)
+		addComputerCandidate(obj)
+		watchComputerCompletion(obj)
+		updateComputerESP()
 	end
 end)
 
@@ -1375,16 +1391,11 @@ workspace.DescendantRemoving:Connect(function(obj)
 	end
 end)
 
-task.defer(function()
-	scanComputerTables()
-
-	task.delay(1, function()
-		for root in pairs(computerCandidateCache) do
-			watchComputerCompletion(root)
-		end
-		updateComputerESP()
-	end)
-end)
+scanComputerTables()
+for root in pairs(computerCandidateCache) do
+	watchComputerCompletion(root)
+end
+updateComputerESP()
 
 
 local function disconnectRoleWatch(player)
@@ -1497,8 +1508,8 @@ RunService.Heartbeat:Connect(function()
 	local now = tick()
 
 	-- Player Chams não faz mais loop: atualiza no toggle, CharacterAdded e IsBeast.Changed.
-	-- Computer ESP usa cache e roda raramente, sem escanear o mapa aqui.
-	if (now - lastComputerESPUpdate) >= 6 then
+	-- Computer ESP usa cache e atualiza sempre, sem escanear o mapa aqui.
+	if (now - lastComputerESPUpdate) >= 0 then
 		lastComputerESPUpdate = now
 		updateComputerESP()
 	end
@@ -3448,7 +3459,7 @@ local function buildMobileGui()
 	MobileESPInfoLabel.Size = UDim2.new(1, -14, 0, 56)
 	MobileESPInfoLabel.Position = UDim2.new(0, 7, 0, 76)
 	MobileESPInfoLabel.BackgroundTransparency = 1
-	MobileESPInfoLabel.Text = "Computer ESP is always on. Unfinished FTF PCs get lightweight screen chams."
+	MobileESPInfoLabel.Text = "Computer ESP is always on. Unfinished FTF PCs get lightweight outer chams."
 	MobileESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileESPInfoLabel.Font = Enum.Font.Gotham
 	MobileESPInfoLabel.TextSize = 11
@@ -4362,7 +4373,7 @@ local function buildPCGui()
 	PcESPInfoLabel.Size = UDim2.new(1, -36, 0, 46)
 	PcESPInfoLabel.Position = UDim2.new(0, 18, 0, 68)
 	PcESPInfoLabel.BackgroundTransparency = 1
-	PcESPInfoLabel.Text = "Computer ESP is always on. Unfinished FTF PCs get lightweight screen chams."
+	PcESPInfoLabel.Text = "Computer ESP is always on. Unfinished FTF PCs get lightweight outer chams."
 	PcESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcESPInfoLabel.Font = Enum.Font.Gotham
 	PcESPInfoLabel.TextSize = 12
@@ -6218,4 +6229,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaddddded Successfully ✅")
+print("Cerber X V1.1 • Loaded Successfully ✅")
