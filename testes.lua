@@ -871,7 +871,7 @@ local function positionFloorbangRing(player)
 end
 
 local function createFloorbangESP(player)
-	if not isFloorbangEspEnabled or not player or player == LocalPlayer then
+	if not isFloorbangEspEnabled or not isPlayerBeast(LocalPlayer) or not player or player == LocalPlayer then
 		return
 	end
 
@@ -897,7 +897,7 @@ local function createFloorbangESP(player)
 end
 
 local function updateFloorbangESP()
-	if not isFloorbangEspEnabled then
+	if not isFloorbangEspEnabled or not isPlayerBeast(LocalPlayer) then
 		clearFloorbangESP()
 		return
 	end
@@ -926,7 +926,7 @@ end
 local function setFloorbangESPEnabled(state)
 	isFloorbangEspEnabled = state and true or false
 
-	if isFloorbangEspEnabled then
+	if isFloorbangEspEnabled and isPlayerBeast(LocalPlayer) then
 		purgeFloorbangESPOrphans()
 		updateFloorbangESP()
 	else
@@ -944,7 +944,7 @@ end)
 Players.PlayerAdded:Connect(function(player)
 	player.CharacterAdded:Connect(function()
 		task.wait(0.35)
-		if isFloorbangEspEnabled then
+		if isFloorbangEspEnabled and isPlayerBeast(LocalPlayer) then
 			createFloorbangESP(player)
 		end
 	end)
@@ -954,7 +954,7 @@ for _, player in ipairs(Players:GetPlayers()) do
 	if player ~= LocalPlayer then
 		player.CharacterAdded:Connect(function()
 			task.wait(0.35)
-			if isFloorbangEspEnabled then
+			if isFloorbangEspEnabled and isPlayerBeast(LocalPlayer) then
 				createFloorbangESP(player)
 			end
 		end)
@@ -1076,39 +1076,98 @@ end
 local function setChamsESPEnabled(state)
 	chamsESPEnabled = state and true or false
 	updateChamsESP()
-	if updateESPButtons then updateESPButtons() end
+
+	if mobileChamsESPSwitch and mobileChamsESPKnob then
+		updateSwitchVisual(mobileChamsESPSwitch, mobileChamsESPKnob, chamsESPEnabled)
+	end
+
+	if updateESPButtons then
+		updateESPButtons()
+	end
+
 	saveUserPreferences()
 end
 
+local function isLikelyComputerModel(model)
+	if not model or not model.Parent or not model:IsA("Model") then
+		return false
+	end
+
+	if model:FindFirstChildOfClass("Humanoid") then
+		return false
+	end
+
+	local n = tostring(model.Name or ""):lower()
+	local nameLooksRight = n:find("computer", 1, true) ~= nil
+
+	local hasVisiblePart = false
+	local hasComputerPart = false
+	for _, obj in ipairs(model:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			if obj.Transparency < 0.95 and obj.Size.Magnitude > 0.2 then
+				hasVisiblePart = true
+			end
+
+			local partName = tostring(obj.Name or ""):lower()
+			if partName:find("screen", 1, true)
+				or partName:find("keyboard", 1, true)
+				or partName:find("monitor", 1, true)
+				or partName:find("computer", 1, true) then
+				hasComputerPart = true
+			end
+		end
+	end
+
+	return nameLooksRight and hasVisiblePart and hasComputerPart
+end
+
 local function getComputerRoot(obj)
-	if not obj or not obj.Parent then return nil end
-	local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
-	if model and model:FindFirstChildOfClass("Humanoid") then return nil end
+	if not obj or not obj.Parent then
+		return nil
+	end
+
 	local current = obj
 	while current and current ~= workspace do
-		local n = tostring(current.Name or ""):lower()
-		if n:find("computer", 1, true) or n:find("hack", 1, true) then
-			if current:IsA("Model") or current:IsA("BasePart") then return current end
+		if current:IsA("Model") and isLikelyComputerModel(current) then
+			return current
 		end
 		current = current.Parent
 	end
-	return model
+
+	return nil
 end
 
 local function getRootPosition(root)
-	if not root or not root.Parent then return nil end
-	if root:IsA("BasePart") then return root.Position end
-	if root:IsA("Model") then
-		local primary = root.PrimaryPart or root:FindFirstChildWhichIsA("BasePart", true)
-		if primary then return primary.Position end
+	if not root or not root.Parent then
+		return nil
 	end
+
+	if root:IsA("Model") then
+		local ok, cf = pcall(function()
+			return root:GetPivot()
+		end)
+		if ok and cf then
+			return cf.Position
+		end
+
+		local primary = root.PrimaryPart or root:FindFirstChildWhichIsA("BasePart", true)
+		if primary then
+			return primary.Position
+		end
+	end
+
 	return nil
 end
 
 local function getRootAdornee(root)
-	if not root or not root.Parent then return nil end
-	if root:IsA("BasePart") then return root end
-	if root:IsA("Model") then return root.PrimaryPart or root:FindFirstChildWhichIsA("BasePart", true) end
+	if not root or not root.Parent then
+		return nil
+	end
+
+	if root:IsA("Model") then
+		return root
+	end
+
 	return nil
 end
 
@@ -1116,8 +1175,7 @@ local function getComputerCandidates()
 	local candidates = {}
 
 	for _, obj in ipairs(workspace:GetDescendants()) do
-		local n = tostring(obj.Name or ""):lower()
-		if (n:find("computer", 1, true) or n:find("hack", 1, true)) and (obj:IsA("Model") or obj:IsA("BasePart")) then
+		if obj:IsA("Model") then
 			local root = getComputerRoot(obj)
 			local pos = getRootPosition(root)
 			if root and pos then
@@ -1151,8 +1209,7 @@ local function updateComputerESP()
 			end
 		end
 
-		-- Apenas computadores MUITO próximos aparecem.
-		-- 1 vizinho = double spot, 2+ vizinhos = triple spot.
+		-- Só computadores com pelo menos 1 outro computador dentro de 14 studs recebem chams.
 		if nearby >= 1 then
 			clustered[root] = true
 
@@ -1185,41 +1242,6 @@ local function updateComputerESP()
 		end
 	end
 end
-
-local lastComputerESPUpdate = 0
-RunService.RenderStepped:Connect(function()
-	if not isThisScriptActive or not isThisScriptActive() then
-		clearChamsESP()
-		return
-	end
-	updateChamsESP()
-	if tick() - lastComputerESPUpdate >= 1 then
-		lastComputerESPUpdate = tick()
-		updateComputerESP()
-	end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-	if playerESPHighlights[player] then
-		playerESPHighlights[player]:Destroy()
-		playerESPHighlights[player] = nil
-	end
-end)
-
-updateESPButtons = function()
-	if PcChamsESPButton then
-		PcChamsESPButton.Text = chamsESPEnabled and "Player Chams: On" or "Player Chams: Off"
-	end
-
-	if MobileChamsESPRow and MobileChamsESPRow:FindFirstChild("Label") then
-		MobileChamsESPRow.Label.Text = "Player Chams"
-	end
-
-	if mobileChamsESPSwitch and mobileChamsESPKnob then
-		updateSwitchVisual(mobileChamsESPSwitch, mobileChamsESPKnob, chamsESPEnabled)
-	end
-end
-
 
 local function restoreDance2Noclip()
 	for part, oldValue in pairs(dance2NoclipOriginalCanCollide) do
@@ -3430,11 +3452,6 @@ local function buildMobileGui()
 		setChamsESPEnabled(not chamsESPEnabled)
 	end)
 
-	if mobileChamsESPSwitch then
-		mobileChamsESPSwitch.Activated:Connect(function()
-			setChamsESPEnabled(not chamsESPEnabled)
-		end)
-	end
 
 	bindRowPress(MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("SwitchHitbox"), function()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
@@ -5938,4 +5955,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Successfully ✅")
+print("Cerber X V1.1 • Loafded Successfully ✅")
