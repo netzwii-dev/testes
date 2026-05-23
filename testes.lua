@@ -1120,60 +1120,65 @@ local function setChamsESPEnabled(state)
 end
 
 local computerCandidateCache = {}
-local lastComputerCandidateScan = 0
-local computerScanRunning = false
+local computerInteractables = {}
+local lastComputerESPUpdate = 0
 
-local function modelHasComputerSignals(model)
-	if not model or not model.Parent or not model:IsA("Model") then
+local function isComputerInteractable(obj)
+	if not obj or not obj.Parent then
 		return false
 	end
 
-	if model:FindFirstChildOfClass("Humanoid") then
-		return false
+	if obj:IsA("ProximityPrompt") then
+		local text = (
+			tostring(obj.ActionText or "") .. " " ..
+			tostring(obj.ObjectText or "") .. " " ..
+			tostring(obj.Name or "")
+		):lower()
+
+		return text:find("hack", 1, true)
+			or text:find("computer", 1, true)
+			or text:find("pc", 1, true)
 	end
 
-	local name = tostring(model.Name or ""):lower()
-	local score = 0
+	if obj:IsA("ClickDetector") then
+		local parentName = obj.Parent and tostring(obj.Parent.Name or ""):lower() or ""
+		local detectorName = tostring(obj.Name or ""):lower()
 
-	if name:find("computer", 1, true) then
-		score += 4
-	end
-	if name:find("pc", 1, true) then
-		score += 2
-	end
-	if name:find("hack", 1, true) then
-		score += 1
+		return parentName:find("computer", 1, true)
+			or parentName:find("hack", 1, true)
+			or detectorName:find("computer", 1, true)
+			or detectorName:find("hack", 1, true)
 	end
 
-	local visibleParts = 0
+	return false
+end
 
-	for _, obj in ipairs(model:GetDescendants()) do
-		if obj:IsA("BasePart") then
-			if obj.Transparency < 0.95 and obj.Size.Magnitude > 0.25 then
-				visibleParts += 1
-			end
+local function findComputerModelFromInteractable(obj)
+	if not obj or not obj.Parent then
+		return nil
+	end
 
-			local partName = tostring(obj.Name or ""):lower()
-			if partName:find("computer", 1, true) then
-				score += 3
-			elseif partName:find("screen", 1, true) then
-				score += 3
-			elseif partName:find("monitor", 1, true) then
-				score += 3
-			elseif partName:find("keyboard", 1, true) then
-				score += 3
-			elseif partName:find("hack", 1, true) then
-				score += 1
-			end
-		elseif obj:IsA("ProximityPrompt") then
-			local promptText = (tostring(obj.ActionText or "") .. " " .. tostring(obj.ObjectText or "")):lower()
-			if promptText:find("hack", 1, true) or promptText:find("computer", 1, true) then
-				score += 4
+	local current = obj.Parent
+	local best = nil
+
+	while current and current ~= workspace do
+		if current:IsA("Model") and not current:FindFirstChildOfClass("Humanoid") then
+			local n = tostring(current.Name or ""):lower()
+
+			if n:find("computer", 1, true)
+				or n:find("pc", 1, true)
+				or n:find("hack", 1, true)
+				or current:FindFirstChild("Screen", true)
+				or current:FindFirstChild("Keyboard", true)
+				or current:FindFirstChild("Monitor", true) then
+				best = current
 			end
 		end
+
+		current = current.Parent
 	end
 
-	return visibleParts >= 2 and score >= 4
+	return best
 end
 
 local function getRootPosition(root)
@@ -1208,73 +1213,39 @@ local function removeComputerESP(root)
 	end
 
 	computerESPMarkers[root] = nil
+	computerCandidateCache[root] = nil
 end
 
-local function rescanComputerCandidates()
-	if computerScanRunning then
+local function registerComputerInteractable(obj)
+	if not isComputerInteractable(obj) then
 		return
 	end
 
-	computerScanRunning = true
-
-	task.spawn(function()
-		local found = {}
-		local descendants = workspace:GetDescendants()
-		local checked = 0
-
-		for _, obj in ipairs(descendants) do
-			if obj:IsA("Model") then
-				local name = tostring(obj.Name or ""):lower()
-
-				if name:find("computer", 1, true) or name:find("pc", 1, true) or name:find("hack", 1, true) then
-					if modelHasComputerSignals(obj) then
-						local pos = getRootPosition(obj)
-						if pos then
-							found[obj] = pos
-						end
-					end
-
-					checked += 1
-					if checked % 8 == 0 then
-						task.wait()
-					end
-				end
-			end
-		end
-
-		computerCandidateCache = found
-		lastComputerCandidateScan = tick()
-		computerScanRunning = false
-
-		pcall(function()
-			updateComputerESP()
-		end)
-	end)
-end
-
-local function getComputerCandidates()
-	if tick() - lastComputerCandidateScan > 45 or not next(computerCandidateCache) then
-		rescanComputerCandidates()
+	local root = findComputerModelFromInteractable(obj)
+	if not root or not root.Parent then
+		return
 	end
 
-	local candidates = {}
-
-	for root in pairs(computerCandidateCache) do
-		local pos = getRootPosition(root)
-		if root and root.Parent and pos then
-			candidates[root] = pos
-		else
-			computerCandidateCache[root] = nil
-			removeComputerESP(root)
-		end
-	end
-
-	return candidates
+	computerInteractables[obj] = root
+	computerCandidateCache[root] = true
 end
 
-local function isComputerInLocalRange(pos)
+local function rescanComputerCandidates()
+	table.clear(computerInteractables)
+	table.clear(computerCandidateCache)
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("ProximityPrompt") or obj:IsA("ClickDetector") then
+			registerComputerInteractable(obj)
+		end
+	end
+end
+
+local function isComputerInLocalRange(root)
 	local char = LocalPlayer.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local pos = getRootPosition(root)
+
 	if not hrp or not pos then
 		return false
 	end
@@ -1283,11 +1254,12 @@ local function isComputerInLocalRange(pos)
 end
 
 local function updateComputerESP()
-	local candidates = getComputerCandidates()
 	local visibleNow = {}
 
-	for root, pos in pairs(candidates) do
-		if isComputerInLocalRange(pos) then
+	for root in pairs(computerCandidateCache) do
+		if not root or not root.Parent then
+			removeComputerESP(root)
+		elseif isComputerInLocalRange(root) then
 			visibleNow[root] = true
 
 			local marker = computerESPMarkers[root]
@@ -1295,15 +1267,14 @@ local function updateComputerESP()
 				local highlight = Instance.new("Highlight")
 				highlight.Name = "CerberXComputerChams"
 				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-				highlight.FillTransparency = 0.65
+				highlight.FillTransparency = 0.72
 				highlight.OutlineTransparency = 0.08
 				highlight.FillColor = Color3.fromRGB(0, 185, 255)
 				highlight.OutlineColor = Color3.fromRGB(0, 255, 170)
 				highlight.Adornee = root
 				highlight.Parent = root
 
-				marker = {highlight = highlight}
-				computerESPMarkers[root] = marker
+				computerESPMarkers[root] = {highlight = highlight}
 			else
 				marker.highlight.Adornee = root
 			end
@@ -1317,12 +1288,42 @@ local function updateComputerESP()
 	end
 end
 
+workspace.DescendantAdded:Connect(function(obj)
+	if obj:IsA("ProximityPrompt") or obj:IsA("ClickDetector") then
+		task.defer(function()
+			registerComputerInteractable(obj)
+			updateComputerESP()
+		end)
+	end
+end)
+
 workspace.DescendantRemoving:Connect(function(obj)
+	if computerInteractables[obj] then
+		local root = computerInteractables[obj]
+		computerInteractables[obj] = nil
+
+		local stillHasInteractable = false
+		for _, candidateRoot in pairs(computerInteractables) do
+			if candidateRoot == root then
+				stillHasInteractable = true
+				break
+			end
+		end
+
+		if not stillHasInteractable then
+			removeComputerESP(root)
+		end
+	end
+
 	local root = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
 	if root and computerCandidateCache[root] then
-		computerCandidateCache[root] = nil
 		removeComputerESP(root)
 	end
+end)
+
+task.defer(function()
+	rescanComputerCandidates()
+	updateComputerESP()
 end)
 
 
@@ -3387,7 +3388,7 @@ local function buildMobileGui()
 	MobileESPInfoLabel.Size = UDim2.new(1, -14, 0, 56)
 	MobileESPInfoLabel.Position = UDim2.new(0, 7, 0, 76)
 	MobileESPInfoLabel.BackgroundTransparency = 1
-	MobileESPInfoLabel.Text = "Computer ESP is always on. PCs within 500 studs get chams."
+	MobileESPInfoLabel.Text = "Computer ESP is always on. Only hackable PCs within 500 studs get chams."
 	MobileESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileESPInfoLabel.Font = Enum.Font.Gotham
 	MobileESPInfoLabel.TextSize = 11
@@ -4301,7 +4302,7 @@ local function buildPCGui()
 	PcESPInfoLabel.Size = UDim2.new(1, -36, 0, 46)
 	PcESPInfoLabel.Position = UDim2.new(0, 18, 0, 68)
 	PcESPInfoLabel.BackgroundTransparency = 1
-	PcESPInfoLabel.Text = "Computer ESP is always on. PCs within 500 studs get chams."
+	PcESPInfoLabel.Text = "Computer ESP is always on. Only hackable PCs within 500 studs get chams."
 	PcESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcESPInfoLabel.Font = Enum.Font.Gotham
 	PcESPInfoLabel.TextSize = 12
@@ -6157,4 +6158,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaddded Successfully ✅")
+print("Cerber X V1.1 • Loaded Succccessfully ✅")
