@@ -1340,16 +1340,6 @@ local function getCellRowCol(cell)
 	return row, col
 end
 
-local function getCellActionKey(cell, mode, number)
-	local row, col = getCellRowCol(cell)
-
-	if not row then
-		return ""
-	end
-
-	return tostring(currentBoardKey) .. ":" .. tostring(mode) .. ":" .. tostring(row) .. ":" .. tostring(col) .. ":" .. tostring(number or "")
-end
-
 local function isStillOnCurrentBoard()
 	if not currentBoard or not currentBoard.Parent then
 		return false
@@ -1386,12 +1376,8 @@ local function isCellSelectedLikeGame(cell)
 	return false
 end
 
-local function autoFillExactCell(cell, token)
+local function autoFillExactCell(cell)
 	if not autoFillEnabled then
-		return
-	end
-
-	if token ~= actionToken then
 		return
 	end
 
@@ -1404,6 +1390,7 @@ local function autoFillExactCell(cell, token)
 	end
 
 	local row, col = getCellRowCol(cell)
+
 	if not row then
 		return
 	end
@@ -1414,21 +1401,25 @@ local function autoFillExactCell(cell, token)
 	end
 
 	local correct = currentSolution[row][col]
+
 	if typeof(correct) ~= "number" or correct < 1 or correct > 9 then
 		return
 	end
 
-	local key = getCellActionKey(cell, "fill", correct)
+	actionToken += 1
+	local token = actionToken
+
+	local key = tostring(currentBoardKey) .. ":fill:" .. tostring(row) .. ":" .. tostring(col) .. ":" .. tostring(correct)
 	local now = os.clock()
 
-	if lastActionKey == key and now - lastActionTime < 0.35 then
+	if lastActionKey == key and now - lastActionTime < 0.28 then
 		return
 	end
 
 	lastActionKey = key
 	lastActionTime = now
 
-	task.delay(0.10, function()
+	task.delay(0.035, function()
 		if token ~= actionToken then
 			return
 		end
@@ -1437,34 +1428,21 @@ local function autoFillExactCell(cell, token)
 			return
 		end
 
-		if not isStillOnCurrentBoard() then
-			return
-		end
-
-		if not isCellSelectedLikeGame(cell) then
-			return
-		end
-
 		if readPlacedNumberFromCell(cell) ~= 0 then
 			removeSolverNumber(cell)
 			return
 		end
 
-		-- trava de separação: Auto-preencher só aperta número se a ferramenta ainda for Preencher.
 		if getSelectedTool() ~= "fill" then
 			return
 		end
 
-		pressNumber(correct, token, 0)
+		clickNumber(correct, token, 0)
 	end)
 end
 
-local function autoNotesExactCell(cell, token)
+local function autoNotesExactCell(cell)
 	if not autoNotesEnabled then
-		return
-	end
-
-	if token ~= actionToken then
 		return
 	end
 
@@ -1477,6 +1455,7 @@ local function autoNotesExactCell(cell, token)
 	end
 
 	local row, col = getCellRowCol(cell)
+
 	if not row then
 		return
 	end
@@ -1487,21 +1466,25 @@ local function autoNotesExactCell(cell, token)
 	end
 
 	local correct = currentSolution[row][col]
+
 	if typeof(correct) ~= "number" or correct < 1 or correct > 9 then
 		return
 	end
 
-	local key = getCellActionKey(cell, "notes", correct)
+	actionToken += 1
+	local token = actionToken
+
+	local key = tostring(currentBoardKey) .. ":note:" .. tostring(row) .. ":" .. tostring(col) .. ":" .. tostring(correct)
 	local now = os.clock()
 
-	if lastActionKey == key and now - lastActionTime < 0.65 then
+	if lastActionKey == key and now - lastActionTime < 0.45 then
 		return
 	end
 
 	lastActionKey = key
 	lastActionTime = now
 
-	task.delay(0.16, function()
+	task.delay(0.045, function()
 		if token ~= actionToken then
 			return
 		end
@@ -1510,44 +1493,28 @@ local function autoNotesExactCell(cell, token)
 			return
 		end
 
-		if not isStillOnCurrentBoard() then
-			return
-		end
-
-		if not isCellSelectedLikeGame(cell) then
-			return
-		end
-
 		if readPlacedNumberFromCell(cell) ~= 0 then
 			removeSolverNumber(cell)
 			return
 		end
 
-		-- trava de separação: Auto-notas só aperta número se a ferramenta ainda for Notas.
 		if getSelectedTool() ~= "notes" then
 			return
 		end
 
-		-- Auto-notas: apenas o número correto desta casa, nunca sequência/candidatos.
-		pressNumber(correct, token, 0)
+		-- Auto-notas adiciona somente a nota do número correto da célula.
+		-- Não faz sequência de candidatos para não vazar número da célula anterior.
+		clickNumber(correct, token, 0)
 	end)
 end
 
 local function handleCellTap(cell)
-	-- Uma casa clicada = uma única ação possível.
-	-- Isso impede Auto-preencher e Auto-notas de ficarem com delays antigos se encostando.
-	actionToken += 1
-	local token = actionToken
-
 	local selectedTool = getSelectedTool()
 
 	if selectedTool == "fill" then
-		autoFillExactCell(cell, token)
+		autoFillExactCell(cell)
 	elseif selectedTool == "notes" then
-		autoNotesExactCell(cell, token)
-	else
-		-- ferramenta desconhecida/apagador: cancela qualquer ação pendente
-		lastActionKey = ""
+		autoNotesExactCell(cell)
 	end
 end
 
