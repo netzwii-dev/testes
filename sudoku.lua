@@ -1,46 +1,91 @@
 -- sudoku with friends helper
--- botão Sudoku estilo Cerber X + menu mobile com switches
--- funções:
--- 1) clique no botão "Sudoku" para resolver o tabuleiro embaixo de você
--- 2) switch Auto Fill: só preenche quando a ferramenta "Preencher" estiver selecionada
--- 3) switch Auto Notes: só adiciona notas quando a ferramenta "Notas" estiver selecionada
--- 4) notas não contam como número colocado, não removem a dica azul e não acionam auto-fill
+-- UI mobile fiel ao estilo Cerber X:
+-- menu redondo 54x54 em X=86 / botão Sudoku 140x50 em X=150 / painel ao lado do botão
+-- botões arrastáveis igual Cerber X
+--
+-- Sudoku:
+-- clique no botão "Sudoku" para resolver o tabuleiro embaixo de você
+--
+-- Auto-preencher:
+-- só funciona quando a ferramenta "Preencher" estiver selecionada
+-- clica na casa vazia -> o script aperta o número correto
+--
+-- Auto-notas:
+-- só funciona quando a ferramenta "Notas" estiver selecionada
+-- clica na casa vazia -> o script adiciona APENAS a nota com o número correto
+--
+-- Notas não contam como número colocado e não removem a dica azul.
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = workspace.CurrentCamera
 
-local BUTTON_GUI_NAME = "SudokuCerberButtonGui"
-local MENU_GUI_NAME = "SudokuCerberMobileMenuGui"
+local SCREEN_GUI_NAME = "SudokuCerberMobileGui"
 local SOLVER_VALUE_NAME = "SolverValue"
+
+local ScreenGui = nil
+local MobileButton = nil
+local MobileMenuButton = nil
+local MobilePanel = nil
+local mobileDragHandle = nil
+
+local autoFillEnabled = true
+local autoNotesEnabled = false
+local mobileMenuOpen = false
 
 local currentBoard = nil
 local currentBoardKey = nil
 local currentCells = nil
 local currentSolution = nil
 
-local autoFillEnabled = true
-local autoNotesEnabled = false
-
 local solverConnections = {}
 local dragConnections = {}
-local menuConnections = {}
 local shadowRegistry = {}
 
 local lastActionKey = nil
 local lastActionTime = 0
-local notedCells = {}
+local actionToken = 0
 
 local function noTextStroke(obj)
 	pcall(function()
 		obj.TextStrokeTransparency = 1
 	end)
+end
+
+local function setTargetTransparency(obj, bg, text)
+	if bg ~= nil then
+		obj:SetAttribute("TargetBGTransparency", bg)
+	end
+
+	if text ~= nil then
+		obj:SetAttribute("TargetTextTransparency", text)
+	end
+end
+
+local function getTargetBG(obj)
+	local v = obj:GetAttribute("TargetBGTransparency")
+
+	if typeof(v) == "number" then
+		return v
+	end
+
+	return obj.BackgroundTransparency
+end
+
+local function getTargetText(obj)
+	local v = obj:GetAttribute("TargetTextTransparency")
+
+	if typeof(v) == "number" then
+		return v
+	end
+
+	return obj.TextTransparency
 end
 
 local function registerShadow(host, shadow)
@@ -50,6 +95,7 @@ end
 
 local function setHostShadowVisible(host, visible)
 	local list = shadowRegistry[host]
+
 	if not list then
 		return
 	end
@@ -90,55 +136,429 @@ local function addTrueRoundedShadow(parent, cornerRadius, strength, shadowColor)
 	end
 end
 
-local function addCerberClickAnimation(button)
-	if not button then
+local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
+	if not root then
 		return
 	end
 
-	local pressOverlay = Instance.new("Frame")
-	pressOverlay.Name = "PressOverlay"
-	pressOverlay.Size = UDim2.new(1, 0, 1, 0)
-	pressOverlay.Position = UDim2.new(0, 0, 0, 0)
-	pressOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	pressOverlay.BackgroundTransparency = 1
-	pressOverlay.BorderSizePixel = 0
-	pressOverlay.ZIndex = button.ZIndex + 1
-	pressOverlay.Active = false
-	pressOverlay.Parent = button
+	root.Visible = true
 
-	Instance.new("UICorner", pressOverlay).CornerRadius = UDim.new(0, 12)
+	local targetSize = finalSize or root.Size
+	local targetPos = finalPosition or root.Position
+	local targetBg = finalBgTransparency
 
-	local function setOverlay(alpha)
-		pcall(function()
+	if targetBg == nil then
+		targetBg = getTargetBG(root)
+	end
+
+	root.Size = UDim2.new(
+		targetSize.X.Scale * 0.72,
+		math.floor(targetSize.X.Offset * 0.72),
+		targetSize.Y.Scale * 0.72,
+		math.floor(targetSize.Y.Offset * 0.72)
+	)
+
+	root.Position = targetPos
+	root.BackgroundTransparency = 1
+	setHostShadowVisible(root, false)
+
+	for _, obj in ipairs(root:GetDescendants()) do
+		if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
+			pcall(function()
+				obj.BackgroundTransparency = 1
+			end)
+		end
+
+		if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+			pcall(function()
+				obj.TextTransparency = 1
+			end)
+		end
+
+		if obj:IsA("UIStroke") then
+			pcall(function()
+				obj.Transparency = 1
+			end)
+		end
+	end
+
+	TweenService:Create(root, TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+		Size = targetSize,
+		Position = targetPos,
+		BackgroundTransparency = targetBg
+	}):Play()
+
+	task.delay(0.03, function()
+		if not root or not root.Parent then
+			return
+		end
+
+		setHostShadowVisible(root, true)
+
+		for _, obj in ipairs(root:GetDescendants()) do
+			if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
+				local goal = {}
+
+				if obj:IsA("Frame") or obj:IsA("TextButton") then
+					goal.BackgroundTransparency = getTargetBG(obj)
+				end
+
+				if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+					goal.TextTransparency = getTargetText(obj)
+				end
+
+				TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), goal):Play()
+			elseif obj:IsA("UIStroke") then
+				TweenService:Create(obj, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+					Transparency = 0
+				}):Play()
+			end
+		end
+	end)
+end
+
+local function elegantHide(root, onDone)
+	if not root then
+		if onDone then
+			onDone()
+		end
+
+		return
+	end
+
+	local currentSize = root.Size
+	local currentPos = root.Position
+	local shrinkSize = UDim2.new(
+		currentSize.X.Scale * 0.965,
+		math.floor(currentSize.X.Offset * 0.965),
+		currentSize.Y.Scale * 0.965,
+		math.floor(currentSize.Y.Offset * 0.965)
+	)
+
+	local liftPos = UDim2.new(
+		currentPos.X.Scale,
+		currentPos.X.Offset,
+		currentPos.Y.Scale,
+		currentPos.Y.Offset + 4
+	)
+
+	for _, obj in ipairs(root:GetDescendants()) do
+		if obj:IsA("Frame") or obj:IsA("TextButton") or obj:IsA("TextLabel") then
+			local goal = {}
+
+			if obj:IsA("Frame") or obj:IsA("TextButton") then
+				goal.BackgroundTransparency = 1
+			end
+
+			if obj:IsA("TextButton") or obj:IsA("TextLabel") then
+				goal.TextTransparency = 1
+			end
+
 			TweenService:Create(
-				pressOverlay,
-				TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{BackgroundTransparency = alpha}
+				obj,
+				TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+				goal
 			):Play()
-		end)
+		elseif obj:IsA("UIStroke") then
+			TweenService:Create(
+				obj,
+				TweenInfo.new(0.18, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+				{Transparency = 1}
+			):Play()
+		end
+	end
+
+	setHostShadowVisible(root, false)
+
+	local tween = TweenService:Create(
+		root,
+		TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.In),
+		{
+			Size = shrinkSize,
+			Position = liftPos,
+			BackgroundTransparency = 1
+		}
+	)
+
+	tween:Play()
+	tween.Completed:Connect(function()
+		if root and root.Parent then
+			root.Visible = false
+			root.Size = currentSize
+			root.Position = currentPos
+		end
+
+		if onDone then
+			onDone()
+		end
+	end)
+end
+
+local function canUseMobileTap(obj)
+	local lastDragTime = obj:GetAttribute("LastDragTime")
+
+	if typeof(lastDragTime) == "number" then
+		return (tick() - lastDragTime) > 0.12
+	end
+
+	return true
+end
+
+local function bindFreeDrag(handle, target, onMove, holdTime)
+	local activeInput = nil
+	local dragStart = nil
+	local startPos = nil
+	local holdSatisfied = false
+	local holdCanceled = false
+	local holdId = 0
+
+	holdTime = holdTime or 0
+
+	table.insert(dragConnections, handle.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			activeInput = input
+			dragStart = input.Position
+			startPos = target.Position
+			holdSatisfied = false
+			holdCanceled = false
+			holdId += 1
+
+			local myHoldId = holdId
+
+			if holdTime <= 0 then
+				holdSatisfied = true
+			else
+				task.delay(holdTime, function()
+					if activeInput == input and not holdCanceled and holdId == myHoldId then
+						holdSatisfied = true
+						handle:SetAttribute("LastDragTime", tick())
+					end
+				end)
+			end
+		end
+	end))
+
+	table.insert(dragConnections, UserInputService.InputChanged:Connect(function(input)
+		if input == activeInput and dragStart and startPos then
+			local delta = input.Position - dragStart
+
+			if not holdSatisfied then
+				if delta.Magnitude >= 8 then
+					holdCanceled = true
+				end
+
+				return
+			end
+
+			if delta.Magnitude >= 6 then
+				handle:SetAttribute("LastDragTime", tick())
+			end
+
+			target.Position = UDim2.new(
+				startPos.X.Scale,
+				startPos.X.Offset + delta.X,
+				startPos.Y.Scale,
+				startPos.Y.Offset + delta.Y
+			)
+
+			if onMove then
+				onMove(delta)
+			end
+		end
+	end))
+
+	table.insert(dragConnections, UserInputService.InputEnded:Connect(function(input)
+		if input == activeInput then
+			activeInput = nil
+			dragStart = nil
+			startPos = nil
+			holdSatisfied = false
+			holdCanceled = false
+			holdId += 1
+		end
+	end))
+end
+
+local function bindRowPress(button, callback)
+	local activeInput = nil
+	local startPos = nil
+	local moved = false
+	local lastTap = 0
+
+	button.Active = true
+	button.Selectable = false
+	button.AutoButtonColor = false
+
+	local function fire()
+		local now = tick()
+
+		if now - lastTap < 0.08 then
+			return
+		end
+
+		lastTap = now
+		callback()
 	end
 
 	button.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			setOverlay(0.82)
+			activeInput = input
+			startPos = input.Position
+			moved = false
+		end
+	end)
+
+	button.InputChanged:Connect(function(input)
+		if input == activeInput and startPos then
+			local delta = input.Position - startPos
+
+			if delta.Magnitude > 8 then
+				moved = true
+			end
 		end
 	end)
 
 	button.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			setOverlay(1)
+		if input == activeInput then
+			local wasMoved = moved
+			activeInput = nil
+			startPos = nil
+			moved = false
+
+			if not wasMoved and canUseMobileTap(button) then
+				fire()
+			end
 		end
 	end)
 
-	button.Activated:Connect(function()
-		setOverlay(0.82)
-
-		task.delay(0.08, function()
-			if pressOverlay and pressOverlay.Parent then
-				setOverlay(1)
+	if button:IsA("GuiButton") then
+		button.Activated:Connect(function()
+			if canUseMobileTap(button) then
+				fire()
 			end
 		end)
-	end)
+	end
+end
+
+local function updateSwitchVisual(switchFrame, knob, enabled)
+	if not switchFrame or not knob then
+		return
+	end
+
+	local offPos = UDim2.new(0, 3, 0.5, -13)
+	local onPos = UDim2.new(1, -29, 0.5, -13)
+
+	TweenService:Create(switchFrame, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundColor3 = enabled and Color3.fromRGB(190,190,190) or Color3.fromRGB(20,20,24)
+	}):Play()
+
+	TweenService:Create(knob, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Position = enabled and onPos or offPos,
+		BackgroundColor3 = enabled and Color3.fromRGB(255,255,255) or Color3.fromRGB(0,0,0)
+	}):Play()
+end
+
+local function createSwitchRow(parent, yOffset, labelText)
+	local row = Instance.new("TextButton")
+	row.Size = UDim2.new(1, -14, 0, 40)
+	row.Position = UDim2.new(0, 7, 0, yOffset)
+	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	row.AutoButtonColor = false
+	row.Text = ""
+	row.BorderSizePixel = 0
+	row.Parent = parent
+	row.ZIndex = 5
+	row.Active = true
+	row.Selectable = false
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+	setTargetTransparency(row, 0, 1)
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Size = UDim2.new(0, 130, 1, 0)
+	label.Position = UDim2.new(0, 12, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 15
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = row
+	label.ZIndex = 6
+	label.Active = false
+	noTextStroke(label)
+	setTargetTransparency(label, 1, 0)
+
+	local switch = Instance.new("Frame")
+	switch.Size = UDim2.new(0, 54, 0, 28)
+	switch.Position = UDim2.new(1, -94, 0.5, -14)
+	switch.BackgroundColor3 = Color3.fromRGB(20,20,24)
+	switch.BorderSizePixel = 0
+	switch.Parent = row
+	switch.ZIndex = 6
+	switch.Active = false
+	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
+	setTargetTransparency(switch, 0, nil)
+
+	local knob = Instance.new("Frame")
+	knob.Size = UDim2.new(0, 26, 0, 26)
+	knob.Position = UDim2.new(0, 3, 0.5, -13)
+	knob.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	knob.BorderSizePixel = 0
+	knob.Parent = switch
+	knob.ZIndex = 7
+	knob.Active = false
+	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+	setTargetTransparency(knob, 0, nil)
+
+	local switchHitbox = Instance.new("TextButton")
+	switchHitbox.Name = "SwitchHitbox"
+	switchHitbox.Size = UDim2.new(0, 68, 0, 38)
+	switchHitbox.Position = UDim2.new(1, -101, 0.5, -19)
+	switchHitbox.BackgroundTransparency = 1
+	switchHitbox.Text = ""
+	switchHitbox.AutoButtonColor = false
+	switchHitbox.BorderSizePixel = 0
+	switchHitbox.ZIndex = 20
+	switchHitbox.Parent = row
+	switchHitbox.Active = true
+	switchHitbox.Selectable = false
+
+	return row, switch, knob, switchHitbox
+end
+
+local function createSimpleRow(parent, yOffset, labelText)
+	local row = Instance.new("TextButton")
+	row.Size = UDim2.new(1, -14, 0, 40)
+	row.Position = UDim2.new(0, 7, 0, yOffset)
+	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	row.AutoButtonColor = false
+	row.Text = ""
+	row.BorderSizePixel = 0
+	row.Parent = parent
+	row.ZIndex = 5
+	row.Active = true
+	row.Selectable = false
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
+	setTargetTransparency(row, 0, 1)
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label"
+	label.Size = UDim2.new(1, -24, 1, 0)
+	label.Position = UDim2.new(0, 12, 0, 0)
+	label.BackgroundTransparency = 1
+	label.Text = labelText
+	label.TextColor3 = Color3.fromRGB(255,255,255)
+	label.Font = Enum.Font.GothamBold
+	label.TextSize = 13
+	label.TextXAlignment = Enum.TextXAlignment.Center
+	label.Parent = row
+	label.ZIndex = 6
+	label.Active = false
+	noTextStroke(label)
+	setTargetTransparency(label, 1, 0)
+
+	return row
 end
 
 local function clearSolverConnections()
@@ -161,16 +581,6 @@ local function clearDragConnections()
 	table.clear(dragConnections)
 end
 
-local function clearMenuConnections()
-	for _, c in ipairs(menuConnections) do
-		pcall(function()
-			c:Disconnect()
-		end)
-	end
-
-	table.clear(menuConnections)
-end
-
 local function clearSolverValues()
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj.Name == SOLVER_VALUE_NAME then
@@ -189,7 +599,7 @@ local function clearCurrentSolver()
 	currentSolution = nil
 	lastActionKey = nil
 	lastActionTime = 0
-	table.clear(notedCells)
+	actionToken += 1
 end
 
 local function getChar()
@@ -201,8 +611,6 @@ local function getHRP()
 	return char:FindFirstChild("HumanoidRootPart")
 end
 
--- lê APENAS número realmente colocado.
--- ignora HintValues/notas e qualquer outro TextLabel de notas.
 local function readPlacedNumberFromCell(cell)
 	local clue = cell:FindFirstChild("ClueValue")
 
@@ -227,6 +635,7 @@ end
 
 local function getCells(surfaceGui)
 	local frame = surfaceGui:FindFirstChild("Frame")
+
 	if not frame then
 		return nil
 	end
@@ -365,28 +774,6 @@ local function solve(grid)
 	return false
 end
 
-local function getCandidates(row, col)
-	if not currentCells then
-		return {}
-	end
-
-	local grid = buildGrid(currentCells)
-
-	if grid[row][col] ~= 0 then
-		return {}
-	end
-
-	local list = {}
-
-	for num = 1, 9 do
-		if canPlace(grid, num, row, col) then
-			table.insert(list, num)
-		end
-	end
-
-	return list
-end
-
 local function removeSolverNumber(cell)
 	local old = cell:FindFirstChild(SOLVER_VALUE_NAME)
 
@@ -432,8 +819,7 @@ local function watchCell(cell)
 	table.insert(solverConnections, cell.ChildAdded:Connect(function(child)
 		task.wait()
 
-		-- HintValues/notas não removem dica.
-		if child.Name == "ClueValue" then
+		if child and child.Name == "ClueValue" then
 			check()
 
 			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
@@ -469,6 +855,7 @@ local function isValidBoardSurface(surfaceGui)
 	end
 
 	local placedBoards = workspace:FindFirstChild("PlacedBoards")
+
 	if not placedBoards then
 		return false
 	end
@@ -516,6 +903,7 @@ end
 
 local function findBoardUnderPlayer()
 	local hrp = getHRP()
+
 	if not hrp then
 		return nil
 	end
@@ -539,6 +927,7 @@ local function findBoardUnderPlayer()
 	end
 
 	local placedBoards = workspace:FindFirstChild("PlacedBoards")
+
 	if not placedBoards then
 		return nil
 	end
@@ -643,6 +1032,7 @@ local function toolButtonScore(obj)
 	for _, child in ipairs(obj:GetDescendants()) do
 		if child:IsA("UIStroke") then
 			score += colorBlueScore(child.Color) * (child.Transparency < 0.5 and 16 or 6)
+
 			if child.Thickness >= 2 then
 				score += 4
 			end
@@ -774,9 +1164,7 @@ local function findNumberPadCluster()
 				maxY = math.max(maxY, item.pos.Y + item.size.Y)
 			end
 
-			local width = maxX - minX
-			local height = maxY - minY
-			local area = width * height
+			local area = (maxX - minX) * (maxY - minY)
 			local centerX = (minX + maxX) / 2
 			local centerY = (minY + maxY) / 2
 
@@ -862,8 +1250,12 @@ local function clickGuiButton(button)
 	return done
 end
 
-local function clickNumber(num, delayTime)
+local function clickNumber(num, token, delayTime)
 	task.delay(delayTime or 0, function()
+		if token ~= actionToken then
+			return
+		end
+
 		local numberButton = findNumberPadButton(num)
 
 		if not numberButton then
@@ -873,6 +1265,25 @@ local function clickNumber(num, delayTime)
 
 		clickGuiButton(numberButton)
 	end)
+end
+
+local function getCellRowCol(cell)
+	if not cell or not cell.Parent then
+		return nil, nil
+	end
+
+	local row = cell:GetAttribute("Row")
+	local col = cell:GetAttribute("Col")
+
+	if typeof(row) ~= "number" or typeof(col) ~= "number" then
+		return nil, nil
+	end
+
+	if row < 1 or row > 9 or col < 1 or col > 9 then
+		return nil, nil
+	end
+
+	return row, col
 end
 
 local function autoFillExactCell(cell)
@@ -888,18 +1299,9 @@ local function autoFillExactCell(cell)
 		return
 	end
 
-	if not cell or not cell.Parent then
-		return
-	end
+	local row, col = getCellRowCol(cell)
 
-	local row = cell:GetAttribute("Row")
-	local col = cell:GetAttribute("Col")
-
-	if typeof(row) ~= "number" or typeof(col) ~= "number" then
-		return
-	end
-
-	if row < 1 or row > 9 or col < 1 or col > 9 then
+	if not row then
 		return
 	end
 
@@ -914,6 +1316,9 @@ local function autoFillExactCell(cell)
 		return
 	end
 
+	actionToken += 1
+	local token = actionToken
+
 	local key = tostring(currentBoardKey) .. ":fill:" .. tostring(row) .. ":" .. tostring(col) .. ":" .. tostring(correct)
 	local now = os.clock()
 
@@ -925,6 +1330,10 @@ local function autoFillExactCell(cell)
 	lastActionTime = now
 
 	task.delay(0.035, function()
+		if token ~= actionToken then
+			return
+		end
+
 		if not currentBoard or not cell or not cell.Parent then
 			return
 		end
@@ -938,7 +1347,7 @@ local function autoFillExactCell(cell)
 			return
 		end
 
-		clickNumber(correct, 0)
+		clickNumber(correct, token, 0)
 	end)
 end
 
@@ -951,22 +1360,13 @@ local function autoNotesExactCell(cell)
 		return
 	end
 
-	if not currentBoard or not currentCells then
+	if not currentBoard or not currentCells or not currentSolution then
 		return
 	end
 
-	if not cell or not cell.Parent then
-		return
-	end
+	local row, col = getCellRowCol(cell)
 
-	local row = cell:GetAttribute("Row")
-	local col = cell:GetAttribute("Col")
-
-	if typeof(row) ~= "number" or typeof(col) ~= "number" then
-		return
-	end
-
-	if row < 1 or row > 9 or col < 1 or col > 9 then
+	if not row then
 		return
 	end
 
@@ -975,35 +1375,31 @@ local function autoNotesExactCell(cell)
 		return
 	end
 
-	local candidates = getCandidates(row, col)
+	local correct = currentSolution[row][col]
 
-	if #candidates == 0 then
+	if typeof(correct) ~= "number" or correct < 1 or correct > 9 then
 		return
 	end
 
-	local candidateKey = table.concat(candidates, "")
-	local key = tostring(currentBoardKey) .. ":notes:" .. tostring(row) .. ":" .. tostring(col) .. ":" .. candidateKey
+	actionToken += 1
+	local token = actionToken
 
-	if notedCells[key] then
-		return
-	end
-
+	local key = tostring(currentBoardKey) .. ":note:" .. tostring(row) .. ":" .. tostring(col) .. ":" .. tostring(correct)
 	local now = os.clock()
 
-	if lastActionKey == key and now - lastActionTime < 0.9 then
+	if lastActionKey == key and now - lastActionTime < 0.45 then
 		return
 	end
 
 	lastActionKey = key
 	lastActionTime = now
-	notedCells[key] = true
 
-	task.delay(0.04, function()
-		if not currentBoard or not cell or not cell.Parent then
+	task.delay(0.045, function()
+		if token ~= actionToken then
 			return
 		end
 
-		if getSelectedTool() ~= "notes" then
+		if not currentBoard or not cell or not cell.Parent then
 			return
 		end
 
@@ -1012,16 +1408,22 @@ local function autoNotesExactCell(cell)
 			return
 		end
 
-		for i, num in ipairs(candidates) do
-			clickNumber(num, 0.035 * (i - 1))
+		if getSelectedTool() ~= "notes" then
+			return
 		end
+
+		-- Auto-notas adiciona somente a nota do número correto da célula.
+		-- Não faz sequência de candidatos para não vazar número da célula anterior.
+		clickNumber(correct, token, 0)
 	end)
 end
 
 local function handleCellTap(cell)
-	if getSelectedTool() == "fill" then
+	local selectedTool = getSelectedTool()
+
+	if selectedTool == "fill" then
 		autoFillExactCell(cell)
-	elseif getSelectedTool() == "notes" then
+	elseif selectedTool == "notes" then
 		autoNotesExactCell(cell)
 	end
 end
@@ -1119,7 +1521,7 @@ local function solveCurrentBoard()
 	currentSolution = solved
 	lastActionKey = nil
 	lastActionTime = 0
-	table.clear(notedCells)
+	actionToken += 1
 
 	local count = 0
 
@@ -1142,327 +1544,34 @@ local function solveCurrentBoard()
 	print("Sudoku executado. Dicas mostradas: " .. tostring(count))
 end
 
-local function canUseMobileTap(obj)
-	local lastDragTime = obj:GetAttribute("LastDragTime")
-
-	if typeof(lastDragTime) == "number" then
-		return tick() - lastDragTime > 0.12
+local function updateMobilePanelButtons()
+	if MobileButton then
+		MobileButton.Text = "Sudoku"
 	end
 
-	return true
+	updateSwitchVisual(_G.__SudokuAutoFillSwitch, _G.__SudokuAutoFillKnob, autoFillEnabled)
+	updateSwitchVisual(_G.__SudokuAutoNotesSwitch, _G.__SudokuAutoNotesKnob, autoNotesEnabled)
 end
 
-local function bindFreeDrag(handle, target, onMove, holdTime)
-	local activeInput = nil
-	local dragStart = nil
-	local startPos = nil
-	local holdSatisfied = false
-	local holdCanceled = false
-	local holdId = 0
+local function createHamburgerIcon(parent)
+	parent.Text = ""
 
-	holdTime = holdTime or 0
+	for i = 1, 3 do
+		local line = Instance.new("Frame")
+		line.Name = "Line" .. tostring(i)
+		line.Size = UDim2.new(0, 14, 0, 2)
+		line.Position = UDim2.new(0.5, -7, 0.5, -7 + ((i - 1) * 7))
+		line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		line.BorderSizePixel = 0
+		line.ZIndex = parent.ZIndex + 1
+		line.Parent = parent
 
-	local con1 = handle.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			activeInput = input
-			dragStart = input.Position
-			startPos = target.Position
-			holdSatisfied = false
-			holdCanceled = false
-			holdId += 1
-
-			local myHoldId = holdId
-
-			if holdTime <= 0 then
-				holdSatisfied = true
-			else
-				task.delay(holdTime, function()
-					if activeInput == input and not holdCanceled and holdId == myHoldId then
-						holdSatisfied = true
-						handle:SetAttribute("LastDragTime", tick())
-					end
-				end)
-			end
-		end
-	end)
-
-	local con2 = UserInputService.InputChanged:Connect(function(input)
-		if input == activeInput and dragStart and startPos then
-			local delta = input.Position - dragStart
-
-			if not holdSatisfied then
-				if delta.Magnitude >= 8 then
-					holdCanceled = true
-				end
-
-				return
-			end
-
-			if delta.Magnitude >= 6 then
-				handle:SetAttribute("LastDragTime", tick())
-			end
-
-			target.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
-
-			if onMove then
-				onMove(delta)
-			end
-		end
-	end)
-
-	local con3 = UserInputService.InputEnded:Connect(function(input)
-		if input == activeInput then
-			activeInput = nil
-			dragStart = nil
-			startPos = nil
-			holdSatisfied = false
-			holdCanceled = false
-			holdId += 1
-		end
-	end)
-
-	table.insert(dragConnections, con1)
-	table.insert(dragConnections, con2)
-	table.insert(dragConnections, con3)
-
-	return con1, con2, con3
-end
-
-local function updateSwitchVisual(switchFrame, knob, enabled)
-	if not switchFrame or not knob then
-		return
+		Instance.new("UICorner", line).CornerRadius = UDim.new(1, 0)
 	end
-
-	local offPos = UDim2.new(0, 3, 0.5, -13)
-	local onPos = UDim2.new(1, -29, 0.5, -13)
-
-	TweenService:Create(switchFrame, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		BackgroundColor3 = enabled and Color3.fromRGB(190, 190, 190) or Color3.fromRGB(20, 20, 24)
-	}):Play()
-
-	TweenService:Create(knob, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position = enabled and onPos or offPos,
-		BackgroundColor3 = enabled and Color3.fromRGB(255, 255, 255) or Color3.fromRGB(0, 0, 0)
-	}):Play()
 end
 
-local function createSwitchRow(parent, yOffset, labelText)
-	local row = Instance.new("TextButton")
-	row.Size = UDim2.new(1, -14, 0, 40)
-	row.Position = UDim2.new(0, 7, 0, yOffset)
-	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	row.AutoButtonColor = false
-	row.Text = ""
-	row.BorderSizePixel = 0
-	row.Parent = parent
-	row.ZIndex = 5
-	row.Active = true
-	row.Selectable = false
-	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
-
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.Size = UDim2.new(1, -92, 1, 0)
-	label.Position = UDim2.new(0, 12, 0, 0)
-	label.BackgroundTransparency = 1
-	label.Text = labelText
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 15
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.Parent = row
-	label.ZIndex = 6
-	label.Active = false
-	noTextStroke(label)
-
-	local switch = Instance.new("Frame")
-	switch.Size = UDim2.new(0, 54, 0, 28)
-	switch.Position = UDim2.new(1, -68, 0.5, -14)
-	switch.BackgroundColor3 = Color3.fromRGB(20, 20, 24)
-	switch.BorderSizePixel = 0
-	switch.Parent = row
-	switch.ZIndex = 6
-	switch.Active = false
-	Instance.new("UICorner", switch).CornerRadius = UDim.new(1, 0)
-
-	local knob = Instance.new("Frame")
-	knob.Size = UDim2.new(0, 26, 0, 26)
-	knob.Position = UDim2.new(0, 3, 0.5, -13)
-	knob.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	knob.BorderSizePixel = 0
-	knob.Parent = switch
-	knob.ZIndex = 7
-	knob.Active = false
-	Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-
-	return row, switch, knob
-end
-
-local function createSimpleRow(parent, yOffset, labelText)
-	local row = Instance.new("TextButton")
-	row.Size = UDim2.new(1, -14, 0, 40)
-	row.Position = UDim2.new(0, 7, 0, yOffset)
-	row.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	row.AutoButtonColor = false
-	row.Text = ""
-	row.BorderSizePixel = 0
-	row.Parent = parent
-	row.ZIndex = 5
-	row.Active = true
-	row.Selectable = false
-	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
-
-	local label = Instance.new("TextLabel")
-	label.Name = "Label"
-	label.Size = UDim2.new(1, -24, 1, 0)
-	label.Position = UDim2.new(0, 12, 0, 0)
-	label.BackgroundTransparency = 1
-	label.Text = labelText
-	label.TextColor3 = Color3.fromRGB(255, 255, 255)
-	label.Font = Enum.Font.GothamBold
-	label.TextSize = 13
-	label.TextXAlignment = Enum.TextXAlignment.Center
-	label.Parent = row
-	label.ZIndex = 6
-	label.Active = false
-	noTextStroke(label)
-
-	return row
-end
-
-local function createMobileMenu()
-	local old = PlayerGui:FindFirstChild(MENU_GUI_NAME)
-	if old then
-		old:Destroy()
-	end
-
-	clearMenuConnections()
-
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = MENU_GUI_NAME
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = PlayerGui
-
-	local menuButton = Instance.new("TextButton")
-	menuButton.Name = "SudokuMenuButton"
-	menuButton.Size = UDim2.new(0, 56, 0, 56)
-	menuButton.Position = UDim2.new(0, 150, 0, 20)
-	menuButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	menuButton.Text = "☰"
-	menuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-	menuButton.Font = Enum.Font.GothamBold
-	menuButton.TextSize = 25
-	menuButton.AutoButtonColor = false
-	menuButton.BorderSizePixel = 0
-	menuButton.ZIndex = 60
-	menuButton.Parent = screenGui
-	menuButton:SetAttribute("LastDragTime", 0)
-	menuButton:SetAttribute("CustomMoved", false)
-
-	Instance.new("UICorner", menuButton).CornerRadius = UDim.new(1, 0)
-	noTextStroke(menuButton)
-	addTrueRoundedShadow(menuButton, 28, 1.15, Color3.fromRGB(0, 0, 0))
-	addCerberClickAnimation(menuButton)
-
-	local panel = Instance.new("Frame")
-	panel.Name = "SudokuMobilePanel"
-	panel.Size = UDim2.new(0, 245, 0, 190)
-	panel.Position = UDim2.new(0, 150, 0, 84)
-	panel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	panel.BorderSizePixel = 0
-	panel.Visible = false
-	panel.ZIndex = 55
-	panel.Parent = screenGui
-	Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 16)
-	addTrueRoundedShadow(panel, 16, 1.2, Color3.fromRGB(0, 0, 0))
-
-	local title = Instance.new("TextLabel")
-	title.Size = UDim2.new(1, -20, 0, 32)
-	title.Position = UDim2.new(0, 10, 0, 8)
-	title.BackgroundTransparency = 1
-	title.Text = "Sudoku Settings"
-	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.Font = Enum.Font.GothamBold
-	title.TextSize = 18
-	title.TextXAlignment = Enum.TextXAlignment.Left
-	title.ZIndex = 56
-	title.Parent = panel
-	noTextStroke(title)
-
-	local solveRow = createSimpleRow(panel, 45, "Solve Current Board")
-	local fillRow, fillSwitch, fillKnob = createSwitchRow(panel, 91, "Auto Fill")
-	local notesRow, notesSwitch, notesKnob = createSwitchRow(panel, 137, "Auto Notes")
-
-	local menuOpen = false
-
-	local function updateMenu()
-		updateSwitchVisual(fillSwitch, fillKnob, autoFillEnabled)
-		updateSwitchVisual(notesSwitch, notesKnob, autoNotesEnabled)
-	end
-
-	local function setPanelVisible(state)
-		menuOpen = state and true or false
-		panel.Visible = menuOpen
-		setHostShadowVisible(panel, menuOpen)
-		updateMenu()
-	end
-
-	table.insert(menuConnections, menuButton.Activated:Connect(function()
-		if not canUseMobileTap(menuButton) then
-			return
-		end
-
-		setPanelVisible(not menuOpen)
-	end))
-
-	table.insert(menuConnections, solveRow.Activated:Connect(function()
-		solveCurrentBoard()
-	end))
-
-	table.insert(menuConnections, fillRow.Activated:Connect(function()
-		autoFillEnabled = not autoFillEnabled
-		updateMenu()
-	end))
-
-	table.insert(menuConnections, notesRow.Activated:Connect(function()
-		autoNotesEnabled = not autoNotesEnabled
-		updateMenu()
-	end))
-
-	bindFreeDrag(menuButton, menuButton, function(delta)
-		menuButton:SetAttribute("CustomMoved", true)
-
-		panel.Position = UDim2.new(
-			menuButton.Position.X.Scale,
-			menuButton.Position.X.Offset,
-			menuButton.Position.Y.Scale,
-			menuButton.Position.Y.Offset + 64
-		)
-	end, 0.5)
-
-	local function placeDefault()
-		local insetNow = GuiService:GetGuiInset()
-
-		if not menuButton:GetAttribute("CustomMoved") then
-			menuButton.Position = UDim2.new(0, 150, 0, insetNow.Y + 22)
-			panel.Position = UDim2.new(0, 150, 0, insetNow.Y + 86)
-		end
-	end
-
-	table.insert(menuConnections, RunService.RenderStepped:Connect(placeDefault))
-	placeDefault()
-	updateMenu()
-	setHostShadowVisible(panel, false)
-end
-
-local function createSudokuButton()
-	local old = PlayerGui:FindFirstChild(BUTTON_GUI_NAME)
+local function buildMobileGui()
+	local old = PlayerGui:FindFirstChild(SCREEN_GUI_NAME)
 
 	if old then
 		old:Destroy()
@@ -1470,58 +1579,191 @@ local function createSudokuButton()
 
 	clearDragConnections()
 
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name = BUTTON_GUI_NAME
-	screenGui.ResetOnSpawn = false
-	screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	screenGui.Parent = PlayerGui
+	ScreenGui = Instance.new("ScreenGui")
+	ScreenGui.Name = SCREEN_GUI_NAME
+	ScreenGui.ResetOnSpawn = false
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	ScreenGui.Parent = PlayerGui
 
-	local button = Instance.new("TextButton")
-	button.Name = "SudokuButton"
-	button.Size = UDim2.new(0, 140, 0, 50)
-	button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	button.Text = "Sudoku"
-	button.TextColor3 = Color3.fromRGB(255, 255, 255)
-	button.Font = Enum.Font.GothamBold
-	button.TextScaled = true
-	button.AutoButtonColor = false
-	button.BorderSizePixel = 0
-	button.ZIndex = 50
-	button.Parent = screenGui
-	button:SetAttribute("LastDragTime", 0)
-	button:SetAttribute("CustomMoved", false)
+	MobileButton = Instance.new("TextButton")
+	MobileButton.Name = "SudokuButton"
+	MobileButton.Size = UDim2.new(0, 140, 0, 50)
+	MobileButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobileButton.Text = "Sudoku"
+	MobileButton.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileButton.Font = Enum.Font.GothamBold
+	MobileButton.TextScaled = true
+	MobileButton.AutoButtonColor = false
+	MobileButton.BorderSizePixel = 0
+	MobileButton.Parent = ScreenGui
+	MobileButton:SetAttribute("LastDragTime", 0)
+	MobileButton:SetAttribute("CustomMoved", false)
+	Instance.new("UICorner", MobileButton).CornerRadius = UDim.new(0, 12)
+	noTextStroke(MobileButton)
+	addTrueRoundedShadow(MobileButton, 14, 1.15, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobileButton, 0, 0)
 
-	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 12)
-	noTextStroke(button)
-	addTrueRoundedShadow(button, 14, 1.15, Color3.fromRGB(0, 0, 0))
-	addCerberClickAnimation(button)
+	local inset = GuiService:GetGuiInset()
 
-	local function placeDefault()
+	MobileMenuButton = Instance.new("TextButton")
+	MobileMenuButton.Name = "SudokuMenuButton"
+	MobileMenuButton.Size = UDim2.new(0, 54, 0, 54)
+	MobileMenuButton.Position = UDim2.new(0, 86, 0, inset.Y - 60)
+	MobileMenuButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobileMenuButton.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileMenuButton.Font = Enum.Font.GothamBold
+	MobileMenuButton.TextSize = 22
+	MobileMenuButton.AutoButtonColor = false
+	MobileMenuButton.BorderSizePixel = 0
+	MobileMenuButton.Parent = ScreenGui
+	MobileMenuButton:SetAttribute("LastDragTime", 0)
+	Instance.new("UICorner", MobileMenuButton).CornerRadius = UDim.new(1, 0)
+	noTextStroke(MobileMenuButton)
+	addTrueRoundedShadow(MobileMenuButton, 999, 1.05, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobileMenuButton, 0, 0)
+	createHamburgerIcon(MobileMenuButton)
+
+	MobilePanel = Instance.new("Frame")
+	MobilePanel.Name = "SudokuMobilePanel"
+	MobilePanel.Size = UDim2.new(0, 232, 0, 324)
+	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobilePanel.BorderSizePixel = 0
+	MobilePanel.Visible = false
+	MobilePanel.Parent = ScreenGui
+	MobilePanel:SetAttribute("CustomMoved", false)
+	Instance.new("UICorner", MobilePanel).CornerRadius = UDim.new(0, 14)
+	addTrueRoundedShadow(MobilePanel, 14, 1.15, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobilePanel, 0, nil)
+
+	mobileDragHandle = Instance.new("Frame")
+	mobileDragHandle.Name = "MobileDragHandle"
+	mobileDragHandle.Size = UDim2.new(1, -16, 0, 14)
+	mobileDragHandle.Position = UDim2.new(0, 7, 0, 5)
+	mobileDragHandle.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+	mobileDragHandle.BorderSizePixel = 0
+	mobileDragHandle.Parent = MobilePanel
+	mobileDragHandle.Active = true
+	Instance.new("UICorner", mobileDragHandle).CornerRadius = UDim.new(1, 0)
+	setTargetTransparency(mobileDragHandle, 0, nil)
+
+	local functionsPage = Instance.new("ScrollingFrame")
+	functionsPage.Name = "MobileFunctionsPage"
+	functionsPage.Size = UDim2.new(1, 0, 1, -30)
+	functionsPage.Position = UDim2.new(0, 0, 0, 26)
+	functionsPage.BackgroundTransparency = 1
+	functionsPage.BorderSizePixel = 0
+	functionsPage.ScrollBarThickness = 3
+	functionsPage.ScrollingDirection = Enum.ScrollingDirection.Y
+	functionsPage.CanvasSize = UDim2.new(0, 0, 0, 170)
+	functionsPage.Parent = MobilePanel
+
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -14, 0, 22)
+	title.Position = UDim2.new(0, 7, 0, 4)
+	title.BackgroundTransparency = 1
+	title.Text = "All Functions"
+	title.TextColor3 = Color3.fromRGB(255,255,255)
+	title.Font = Enum.Font.GothamBold
+	title.TextSize = 13
+	title.TextXAlignment = Enum.TextXAlignment.Left
+	title.Parent = functionsPage
+	noTextStroke(title)
+	setTargetTransparency(title, 1, 0)
+
+	local solveRow = createSimpleRow(functionsPage, 30, "Resolver tabuleiro")
+	local autoFillRow, autoFillSwitch, autoFillKnob, autoFillHitbox = createSwitchRow(functionsPage, 72, "Auto-preencher")
+	local autoNotesRow, autoNotesSwitch, autoNotesKnob, autoNotesHitbox = createSwitchRow(functionsPage, 114, "Auto-notas")
+
+	_G.__SudokuAutoFillSwitch = autoFillSwitch
+	_G.__SudokuAutoFillKnob = autoFillKnob
+	_G.__SudokuAutoNotesSwitch = autoNotesSwitch
+	_G.__SudokuAutoNotesKnob = autoNotesKnob
+
+	local function placeMobileButtonDefault()
 		local insetNow = GuiService:GetGuiInset()
 
-		if not button:GetAttribute("CustomMoved") then
-			button.Position = UDim2.new(0, 212, 0, insetNow.Y + 25)
+		if not MobileButton:GetAttribute("CustomMoved") then
+			MobileButton.Position = UDim2.new(0, 150, 0, insetNow.Y - 58)
 		end
 	end
 
-	table.insert(dragConnections, RunService.RenderStepped:Connect(placeDefault))
-	placeDefault()
+	local function placePanelToRightOfSudoku()
+		local xOffset = MobileButton.Position.X.Offset + MobileButton.Size.X.Offset + 28
+		local yOffset = MobileButton.Position.Y.Offset + 6
+		MobilePanel.Position = UDim2.new(0, xOffset, 0, yOffset)
+	end
 
-	bindFreeDrag(button, button, function()
-		button:SetAttribute("CustomMoved", true)
+	RunService.RenderStepped:Connect(function()
+		placeMobileButtonDefault()
+
+		if mobileMenuOpen and not MobilePanel:GetAttribute("CustomMoved") then
+			placePanelToRightOfSudoku()
+		end
+	end)
+
+	placeMobileButtonDefault()
+	placePanelToRightOfSudoku()
+
+	bindFreeDrag(MobileButton, MobileButton, function()
+		MobileButton:SetAttribute("CustomMoved", true)
+
+		if not MobilePanel:GetAttribute("CustomMoved") then
+			placePanelToRightOfSudoku()
+		end
 	end, 0.5)
 
-	button.Activated:Connect(function()
-		if not canUseMobileTap(button) then
-			return
-		end
+	bindFreeDrag(MobileMenuButton, MobileMenuButton, nil, 0.5)
 
+	bindFreeDrag(mobileDragHandle, MobilePanel, function()
+		MobilePanel:SetAttribute("CustomMoved", true)
+	end, 0)
+
+	bindRowPress(MobileButton, function()
 		solveCurrentBoard()
 	end)
+
+	bindRowPress(MobileMenuButton, function()
+		mobileMenuOpen = not mobileMenuOpen
+
+		if mobileMenuOpen then
+			if not MobilePanel:GetAttribute("CustomMoved") then
+				placePanelToRightOfSudoku()
+			end
+
+			MobilePanel.BackgroundTransparency = 1
+			MobilePanel.Size = UDim2.new(0, 224, 0, 316)
+			elegantShow(MobilePanel, UDim2.new(0, 232, 0, 324), MobilePanel.Position, 0)
+		else
+			elegantHide(MobilePanel)
+		end
+	end)
+
+	bindRowPress(solveRow, function()
+		solveCurrentBoard()
+	end)
+
+	local function toggleAutoFill()
+		autoFillEnabled = not autoFillEnabled
+		actionToken += 1
+		updateMobilePanelButtons()
+	end
+
+	local function toggleAutoNotes()
+		autoNotesEnabled = not autoNotesEnabled
+		actionToken += 1
+		updateMobilePanelButtons()
+	end
+
+	bindRowPress(autoFillRow, toggleAutoFill)
+	bindRowPress(autoFillHitbox, toggleAutoFill)
+	bindRowPress(autoNotesRow, toggleAutoNotes)
+	bindRowPress(autoNotesHitbox, toggleAutoNotes)
+
+	updateMobilePanelButtons()
+	setHostShadowVisible(MobilePanel, false)
 end
 
-createMobileMenu()
-createSudokuButton()
+buildMobileGui()
 
 LocalPlayer.CharacterAdded:Connect(function()
 	task.wait(1)
@@ -1529,7 +1771,6 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 print("Sudoku helper carregado.")
-print("Clique em Sudoku para resolver.")
-print("Menu ☰: Auto Fill e Auto Notes.")
-print("Auto Fill só funciona com Preencher selecionado.")
-print("Auto Notes só funciona com Notas selecionado.")
+print("Botão Sudoku e menu no estilo Cerber X.")
+print("Auto-preencher: apenas com Preencher selecionado.")
+print("Auto-notas: apenas com Notas selecionado e só anota o número correto.")
