@@ -215,8 +215,9 @@ isDance2TurnEnabled = false
 isFloorbangEspEnabled = false
 chamsESPEnabled = false
 playerESPHighlights = {}
+roleWatchConnections = {}
 computerESPMarkers = {}
-COMPUTER_CLUSTER_RANGE = 14
+COMPUTER_CLUSTER_RANGE = 35
 floorbangEspMarkers = {}
 FLOORBANG_HORIZONTAL_RANGE = 35
 dance2TurnToken = 0
@@ -1073,13 +1074,43 @@ local function updateChamsESP()
 	end
 end
 
+local function updateChamsSwitchVisual()
+	if not mobileChamsESPSwitch or not mobileChamsESPKnob then
+		return
+	end
+
+	local enabled = chamsESPEnabled and true or false
+	local offPos = UDim2.new(0, 3, 0.5, -13)
+	local onPos = UDim2.new(1, -29, 0.5, -13)
+
+	pcall(function()
+		TweenService:Create(mobileChamsESPSwitch, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			BackgroundColor3 = enabled and Color3.fromRGB(190,190,190) or Color3.fromRGB(20,20,24)
+		}):Play()
+
+		TweenService:Create(mobileChamsESPKnob, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Position = enabled and onPos or offPos,
+			BackgroundColor3 = enabled and Color3.fromRGB(255,255,255) or Color3.fromRGB(0,0,0)
+		}):Play()
+	end)
+end
+
+updateESPButtons = function()
+	if PcChamsESPButton then
+		PcChamsESPButton.Text = chamsESPEnabled and "Player Chams: On" or "Player Chams: Off"
+	end
+
+	if MobileChamsESPRow and MobileChamsESPRow:FindFirstChild("Label") then
+		MobileChamsESPRow.Label.Text = "Player Chams"
+	end
+
+	updateChamsSwitchVisual()
+end
+
 local function setChamsESPEnabled(state)
 	chamsESPEnabled = state and true or false
 	updateChamsESP()
-
-	if mobileChamsESPSwitch and mobileChamsESPKnob then
-		updateSwitchVisual(mobileChamsESPSwitch, mobileChamsESPKnob, chamsESPEnabled)
-	end
+	updateChamsSwitchVisual()
 
 	if updateESPButtons then
 		updateESPButtons()
@@ -1209,7 +1240,7 @@ local function updateComputerESP()
 			end
 		end
 
-		-- Só computadores com pelo menos 1 outro computador dentro de 14 studs recebem chams.
+		-- Só computadores com pelo menos 1 outro computador dentro de 35 studs recebem chams.
 		if nearby >= 1 then
 			clustered[root] = true
 
@@ -1242,6 +1273,102 @@ local function updateComputerESP()
 		end
 	end
 end
+
+
+local function disconnectRoleWatch(player)
+	local cons = roleWatchConnections[player]
+	if cons then
+		for _, con in ipairs(cons) do
+			pcall(function()
+				con:Disconnect()
+			end)
+		end
+	end
+	roleWatchConnections[player] = nil
+end
+
+local function watchPlayerRole(player)
+	if not player or player == LocalPlayer then
+		return
+	end
+
+	disconnectRoleWatch(player)
+	roleWatchConnections[player] = {}
+
+	local function refreshSoon()
+		task.defer(function()
+			if chamsESPEnabled then
+				updateChamsESP()
+			end
+		end)
+	end
+
+	local stats = player:FindFirstChild("TempPlayerStatsModule")
+	if stats then
+		local isBeastValue = stats:FindFirstChild("IsBeast")
+		if isBeastValue and isBeastValue:IsA("BoolValue") then
+			table.insert(roleWatchConnections[player], isBeastValue.Changed:Connect(refreshSoon))
+		end
+
+		table.insert(roleWatchConnections[player], stats.ChildAdded:Connect(function(child)
+			if child.Name == "IsBeast" and child:IsA("BoolValue") then
+				refreshSoon()
+				watchPlayerRole(player)
+			end
+		end))
+	end
+
+	table.insert(roleWatchConnections[player], player.ChildAdded:Connect(function(child)
+		if child.Name == "TempPlayerStatsModule" then
+			task.wait(0.1)
+			refreshSoon()
+			watchPlayerRole(player)
+		end
+	end))
+
+	table.insert(roleWatchConnections[player], player.CharacterAdded:Connect(function()
+		task.wait(0.25)
+		refreshSoon()
+		watchPlayerRole(player)
+	end))
+
+	refreshSoon()
+end
+
+for _, player in ipairs(Players:GetPlayers()) do
+	watchPlayerRole(player)
+end
+
+Players.PlayerAdded:Connect(function(player)
+	watchPlayerRole(player)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	disconnectRoleWatch(player)
+
+	if playerESPHighlights[player] then
+		playerESPHighlights[player]:Destroy()
+		playerESPHighlights[player] = nil
+	end
+end)
+
+local lastComputerESPUpdate = 0
+RunService.RenderStepped:Connect(function()
+	if not isThisScriptActive or not isThisScriptActive() then
+		clearChamsESP()
+		for root in pairs(computerESPMarkers) do
+			removeComputerESP(root)
+		end
+		return
+	end
+
+	updateChamsESP()
+
+	if tick() - lastComputerESPUpdate >= 1 then
+		lastComputerESPUpdate = tick()
+		updateComputerESP()
+	end
+end)
 
 local function restoreDance2Noclip()
 	for part, oldValue in pairs(dance2NoclipOriginalCanCollide) do
@@ -3451,6 +3578,8 @@ local function buildMobileGui()
 	bindRowPress(MobileChamsESPRow and MobileChamsESPRow:FindFirstChild("SwitchHitbox"), function()
 		setChamsESPEnabled(not chamsESPEnabled)
 	end)
+
+	updateChamsSwitchVisual()
 
 
 	bindRowPress(MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("SwitchHitbox"), function()
@@ -5955,4 +6084,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loafded Successfully ✅")
+print("Cerber X V1.1 • Loaded Successfully ✅")
