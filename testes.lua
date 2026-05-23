@@ -217,7 +217,7 @@ chamsESPEnabled = false
 playerESPHighlights = {}
 roleWatchConnections = {}
 computerESPMarkers = {}
-COMPUTER_CLUSTER_RANGE = 35
+COMPUTER_ESP_RANGE = 500
 floorbangEspMarkers = {}
 FLOORBANG_HORIZONTAL_RANGE = 35
 dance2TurnToken = 0
@@ -1176,20 +1176,6 @@ local function modelHasComputerSignals(model)
 	return visibleParts >= 2 and score >= 4
 end
 
-local function getTopComputerModel(obj)
-	local current = obj
-	local best = nil
-
-	while current and current ~= workspace do
-		if current:IsA("Model") and modelHasComputerSignals(current) then
-			best = current
-		end
-		current = current.Parent
-	end
-
-	return best
-end
-
 local function getRootPosition(root)
 	if not root or not root.Parent then
 		return nil
@@ -1240,7 +1226,6 @@ local function rescanComputerCandidates()
 			if obj:IsA("Model") then
 				local name = tostring(obj.Name or ""):lower()
 
-				-- Scan ultra leve: só testa models com nome provável.
 				if name:find("computer", 1, true) or name:find("pc", 1, true) or name:find("hack", 1, true) then
 					if modelHasComputerSignals(obj) then
 						local pos = getRootPosition(obj)
@@ -1268,7 +1253,10 @@ local function rescanComputerCandidates()
 end
 
 local function getComputerCandidates()
-	-- Não faz scan completo automaticamente em loop. O scan inicial e eventos cuidam disso.
+	if tick() - lastComputerCandidateScan > 45 or not next(computerCandidateCache) then
+		rescanComputerCandidates()
+	end
+
 	local candidates = {}
 
 	for root in pairs(computerCandidateCache) do
@@ -1284,31 +1272,33 @@ local function getComputerCandidates()
 	return candidates
 end
 
+local function isComputerInLocalRange(pos)
+	local char = LocalPlayer.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp or not pos then
+		return false
+	end
+
+	return (pos - hrp.Position).Magnitude <= COMPUTER_ESP_RANGE
+end
+
 local function updateComputerESP()
 	local candidates = getComputerCandidates()
-	local clustered = {}
+	local visibleNow = {}
 
 	for root, pos in pairs(candidates) do
-		local nearby = 0
-
-		for otherRoot, otherPos in pairs(candidates) do
-			if otherRoot ~= root and (otherPos - pos).Magnitude <= COMPUTER_CLUSTER_RANGE then
-				nearby += 1
-			end
-		end
-
-		if nearby >= 1 then
-			clustered[root] = true
+		if isComputerInLocalRange(pos) then
+			visibleNow[root] = true
 
 			local marker = computerESPMarkers[root]
 			if not marker or not marker.highlight or not marker.highlight.Parent then
 				local highlight = Instance.new("Highlight")
 				highlight.Name = "CerberXComputerChams"
 				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-				highlight.FillTransparency = nearby >= 2 and 0.58 or 0.68
+				highlight.FillTransparency = 0.65
 				highlight.OutlineTransparency = 0.08
-				highlight.FillColor = nearby >= 2 and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(0, 185, 255)
-				highlight.OutlineColor = highlight.FillColor
+				highlight.FillColor = Color3.fromRGB(0, 185, 255)
+				highlight.OutlineColor = Color3.fromRGB(0, 255, 170)
 				highlight.Adornee = root
 				highlight.Parent = root
 
@@ -1316,19 +1306,25 @@ local function updateComputerESP()
 				computerESPMarkers[root] = marker
 			else
 				marker.highlight.Adornee = root
-				marker.highlight.FillTransparency = nearby >= 2 and 0.58 or 0.68
-				marker.highlight.FillColor = nearby >= 2 and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(0, 185, 255)
-				marker.highlight.OutlineColor = marker.highlight.FillColor
 			end
 		end
 	end
 
 	for root in pairs(computerESPMarkers) do
-		if not clustered[root] then
+		if not visibleNow[root] then
 			removeComputerESP(root)
 		end
 	end
 end
+
+workspace.DescendantRemoving:Connect(function(obj)
+	local root = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+	if root and computerCandidateCache[root] then
+		computerCandidateCache[root] = nil
+		removeComputerESP(root)
+	end
+end)
+
 
 local function disconnectRoleWatch(player)
 	local cons = roleWatchConnections[player]
@@ -1441,7 +1437,7 @@ RunService.Heartbeat:Connect(function()
 
 	-- Player Chams não faz mais loop: atualiza no toggle, CharacterAdded e IsBeast.Changed.
 	-- Computer ESP usa cache e roda raramente, sem escanear o mapa aqui.
-	if (now - lastComputerESPUpdate) >= 20 then
+	if (now - lastComputerESPUpdate) >= 1 then
 		lastComputerESPUpdate = now
 		updateComputerESP()
 	end
@@ -3391,7 +3387,7 @@ local function buildMobileGui()
 	MobileESPInfoLabel.Size = UDim2.new(1, -14, 0, 56)
 	MobileESPInfoLabel.Position = UDim2.new(0, 7, 0, 76)
 	MobileESPInfoLabel.BackgroundTransparency = 1
-	MobileESPInfoLabel.Text = "Computer ESP is always on. Only nearby double/triple spots get chams."
+	MobileESPInfoLabel.Text = "Computer ESP is always on. PCs within 500 studs get chams."
 	MobileESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileESPInfoLabel.Font = Enum.Font.Gotham
 	MobileESPInfoLabel.TextSize = 11
@@ -4305,7 +4301,7 @@ local function buildPCGui()
 	PcESPInfoLabel.Size = UDim2.new(1, -36, 0, 46)
 	PcESPInfoLabel.Position = UDim2.new(0, 18, 0, 68)
 	PcESPInfoLabel.BackgroundTransparency = 1
-	PcESPInfoLabel.Text = "Computer ESP is always on. Only nearby double/triple computer spots get chams."
+	PcESPInfoLabel.Text = "Computer ESP is always on. PCs within 500 studs get chams."
 	PcESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcESPInfoLabel.Font = Enum.Font.Gotham
 	PcESPInfoLabel.TextSize = 12
@@ -6161,4 +6157,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Successfully ✅")
+print("Cerber X V1.1 • Loaddded Successfully ✅")
