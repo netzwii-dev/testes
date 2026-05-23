@@ -1,4 +1,4 @@
--- Wallhop Script (Made by nyhito)
+-- Cerber X V1.1 (Made by nyhito)
 -- All Credits: nyhito (tester, config and uploader)
 -- The Best Flee the Facility Script
 
@@ -106,9 +106,11 @@ NoticeBar = nil
 PcTabFunctions = nil
 PcTabFlicks = nil
 PcTabSettings = nil
+PcTabESP = nil
 PcFunctionsPage = nil
 PcFlicksPage = nil
 PcSettingsPage = nil
+PcESPPage = nil
 PcMinimalSettingsTitle = nil
 PcCurrentUsingLabel = nil
 PcSettingsXrayTitle = nil
@@ -130,13 +132,18 @@ PcFlickSettingsTitle = nil
 PcNormalFlickButton = nil
 PcSpeedFlickButton = nil
 PcSlowFlickButton = nil
+PcChamsESPButton = nil
+PcESPInfoLabel = nil
+PcRunnerTimerInfoLabel = nil
 
 MobileTabFunctions = nil
 MobileTabFlicks = nil
 MobileTabSettings = nil
+MobileTabESP = nil
 MobileFunctionsPage = nil
 MobileFlicksPage = nil
 MobileSettingsPage = nil
+MobileESPPage = nil
 MobileMinimalSettingsTitle = nil
 MobileCurrentUsingLabel = nil
 SettingsXrayBox = nil
@@ -163,6 +170,9 @@ MobileRealXrayRow = nil
 MobileDance2TurnRow = nil
 MobileFloorbangEspRow = nil
 MobileHideGuiRow = nil
+MobileChamsESPRow = nil
+MobileESPInfoLabel = nil
+MobileRunnerTimerInfoLabel = nil
 
 mobileBeastSlowSwitch = nil
 mobileBeastSlowKnob = nil
@@ -178,6 +188,8 @@ mobileFloorbangEspSwitch = nil
 mobileFloorbangEspKnob = nil
 mobileHideGuiSwitch = nil
 mobileHideGuiKnob = nil
+mobileChamsESPSwitch = nil
+mobileChamsESPKnob = nil
 mobileDragHandle = nil
 
 local dragConnections = {}
@@ -190,6 +202,7 @@ setMobileCornerWalkButtonVisible = nil
 setMobileBeastSlowButtonVisible = nil
 applyVisibility = nil
 updateFlickButtons = nil
+updateESPButtons = nil
 switchPcTab = nil
 switchMobileTab = nil
 
@@ -200,6 +213,18 @@ isXrayEnabled = false
 realXrayEnabled = false
 isDance2TurnEnabled = false
 isFloorbangEspEnabled = false
+chamsESPEnabled = true
+runnerTimerVisible = true
+playerESPHighlights = {}
+computerESPMarkers = {}
+RunnerTimerGui = nil
+RunnerTimerLabel = nil
+runnerActiveUntil = 0
+runnerCooldownUntil = 0
+runnerLastHighSpeed = false
+RUNNER_ACTIVE_DURATION = 6
+RUNNER_COOLDOWN_DURATION = 30
+RUNNER_SPEED_THRESHOLD = 19
 floorbangEspMarkers = {}
 FLOORBANG_HORIZONTAL_RANGE = 35
 dance2TurnToken = 0
@@ -219,7 +244,6 @@ isWallHopping = false
 lastWallHopTime = 0
 WALLHOP_GRACE_TIME = 1.5
 WALLHOP_COOLDOWN = 0
-WALLHOP_VERTICAL_BOOST = 0.1
 
 canDoubleJump = false
 lastDoubleJump = 0
@@ -411,6 +435,8 @@ local function saveUserPreferences()
 		realXrayEnabled = realXrayEnabled,
 		isDance2TurnEnabled = isDance2TurnEnabled,
 		isFloorbangEspEnabled = isFloorbangEspEnabled,
+		chamsESPEnabled = chamsESPEnabled,
+		runnerTimerVisible = runnerTimerVisible,
 		mobileWallhopGuiHidden = mobileWallhopGuiHidden,
 		mobileCornerWalkButtonVisible = mobileCornerWalkButtonVisible,
 		mobileBeastSlowButtonVisible = mobileBeastSlowButtonVisible,
@@ -475,6 +501,12 @@ local function loadUserPreferences()
 		end
 		if type(decoded.isFloorbangEspEnabled) == "boolean" then
 			isFloorbangEspEnabled = decoded.isFloorbangEspEnabled
+		end
+		if type(decoded.chamsESPEnabled) == "boolean" then
+			chamsESPEnabled = decoded.chamsESPEnabled
+		end
+		if type(decoded.runnerTimerVisible) == "boolean" then
+			runnerTimerVisible = decoded.runnerTimerVisible
 		end
 		if type(decoded.mobileWallhopGuiHidden) == "boolean" then
 			mobileWallhopGuiHidden = decoded.mobileWallhopGuiHidden
@@ -710,56 +742,103 @@ local function buildFloorbangRing(player)
 	folder.Name = "FloorbangESP3DRing"
 	folder.Parent = workspace
 
-	local anchor = Instance.new("Part")
-	anchor.Name = "FloorbangESPAnchor"
-	anchor.Anchored = true
-	anchor.CanCollide = false
-	anchor.CanTouch = false
-	anchor.CanQuery = false
-	anchor.CastShadow = false
-	anchor.Transparency = 1
-	anchor.Size = Vector3.new(0.15, 0.15, 0.15)
-	anchor.Parent = folder
-
-	local parts = {}
-	local segments = 180
-	local radius = 1.66
-	local thickness = 0.115
-	local height = 0.085
-	local segmentLength = ((math.pi * 2 * radius) / segments) * 1.42
-
-	for i = 1, segments do
-		local glow = Instance.new("BoxHandleAdornment")
-		glow.Name = "Glow"
-		glow.Adornee = anchor
-		glow.AlwaysOnTop = true
-		glow.ZIndex = 9
-		glow.Color3 = Color3.fromRGB(255, 0, 0)
-		glow.Transparency = 0.58
-		glow.Size = Vector3.new(segmentLength * 1.02, height * 0.9, thickness * 3.2)
-		glow.Parent = anchor
-
-		local segment = Instance.new("BoxHandleAdornment")
-		segment.Name = "Ring"
-		segment.Adornee = anchor
-		segment.AlwaysOnTop = true
-		segment.ZIndex = 10
-		segment.Color3 = Color3.fromRGB(255, 0, 0)
-		segment.Transparency = 0.01
-		segment.Size = Vector3.new(segmentLength, height, thickness)
-		segment.Parent = anchor
-
-		table.insert(parts, {segment = segment, glow = glow, angle = ((i - 1) / segments) * math.pi * 2})
+	local function makeAnchor(name)
+		local anchor = Instance.new("Part")
+		anchor.Name = name
+		anchor.Anchored = true
+		anchor.CanCollide = false
+		anchor.CanTouch = false
+		anchor.CanQuery = false
+		anchor.CastShadow = false
+		anchor.Transparency = 1
+		anchor.Size = Vector3.new(0.15, 0.15, 0.15)
+		anchor.Parent = folder
+		return anchor
 	end
 
+	local anchor = makeAnchor("FloorbangESPAnchor")
+	local groundAnchor = makeAnchor("FloorbangESPGroundAnchor")
+
+	local function makeRingParts(anchorObject, zIndexBase, mainTransparency, glowTransparency, color)
+		local parts = {}
+		local segments = 180
+		local radius = 1.66
+		local thickness = 0.115
+		local height = 0.085
+		local segmentLength = ((math.pi * 2 * radius) / segments) * 1.42
+
+		for i = 1, segments do
+			local glow = Instance.new("BoxHandleAdornment")
+			glow.Name = "Glow"
+			glow.Adornee = anchorObject
+			glow.AlwaysOnTop = true
+			glow.ZIndex = zIndexBase
+			glow.Color3 = color
+			glow.Transparency = glowTransparency
+			glow.Size = Vector3.new(segmentLength * 1.02, height * 0.9, thickness * 3.2)
+			glow.Parent = anchorObject
+
+			local segment = Instance.new("BoxHandleAdornment")
+			segment.Name = "Ring"
+			segment.Adornee = anchorObject
+			segment.AlwaysOnTop = true
+			segment.ZIndex = zIndexBase + 1
+			segment.Color3 = color
+			segment.Transparency = mainTransparency
+			segment.Size = Vector3.new(segmentLength, height, thickness)
+			segment.Parent = anchorObject
+
+			table.insert(parts, {segment = segment, glow = glow, angle = ((i - 1) / segments) * math.pi * 2})
+		end
+
+		return parts
+	end
+
+	local radius = 1.66
 	folder:SetAttribute("Radius", radius)
-	folder:SetAttribute("Segments", segments)
+	folder:SetAttribute("Segments", 180)
 
 	return {
 		folder = folder,
 		anchor = anchor,
-		parts = parts
+		groundAnchor = groundAnchor,
+		parts = makeRingParts(anchor, 9, 0.01, 0.58, Color3.fromRGB(255, 0, 0)),
+		groundParts = makeRingParts(groundAnchor, 7, 0.18, 0.68, Color3.fromRGB(255, 40, 40))
 	}
+end
+
+local function getLocalFloorbangGroundY()
+	local localChar = LocalPlayer.Character
+	local localHrp = localChar and localChar:FindFirstChild("HumanoidRootPart")
+	if not localChar or not localHrp then
+		return nil
+	end
+
+	local ok, boxCFrame, boxSize = pcall(function()
+		return localChar:GetBoundingBox()
+	end)
+
+	if ok and boxCFrame and boxSize then
+		return boxCFrame.Position.Y - (boxSize.Y / 2) - 0.045
+	end
+
+	return localHrp.Position.Y - 3.08
+end
+
+local function applyFloorbangRingParts(parts, radius)
+	for _, data in ipairs(parts or {}) do
+		local angle = data.angle
+		local x = math.cos(angle) * radius
+		local z = math.sin(angle) * radius
+		local localCFrame = CFrame.new(x, 0, z) * CFrame.Angles(0, -angle, 0)
+
+		if data.segment and data.segment.Parent then
+			data.segment.CFrame = localCFrame
+		end
+		if data.glow and data.glow.Parent then
+			data.glow.CFrame = localCFrame
+		end
+	end
 end
 
 local function positionFloorbangRing(player)
@@ -789,21 +868,18 @@ local function positionFloorbangRing(player)
 
 	anchor.CFrame = CFrame.new(basePosition)
 
-	local radius = marker.folder and marker.folder:GetAttribute("Radius") or 1.66
-
-	for _, data in ipairs(marker.parts or {}) do
-		local angle = data.angle
-		local x = math.cos(angle) * radius
-		local z = math.sin(angle) * radius
-		local localCFrame = CFrame.new(x, 0, z) * CFrame.Angles(0, -angle, 0)
-
-		if data.segment and data.segment.Parent then
-			data.segment.CFrame = localCFrame
-		end
-		if data.glow and data.glow.Parent then
-			data.glow.CFrame = localCFrame
+	if marker.groundAnchor and marker.groundAnchor.Parent then
+		local groundY = getLocalFloorbangGroundY()
+		if groundY then
+			marker.groundAnchor.CFrame = CFrame.new(hrp.Position.X, groundY, hrp.Position.Z)
+		else
+			marker.groundAnchor.CFrame = CFrame.new(basePosition)
 		end
 	end
+
+	local radius = marker.folder and marker.folder:GetAttribute("Radius") or 1.66
+	applyFloorbangRingParts(marker.parts, radius)
+	applyFloorbangRingParts(marker.groundParts, radius)
 end
 
 local function createFloorbangESP(player)
@@ -908,6 +984,312 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
+function isPlayerBeast(player)
+	if not player then
+		return false
+	end
+	local teamName = player.Team and tostring(player.Team.Name or ""):lower() or ""
+	if teamName:find("beast", 1, true) or teamName:find("monster", 1, true) then
+		return true
+	end
+	for _, container in ipairs({player, player.Character}) do
+		if container then
+			for _, attrName in ipairs({"IsBeast", "Beast", "Role", "Class"}) do
+				local attr = container:GetAttribute(attrName)
+				if typeof(attr) == "boolean" and attr == true then
+					return true
+				end
+				if typeof(attr) == "string" and attr:lower():find("beast", 1, true) then
+					return true
+				end
+			end
+		end
+	end
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	local character = player.Character
+	for _, container in ipairs({backpack, character}) do
+		if container then
+			for _, obj in ipairs(container:GetChildren()) do
+				local n = tostring(obj.Name or ""):lower()
+				if n:find("hammer", 1, true) or n:find("beast", 1, true) then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+local function getPlayerESPColor(player)
+	return isPlayerBeast(player) and Color3.fromRGB(255, 0, 0) or Color3.fromRGB(35, 35, 40)
+end
+
+local function clearChamsESP()
+	for player, highlight in pairs(playerESPHighlights) do
+		if highlight then pcall(function() highlight:Destroy() end) end
+		playerESPHighlights[player] = nil
+	end
+end
+
+local function updateChamsESP()
+	if not chamsESPEnabled then
+		clearChamsESP()
+		return
+	end
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			local character = player.Character
+			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if character and humanoid and humanoid.Health > 0 then
+				local highlight = playerESPHighlights[player]
+				if not highlight or not highlight.Parent then
+					highlight = Instance.new("Highlight")
+					highlight.Name = "CerberXPlayerChams"
+					highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+					highlight.FillTransparency = 0.45
+					highlight.OutlineTransparency = 0.1
+					highlight.Parent = character
+					playerESPHighlights[player] = highlight
+				end
+				highlight.Adornee = character
+				local color = getPlayerESPColor(player)
+				highlight.FillColor = color
+				highlight.OutlineColor = color
+			elseif playerESPHighlights[player] then
+				pcall(function() playerESPHighlights[player]:Destroy() end)
+				playerESPHighlights[player] = nil
+			end
+		end
+	end
+	for player, highlight in pairs(playerESPHighlights) do
+		if not player or not player.Parent or player == LocalPlayer or not player.Character then
+			pcall(function() if highlight then highlight:Destroy() end end)
+			playerESPHighlights[player] = nil
+		end
+	end
+end
+
+local function setChamsESPEnabled(state)
+	chamsESPEnabled = state and true or false
+	updateChamsESP()
+	if updateESPButtons then updateESPButtons() end
+	saveUserPreferences()
+end
+
+local function getComputerRoot(obj)
+	if not obj or not obj.Parent then return nil end
+	local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+	if model and model:FindFirstChildOfClass("Humanoid") then return nil end
+	local current = obj
+	while current and current ~= workspace do
+		local n = tostring(current.Name or ""):lower()
+		if n:find("computer", 1, true) or n:find("hack", 1, true) then
+			if current:IsA("Model") or current:IsA("BasePart") then return current end
+		end
+		current = current.Parent
+	end
+	return model
+end
+
+local function getRootPosition(root)
+	if not root or not root.Parent then return nil end
+	if root:IsA("BasePart") then return root.Position end
+	if root:IsA("Model") then
+		local primary = root.PrimaryPart or root:FindFirstChildWhichIsA("BasePart", true)
+		if primary then return primary.Position end
+	end
+	return nil
+end
+
+local function getRootAdornee(root)
+	if not root or not root.Parent then return nil end
+	if root:IsA("BasePart") then return root end
+	if root:IsA("Model") then return root.PrimaryPart or root:FindFirstChildWhichIsA("BasePart", true) end
+	return nil
+end
+
+local function getComputerCandidates()
+	local candidates = {}
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		local n = tostring(obj.Name or ""):lower()
+		if (n:find("computer", 1, true) or n:find("hack", 1, true)) and (obj:IsA("Model") or obj:IsA("BasePart")) then
+			local root = getComputerRoot(obj)
+			local pos = getRootPosition(root)
+			if root and pos then candidates[root] = pos end
+		end
+	end
+	return candidates
+end
+
+local function removeComputerESP(root)
+	local marker = computerESPMarkers[root]
+	if marker then
+		pcall(function()
+			if marker.highlight then marker.highlight:Destroy() end
+			if marker.billboard then marker.billboard:Destroy() end
+		end)
+	end
+	computerESPMarkers[root] = nil
+end
+
+local function updateComputerESP()
+	local candidates = getComputerCandidates()
+	for root, pos in pairs(candidates) do
+		local nearby = 0
+		for otherRoot, otherPos in pairs(candidates) do
+			if otherRoot ~= root and (otherPos - pos).Magnitude <= 32 then nearby += 1 end
+		end
+		local label = "Computer"
+		if nearby >= 2 then label = "Triple Computer" elseif nearby >= 1 then label = "Double Computer" end
+		local adornee = getRootAdornee(root)
+		if adornee then
+			local marker = computerESPMarkers[root]
+			if not marker or not marker.billboard or not marker.billboard.Parent then
+				local billboard = Instance.new("BillboardGui")
+				billboard.Name = "CerberXComputerESP"
+				billboard.AlwaysOnTop = true
+				billboard.Size = UDim2.new(0, 130, 0, 28)
+				billboard.StudsOffset = Vector3.new(0, 3, 0)
+				billboard.Adornee = adornee
+				billboard.Parent = adornee
+
+				local textLabel = Instance.new("TextLabel")
+				textLabel.Size = UDim2.new(1, 0, 1, 0)
+				textLabel.BackgroundTransparency = 1
+				textLabel.TextColor3 = Color3.fromRGB(0, 255, 170)
+				textLabel.Font = Enum.Font.GothamBold
+				textLabel.TextScaled = true
+				textLabel.TextStrokeTransparency = 0.35
+				textLabel.Parent = billboard
+
+				local highlight = Instance.new("Highlight")
+				highlight.Name = "CerberXComputerHighlight"
+				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+				highlight.FillColor = Color3.fromRGB(0, 255, 170)
+				highlight.OutlineColor = Color3.fromRGB(0, 255, 170)
+				highlight.FillTransparency = 0.78
+				highlight.OutlineTransparency = 0.15
+				highlight.Adornee = root
+				highlight.Parent = root
+
+				marker = {billboard = billboard, label = textLabel, highlight = highlight}
+				computerESPMarkers[root] = marker
+			end
+			marker.billboard.Adornee = adornee
+			marker.label.Text = label
+		end
+	end
+	for root in pairs(computerESPMarkers) do
+		if not candidates[root] then removeComputerESP(root) end
+	end
+end
+
+local function ensureRunnerTimerGui()
+	if not runnerTimerVisible or not PlayerGui then return end
+	if RunnerTimerGui and RunnerTimerGui.Parent and RunnerTimerLabel and RunnerTimerLabel.Parent then return end
+	local old = PlayerGui:FindFirstChild("CerberXRunnerTimerGui")
+	if old then old:Destroy() end
+	RunnerTimerGui = Instance.new("ScreenGui")
+	RunnerTimerGui.Name = "CerberXRunnerTimerGui"
+	RunnerTimerGui.ResetOnSpawn = false
+	RunnerTimerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+	RunnerTimerGui.Parent = PlayerGui
+	RunnerTimerLabel = Instance.new("TextLabel")
+	RunnerTimerLabel.Name = "RunnerTimer"
+	RunnerTimerLabel.Size = UDim2.new(0, 175, 0, 28)
+	RunnerTimerLabel.Position = UDim2.new(0.5, -87, 0, 16)
+	RunnerTimerLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	RunnerTimerLabel.BackgroundTransparency = 0.18
+	RunnerTimerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	RunnerTimerLabel.Font = Enum.Font.GothamBold
+	RunnerTimerLabel.TextSize = 12
+	RunnerTimerLabel.Text = "Runner: ready"
+	RunnerTimerLabel.Parent = RunnerTimerGui
+	Instance.new("UICorner", RunnerTimerLabel).CornerRadius = UDim.new(0, 8)
+	noTextStroke(RunnerTimerLabel)
+	local dragging, dragStart, startPos = false, nil, nil
+	RunnerTimerLabel.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging, dragStart, startPos = true, input.Position, RunnerTimerLabel.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and dragStart and startPos and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+			local delta = input.Position - dragStart
+			RunnerTimerLabel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+	end)
+end
+
+local function getBeastHumanoid()
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and isPlayerBeast(player) then
+			local character = player.Character
+			local hum = character and character:FindFirstChildOfClass("Humanoid")
+			if hum and hum.Health > 0 then return hum, player end
+		end
+	end
+	return nil, nil
+end
+
+local function updateRunnerTimer()
+	ensureRunnerTimerGui()
+	if not RunnerTimerLabel then return end
+	local now = tick()
+	local hum = getBeastHumanoid()
+	local highSpeed = hum and hum.WalkSpeed >= RUNNER_SPEED_THRESHOLD
+	if highSpeed and not runnerLastHighSpeed and now >= runnerActiveUntil then
+		runnerActiveUntil = now + RUNNER_ACTIVE_DURATION
+		runnerCooldownUntil = runnerActiveUntil + RUNNER_COOLDOWN_DURATION
+	end
+	runnerLastHighSpeed = highSpeed and true or false
+	if now < runnerActiveUntil then
+		RunnerTimerLabel.Text = string.format("Runner active: %.1fs", runnerActiveUntil - now)
+		RunnerTimerLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+	elseif now < runnerCooldownUntil then
+		RunnerTimerLabel.Text = string.format("Runner cooldown: %.1fs", runnerCooldownUntil - now)
+		RunnerTimerLabel.TextColor3 = Color3.fromRGB(255, 210, 90)
+	else
+		RunnerTimerLabel.Text = "Runner: ready"
+		RunnerTimerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	end
+end
+
+local lastComputerESPUpdate = 0
+RunService.RenderStepped:Connect(function()
+	if not isThisScriptActive or not isThisScriptActive() then
+		clearChamsESP()
+		return
+	end
+	updateChamsESP()
+	updateRunnerTimer()
+	if tick() - lastComputerESPUpdate >= 1 then
+		lastComputerESPUpdate = tick()
+		updateComputerESP()
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	if playerESPHighlights[player] then
+		playerESPHighlights[player]:Destroy()
+		playerESPHighlights[player] = nil
+	end
+end)
+
+updateESPButtons = function()
+	if PcChamsESPButton then
+		PcChamsESPButton.Text = chamsESPEnabled and "Player Chams: On" or "Player Chams: Off"
+	end
+	if MobileChamsESPRow and MobileChamsESPRow:FindFirstChild("Label") then
+		MobileChamsESPRow.Label.Text = "Player Chams"
+	end
+	updateSwitchVisual(mobileChamsESPSwitch, mobileChamsESPKnob, chamsESPEnabled)
+end
+
+
 local function restoreDance2Noclip()
 	for part, oldValue in pairs(dance2NoclipOriginalCanCollide) do
 		if part and part.Parent then
@@ -982,7 +1364,7 @@ local function runDance2TurnSequence()
 		return
 	end
 
-	dance2TurnToken += 1
+	dance2TurnToken = dance2TurnToken + 1
 	local token = dance2TurnToken
 
 	task.delay(0.6, function()
@@ -1017,7 +1399,7 @@ local function setDance2TurnEnabled(state)
 	isDance2TurnEnabled = state and true or false
 
 	if not isDance2TurnEnabled then
-		dance2TurnToken += 1
+		dance2TurnToken = dance2TurnToken + 1
 		restoreDance2Noclip()
 	end
 
@@ -1279,7 +1661,7 @@ local function showNotice(text)
 		return
 	end
 
-	activeNoticeId += 1
+	activeNoticeId = activeNoticeId + 1
 	local myId = activeNoticeId
 	local msg = tostring(text or "")
 	local noticeWidth = math.clamp(210 + (#msg * 4), 230, 460)
@@ -1691,6 +2073,7 @@ updateMobilePanelButtons = function()
 	setMobileBeastSlowButtonVisible(mobileBeastSlowButtonVisible)
 	updateToggleButton()
 	updateFlickButtons()
+	updateESPButtons()
 end
 
 local function updateBindButtons()
@@ -1893,7 +2276,7 @@ local function bindFreeDrag(handle, target, onMove, holdTime)
 			startPos = target.Position
 			holdSatisfied = false
 			holdCanceled = false
-			holdId += 1
+			holdId = holdId + 1
 
 			local myHoldId = holdId
 
@@ -1945,23 +2328,25 @@ local function bindFreeDrag(handle, target, onMove, holdTime)
 			startPos = nil
 			holdSatisfied = false
 			holdCanceled = false
-			holdId += 1
+			holdId = holdId + 1
 		end
 	end))
 end
 
 switchPcTab = function(name)
-	if not PcFunctionsPage or not PcFlicksPage or not PcSettingsPage or not PcTabFunctions or not PcTabFlicks or not PcTabSettings then
+	if not PcFunctionsPage or not PcFlicksPage or not PcSettingsPage or not PcESPPage or not PcTabFunctions or not PcTabFlicks or not PcTabSettings or not PcTabESP then
 		return
 	end
 
 	local isFunctions = name == "Functions"
 	local isFlicks = name == "Flicks"
 	local isSettings = name == "Settings"
+	local isESP = name == "ESP"
 
 	PcFunctionsPage.Visible = isFunctions
 	PcFlicksPage.Visible = isFlicks
 	PcSettingsPage.Visible = isSettings
+	PcESPPage.Visible = isESP
 
 	if ToggleButton then
 		ToggleButton.Visible = isFunctions
@@ -1976,10 +2361,14 @@ switchPcTab = function(name)
 	if isSettings and PcSettingsPage:IsA("ScrollingFrame") then
 		PcSettingsPage.CanvasPosition = Vector2.new(0, 0)
 	end
+	if isESP and PcESPPage:IsA("ScrollingFrame") then
+		PcESPPage.CanvasPosition = Vector2.new(0, 0)
+	end
 
 	PcTabFunctions.BackgroundColor3 = isFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	PcTabFlicks.BackgroundColor3 = isFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	PcTabSettings.BackgroundColor3 = isSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	PcTabESP.BackgroundColor3 = isESP and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 
 	if isSettings then
 		updateSettingsInputs()
@@ -1991,17 +2380,19 @@ switchPcTab = function(name)
 end
 
 switchMobileTab = function(name)
-	if not MobileFunctionsPage or not MobileFlicksPage or not MobileSettingsPage or not MobileTabFunctions or not MobileTabFlicks or not MobileTabSettings then
+	if not MobileFunctionsPage or not MobileFlicksPage or not MobileSettingsPage or not MobileESPPage or not MobileTabFunctions or not MobileTabFlicks or not MobileTabSettings or not MobileTabESP then
 		return
 	end
 
 	mobileIsFunctions = name == "Functions"
 	mobileIsFlicks = name == "Flicks"
 	mobileIsSettings = name == "Settings"
+	mobileIsESP = name == "ESP"
 
 	MobileFunctionsPage.Visible = mobileIsFunctions
 	MobileFlicksPage.Visible = mobileIsFlicks
 	MobileSettingsPage.Visible = mobileIsSettings
+	MobileESPPage.Visible = mobileIsESP
 
 	if mobileIsFunctions and MobileFunctionsPage:IsA("ScrollingFrame") then
 		MobileFunctionsPage.CanvasPosition = Vector2.new(0, 0)
@@ -2012,10 +2403,14 @@ switchMobileTab = function(name)
 	if mobileIsSettings and MobileSettingsPage:IsA("ScrollingFrame") then
 		MobileSettingsPage.CanvasPosition = Vector2.new(0, 0)
 	end
+	if mobileIsESP and MobileESPPage:IsA("ScrollingFrame") then
+		MobileESPPage.CanvasPosition = Vector2.new(0, 0)
+	end
 
 	MobileTabFunctions.BackgroundColor3 = mobileIsFunctions and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	MobileTabFlicks.BackgroundColor3 = mobileIsFlicks and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 	MobileTabSettings.BackgroundColor3 = mobileIsSettings and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
+	MobileTabESP.BackgroundColor3 = mobileIsESP and Color3.fromRGB(20,20,20) or Color3.fromRGB(8,8,8)
 
 	if mobileIsSettings then
 		updateSettingsInputs()
@@ -2730,13 +3125,13 @@ local function buildMobileGui()
 	setTargetTransparency(mobileDragHandle, 0, nil)
 
 	MobileTabFunctions = Instance.new("TextButton")
-	MobileTabFunctions.Size = UDim2.new(0, 62, 0, 26)
-	MobileTabFunctions.Position = UDim2.new(0, 8, 0, 24)
+	MobileTabFunctions.Size = UDim2.new(0, 50, 0, 26)
+	MobileTabFunctions.Position = UDim2.new(0, 6, 0, 24)
 	MobileTabFunctions.BackgroundColor3 = Color3.fromRGB(20,20,20)
 	MobileTabFunctions.Text = "Functions"
 	MobileTabFunctions.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFunctions.Font = Enum.Font.GothamBold
-	MobileTabFunctions.TextSize = 11
+	MobileTabFunctions.TextSize = 9
 	MobileTabFunctions.Parent = MobilePanel
 	MobileTabFunctions.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabFunctions).CornerRadius = UDim.new(0, 10)
@@ -2744,13 +3139,13 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFunctions)
 
 	MobileTabFlicks = Instance.new("TextButton")
-	MobileTabFlicks.Size = UDim2.new(0, 62, 0, 26)
-	MobileTabFlicks.Position = UDim2.new(0, 84, 0, 24)
+	MobileTabFlicks.Size = UDim2.new(0, 50, 0, 26)
+	MobileTabFlicks.Position = UDim2.new(0, 62, 0, 24)
 	MobileTabFlicks.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabFlicks.Text = "Flicks"
 	MobileTabFlicks.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabFlicks.Font = Enum.Font.GothamBold
-	MobileTabFlicks.TextSize = 11
+	MobileTabFlicks.TextSize = 9
 	MobileTabFlicks.Parent = MobilePanel
 	MobileTabFlicks.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabFlicks).CornerRadius = UDim.new(0, 10)
@@ -2758,18 +3153,32 @@ local function buildMobileGui()
 	noTextStroke(MobileTabFlicks)
 
 	MobileTabSettings = Instance.new("TextButton")
-	MobileTabSettings.Size = UDim2.new(0, 66, 0, 26)
-	MobileTabSettings.Position = UDim2.new(0, 160, 0, 24)
+	MobileTabSettings.Size = UDim2.new(0, 52, 0, 26)
+	MobileTabSettings.Position = UDim2.new(0, 118, 0, 24)
 	MobileTabSettings.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	MobileTabSettings.Text = "Settings"
 	MobileTabSettings.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileTabSettings.Font = Enum.Font.GothamBold
-	MobileTabSettings.TextSize = 11
+	MobileTabSettings.TextSize = 9
 	MobileTabSettings.Parent = MobilePanel
 	MobileTabSettings.AutoButtonColor = false
 	Instance.new("UICorner", MobileTabSettings).CornerRadius = UDim.new(0, 10)
 	setTargetTransparency(MobileTabSettings, 0, 0)
 	noTextStroke(MobileTabSettings)
+
+	MobileTabESP = Instance.new("TextButton")
+	MobileTabESP.Size = UDim2.new(0, 52, 0, 26)
+	MobileTabESP.Position = UDim2.new(0, 174, 0, 24)
+	MobileTabESP.BackgroundColor3 = Color3.fromRGB(8,8,8)
+	MobileTabESP.Text = "ESP"
+	MobileTabESP.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileTabESP.Font = Enum.Font.GothamBold
+	MobileTabESP.TextSize = 9
+	MobileTabESP.Parent = MobilePanel
+	MobileTabESP.AutoButtonColor = false
+	Instance.new("UICorner", MobileTabESP).CornerRadius = UDim.new(0, 10)
+	setTargetTransparency(MobileTabESP, 0, 0)
+	noTextStroke(MobileTabESP)
 
 	MobileFunctionsPage = Instance.new("ScrollingFrame")
 	MobileFunctionsPage.Size = UDim2.new(1, 0, 1, -58)
@@ -2793,6 +3202,62 @@ local function buildMobileGui()
 	MobileFlicksPage.Visible = false
 
 	buildMobileSettingsPage()
+
+	MobileESPPage = Instance.new("ScrollingFrame")
+	MobileESPPage.Size = UDim2.new(1, 0, 1, -58)
+	MobileESPPage.Position = UDim2.new(0, 0, 0, 58)
+	MobileESPPage.BackgroundTransparency = 1
+	MobileESPPage.BorderSizePixel = 0
+	MobileESPPage.ScrollBarThickness = 3
+	MobileESPPage.ScrollingDirection = Enum.ScrollingDirection.Y
+	MobileESPPage.CanvasSize = UDim2.new(0, 0, 0, 180)
+	MobileESPPage.Visible = false
+	MobileESPPage.Parent = MobilePanel
+
+	local MobileESPTitle = Instance.new("TextLabel")
+	MobileESPTitle.Size = UDim2.new(1, -14, 0, 22)
+	MobileESPTitle.Position = UDim2.new(0, 7, 0, 4)
+	MobileESPTitle.BackgroundTransparency = 1
+	MobileESPTitle.Text = "ESP"
+	MobileESPTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileESPTitle.Font = Enum.Font.GothamBold
+	MobileESPTitle.TextSize = 13
+	MobileESPTitle.TextXAlignment = Enum.TextXAlignment.Left
+	MobileESPTitle.Parent = MobileESPPage
+	noTextStroke(MobileESPTitle)
+	setTargetTransparency(MobileESPTitle, 1, 0)
+
+	MobileChamsESPRow, mobileChamsESPSwitch, mobileChamsESPKnob = createSwitchRow(MobileESPPage, 30, "Player Chams")
+
+	MobileESPInfoLabel = Instance.new("TextLabel")
+	MobileESPInfoLabel.Size = UDim2.new(1, -14, 0, 56)
+	MobileESPInfoLabel.Position = UDim2.new(0, 7, 0, 76)
+	MobileESPInfoLabel.BackgroundTransparency = 1
+	MobileESPInfoLabel.Text = "Computer ESP is always on. Double/triple spots are marked automatically."
+	MobileESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
+	MobileESPInfoLabel.Font = Enum.Font.Gotham
+	MobileESPInfoLabel.TextSize = 11
+	MobileESPInfoLabel.TextWrapped = true
+	MobileESPInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+	MobileESPInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
+	MobileESPInfoLabel.Parent = MobileESPPage
+	noTextStroke(MobileESPInfoLabel)
+	setTargetTransparency(MobileESPInfoLabel, 1, 0)
+
+	MobileRunnerTimerInfoLabel = Instance.new("TextLabel")
+	MobileRunnerTimerInfoLabel.Size = UDim2.new(1, -14, 0, 40)
+	MobileRunnerTimerInfoLabel.Position = UDim2.new(0, 7, 0, 130)
+	MobileRunnerTimerInfoLabel.BackgroundTransparency = 1
+	MobileRunnerTimerInfoLabel.Text = "Runner timer is always shown. Drag the timer box to move it."
+	MobileRunnerTimerInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
+	MobileRunnerTimerInfoLabel.Font = Enum.Font.Gotham
+	MobileRunnerTimerInfoLabel.TextSize = 11
+	MobileRunnerTimerInfoLabel.TextWrapped = true
+	MobileRunnerTimerInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+	MobileRunnerTimerInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
+	MobileRunnerTimerInfoLabel.Parent = MobileESPPage
+	noTextStroke(MobileRunnerTimerInfoLabel)
+	setTargetTransparency(MobileRunnerTimerInfoLabel, 1, 0)
 
 	MobileAllFunctionsTitle = Instance.new("TextLabel")
 	MobileAllFunctionsTitle.Size = UDim2.new(1, -14, 0, 22)
@@ -3040,6 +3505,14 @@ local function buildMobileGui()
 		switchMobileTab("Settings")
 	end)
 
+	MobileTabESP.Activated:Connect(function()
+		switchMobileTab("ESP")
+	end)
+
+	bindRowPress(MobileChamsESPRow and MobileChamsESPRow:FindFirstChild("SwitchHitbox"), function()
+		setChamsESPEnabled(not chamsESPEnabled)
+	end)
+
 	bindRowPress(MobileHideGuiRow and MobileHideGuiRow:FindFirstChild("SwitchHitbox"), function()
 		setMobileGuiHidden(not mobileWallhopGuiHidden)
 	end)
@@ -3178,13 +3651,13 @@ end
 
 local function createPcTabButton(parent, x, text)
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0, 96, 0, 28)
+	button.Size = UDim2.new(0, 72, 0, 28)
 	button.Position = UDim2.new(0, x, 0, 54)
 	button.BackgroundColor3 = Color3.fromRGB(8,8,8)
 	button.Text = text
 	button.TextColor3 = Color3.fromRGB(255,255,255)
 	button.Font = Enum.Font.GothamBold
-	button.TextSize = 13
+	button.TextSize = 12
 	button.AutoButtonColor = false
 	button.Parent = parent
 	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 10)
@@ -3295,8 +3768,9 @@ local function buildPCGui()
 	setTargetTransparency(ToggleButton, 1, 0)
 
 	PcTabFunctions = createPcTabButton(MainFrame, 18, "Functions")
-	PcTabFlicks = createPcTabButton(MainFrame, 120, "Flicks")
-	PcTabSettings = createPcTabButton(MainFrame, 222, "Settings")
+	PcTabFlicks = createPcTabButton(MainFrame, 96, "Flicks")
+	PcTabSettings = createPcTabButton(MainFrame, 174, "Settings")
+	PcTabESP = createPcTabButton(MainFrame, 252, "ESP")
 
 	PcFunctionsPage = Instance.new("ScrollingFrame")
 	PcFunctionsPage.Size = UDim2.new(1, 0, 1, -116)
@@ -3329,6 +3803,17 @@ local function buildPCGui()
 	PcSettingsPage.CanvasSize = UDim2.new(0, 0, 0, 230)
 	PcSettingsPage.Visible = false
 	PcSettingsPage.Parent = MainFrame
+
+	PcESPPage = Instance.new("ScrollingFrame")
+	PcESPPage.Size = UDim2.new(1, 0, 1, -94)
+	PcESPPage.Position = UDim2.new(0, 0, 0, 88)
+	PcESPPage.BackgroundTransparency = 1
+	PcESPPage.BorderSizePixel = 0
+	PcESPPage.ScrollBarThickness = 4
+	PcESPPage.ScrollingDirection = Enum.ScrollingDirection.Y
+	PcESPPage.CanvasSize = UDim2.new(0, 0, 0, 170)
+	PcESPPage.Visible = false
+	PcESPPage.Parent = MainFrame
 
 	PcKeybindsTitle = Instance.new("TextLabel")
 	PcKeybindsTitle.Size = UDim2.new(1, -36, 0, 20)
@@ -3654,6 +4139,51 @@ local function buildPCGui()
 	noTextStroke(PcCurrentUsingLabel)
 	setTargetTransparency(PcCurrentUsingLabel, 1, 0)
 
+	local PcESPTitle = Instance.new("TextLabel")
+	PcESPTitle.Size = UDim2.new(1, -36, 0, 20)
+	PcESPTitle.Position = UDim2.new(0, 18, 0, 0)
+	PcESPTitle.BackgroundTransparency = 1
+	PcESPTitle.Text = "ESP"
+	PcESPTitle.TextColor3 = Color3.fromRGB(255,255,255)
+	PcESPTitle.Font = Enum.Font.GothamBold
+	PcESPTitle.TextSize = 14
+	PcESPTitle.TextXAlignment = Enum.TextXAlignment.Left
+	PcESPTitle.Parent = PcESPPage
+	noTextStroke(PcESPTitle)
+	setTargetTransparency(PcESPTitle, 1, 0)
+
+	PcChamsESPButton = createPcActionButton(PcESPPage, 28, chamsESPEnabled and "Player Chams: On" or "Player Chams: Off")
+
+	PcESPInfoLabel = Instance.new("TextLabel")
+	PcESPInfoLabel.Size = UDim2.new(1, -36, 0, 46)
+	PcESPInfoLabel.Position = UDim2.new(0, 18, 0, 68)
+	PcESPInfoLabel.BackgroundTransparency = 1
+	PcESPInfoLabel.Text = "Computer ESP is always on. Doubles/triples are detected by nearby computer spots."
+	PcESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
+	PcESPInfoLabel.Font = Enum.Font.Gotham
+	PcESPInfoLabel.TextSize = 12
+	PcESPInfoLabel.TextWrapped = true
+	PcESPInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+	PcESPInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
+	PcESPInfoLabel.Parent = PcESPPage
+	noTextStroke(PcESPInfoLabel)
+	setTargetTransparency(PcESPInfoLabel, 1, 0)
+
+	PcRunnerTimerInfoLabel = Instance.new("TextLabel")
+	PcRunnerTimerInfoLabel.Size = UDim2.new(1, -36, 0, 38)
+	PcRunnerTimerInfoLabel.Position = UDim2.new(0, 18, 0, 118)
+	PcRunnerTimerInfoLabel.BackgroundTransparency = 1
+	PcRunnerTimerInfoLabel.Text = "Runner timer is always shown. Drag the timer box to move it."
+	PcRunnerTimerInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
+	PcRunnerTimerInfoLabel.Font = Enum.Font.Gotham
+	PcRunnerTimerInfoLabel.TextSize = 12
+	PcRunnerTimerInfoLabel.TextWrapped = true
+	PcRunnerTimerInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+	PcRunnerTimerInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
+	PcRunnerTimerInfoLabel.Parent = PcESPPage
+	noTextStroke(PcRunnerTimerInfoLabel)
+	setTargetTransparency(PcRunnerTimerInfoLabel, 1, 0)
+
 	local footer = Instance.new("TextLabel")
 	footer.Name = "PcFooter"
 	footer.Size = UDim2.new(1, -36, 0, 14)
@@ -3745,6 +4275,15 @@ local function buildPCGui()
 
 	PcTabSettings.MouseButton1Click:Connect(function()
 		switchPcTab("Settings")
+	end)
+
+	PcTabESP.MouseButton1Click:Connect(function()
+		switchPcTab("ESP")
+	end)
+
+	PcChamsESPButton.MouseButton1Click:Connect(function()
+		setChamsESPEnabled(not chamsESPEnabled)
+		showNotice(chamsESPEnabled and "Player Chams enabled" or "Player Chams disabled")
 	end)
 
 	if ClipDance2BindButton then
@@ -3902,7 +4441,7 @@ local function buildPCGui()
 end
 
 clearScriptSlowInstant = function()
-	slowToken += 1
+	slowToken = slowToken + 1
 	scriptSlowActive = false
 
 	local char = LocalPlayer.Character
@@ -3917,7 +4456,7 @@ local function applyWallhopSlow(hum)
 		return
 	end
 
-	slowToken += 1
+	slowToken = slowToken + 1
 	local myToken = slowToken
 
 	scriptSlowActive = true
@@ -4105,7 +4644,7 @@ local function lockBodyRotation(hum, duration)
 		return
 	end
 
-	rotationLockToken += 1
+	rotationLockToken = rotationLockToken + 1
 	local myToken = rotationLockToken
 	local oldAutoRotate = hum.AutoRotate
 
@@ -4121,15 +4660,12 @@ local function lockBodyRotation(hum, duration)
 	end)
 end
 
-local function forceWallhopJump(hum, useVerticalBoost)
+local function forceWallhopJump(hum)
 	if not hum or not hum.Parent then
 		return
 	end
 
-	local char = hum.Parent
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-
-	jumpAnimToken += 1
+	jumpAnimToken = jumpAnimToken + 1
 	local myToken = jumpAnimToken
 
 	playWallhopArmPulse(hum)
@@ -4137,14 +4673,6 @@ local function forceWallhopJump(hum, useVerticalBoost)
 	pcall(function()
 		hum:ChangeState(Enum.HumanoidStateType.Jumping)
 	end)
-
-	if useVerticalBoost and hrp then
-		pcall(function()
-			local velocity = hrp.AssemblyLinearVelocity
-			local boostY = math.max(velocity.Y, 46 + WALLHOP_VERTICAL_BOOST)
-			hrp.AssemblyLinearVelocity = Vector3.new(velocity.X, boostY, velocity.Z)
-		end)
-	end
 
 	task.delay(0.085, function()
 		if myToken ~= jumpAnimToken then
@@ -4176,7 +4704,7 @@ local function pickNextFlick(useSpecialFirst)
 
 	repeat
 		angle = math.random(minAngle, maxAngle)
-		attempt += 1
+		attempt = attempt + 1
 	until not lastFlickAngle or math.abs(angle - lastFlickAngle) >= 10 or attempt > 20
 
 	lastFlickAngle = angle
@@ -4357,7 +4885,7 @@ local function performNormalWallhop()
 		return
 	end
 
-	rotateToken += 1
+	rotateToken = rotateToken + 1
 	local myRotateToken = rotateToken
 
 	if hum then
@@ -4366,14 +4894,13 @@ local function performNormalWallhop()
 		end)
 	end
 
-	local useVerticalBoost = not hasWallhoppedSinceLanding
 	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
 	if useSpecialFirst then
 		specialFirstFlickArmed = false
 	end
 	hasWallhoppedSinceLanding = true
 
-	forceWallhopJump(hum, useVerticalBoost)
+	forceWallhopJump(hum)
 	lockBodyRotation(hum, 0.36)
 	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
 
@@ -4517,7 +5044,7 @@ local function perform360Wallhop()
 		return
 	end
 
-	rotateToken += 1
+	rotateToken = rotateToken + 1
 	local myRotateToken = rotateToken
 
 	if hum then
@@ -4526,14 +5053,13 @@ local function perform360Wallhop()
 		end)
 	end
 
-	local useVerticalBoost = not hasWallhoppedSinceLanding
 	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
 	if useSpecialFirst then
 		specialFirstFlickArmed = false
 	end
 	hasWallhoppedSinceLanding = true
 
-	forceWallhopJump(hum, useVerticalBoost)
+	forceWallhopJump(hum)
 	lockBodyRotation(hum, 0.36)
 	pcall(function()
 		hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
@@ -4607,14 +5133,13 @@ local function performNoMoveWallhop()
 		return
 	end
 
-	local useVerticalBoost = not hasWallhoppedSinceLanding
 	local useSpecialFirst = specialFirstFlickArmed and not hasWallhoppedSinceLanding
 	if useSpecialFirst then
 		specialFirstFlickArmed = false
 	end
 	hasWallhoppedSinceLanding = true
 
-	forceWallhopJump(hum, useVerticalBoost)
+	forceWallhopJump(hum)
 
 	local baseYaw = hrp.Orientation.Y
 	local angle = -pickNextFlick(useSpecialFirst)
@@ -4724,7 +5249,7 @@ local function performConsoleWallhop()
 		return
 	end
 
-	rotateToken += 1
+	rotateToken = rotateToken + 1
 	local myRotateToken = rotateToken
 
 	if hum then
@@ -4733,11 +5258,10 @@ local function performConsoleWallhop()
 		end)
 	end
 
-	local useVerticalBoost = not hasWallhoppedSinceLanding
 	hasWallhoppedSinceLanding = true
 	specialFirstFlickArmed = false
 
-	forceWallhopJump(hum, useVerticalBoost)
+	forceWallhopJump(hum)
 	lockBodyRotation(hum, currentFlickSetting == "Speed Flick" and 0.54 or currentFlickSetting == "Slow Flick" and 0.70 or 0.62)
 	pcall(function() hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0) end)
 
@@ -4867,8 +5391,10 @@ local function hasValidHorizontalEdge(rayResult, params)
 	local surfaceOffset = normal * 0.08
 
 	local verticalChecks = {
-		Vector3.new(0, 0.12, 0),
-		Vector3.new(0, -0.12, 0),
+		Vector3.new(0, 0.9, 0),
+		Vector3.new(0, -0.9, 0),
+		Vector3.new(0, 1.25, 0),
+		Vector3.new(0, -1.25, 0),
 	}
 
 	local foundHorizontalEdge = false
@@ -4889,23 +5415,7 @@ local function findValidWall(hrp, params, directions)
 	local offsets = {
 		Vector3.new(0, -2.3, 0),
 		Vector3.new(0, -2.2, 0),
-		Vector3.new(0, -2.1, 0),
-		Vector3.new(0, -2.0, 0),
-		Vector3.new(0, -1.9, 0),
-		Vector3.new(0, -1.8, 0),
-		Vector3.new(0, -1.7, 0),
-		Vector3.new(0, -1.6, 0),
-		Vector3.new(0, -1.5, 0),
-		Vector3.new(0, -1.4, 0),
-		Vector3.new(0, -1.3, 0),
-		Vector3.new(0, -1.2, 0),
-		Vector3.new(0, -1.1, 0),
-		Vector3.new(0, -1.0, 0),
-		Vector3.new(0, -0.9, 0),
-		Vector3.new(0, -0.8, 0),
-		Vector3.new(0, -0.7, 0),
-		Vector3.new(0, -0.6, 0),
-		Vector3.new(0, -0.5, 0)
+		Vector3.new(0, -2.1, 0)
 	}
 
 	for _, dir in ipairs(directions) do
@@ -5511,6 +6021,8 @@ createModeSelector(function(mode)
 	updateToggleButton()
 	updateMobilePanelButtons()
 	updateFlickButtons()
+	updateESPButtons()
+	ensureRunnerTimerGui()
 	applyVisibility()
 	if isFloorbangEspEnabled then
 		updateFloorbangESP()
