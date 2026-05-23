@@ -1234,24 +1234,26 @@ local function rescanComputerCandidates()
 	task.spawn(function()
 		local found = {}
 		local descendants = workspace:GetDescendants()
+		local checked = 0
 
-		for i, obj in ipairs(descendants) do
-			local root = nil
+		for _, obj in ipairs(descendants) do
+			if obj:IsA("Model") then
+				local name = tostring(obj.Name or ""):lower()
 
-			if obj:IsA("Model") or obj:IsA("BasePart") or obj:IsA("ProximityPrompt") then
-				root = getTopComputerModel(obj)
-			end
+				-- Scan ultra leve: só testa models com nome provável.
+				if name:find("computer", 1, true) or name:find("pc", 1, true) or name:find("hack", 1, true) then
+					if modelHasComputerSignals(obj) then
+						local pos = getRootPosition(obj)
+						if pos then
+							found[obj] = pos
+						end
+					end
 
-			if root and root.Parent then
-				local pos = getRootPosition(root)
-				if pos then
-					found[root] = pos
+					checked += 1
+					if checked % 8 == 0 then
+						task.wait()
+					end
 				end
-			end
-
-			-- Divide o scan em partes pequenas para não congelar a tela.
-			if i % 90 == 0 then
-				task.wait()
 			end
 		end
 
@@ -1266,11 +1268,7 @@ local function rescanComputerCandidates()
 end
 
 local function getComputerCandidates()
-	-- Não faz scan completo toda hora. Se precisar, pede scan async e usa cache atual.
-	if (tick() - lastComputerCandidateScan > 45 or not next(computerCandidateCache)) and not computerScanRunning then
-		rescanComputerCandidates()
-	end
-
+	-- Não faz scan completo automaticamente em loop. O scan inicial e eventos cuidam disso.
 	local candidates = {}
 
 	for root in pairs(computerCandidateCache) do
@@ -1416,25 +1414,6 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
-workspace.DescendantAdded:Connect(function(obj)
-	local name = tostring(obj.Name or ""):lower()
-
-	if obj:IsA("Model") or obj:IsA("BasePart") or obj:IsA("ProximityPrompt") then
-		if name:find("computer", 1, true)
-			or name:find("screen", 1, true)
-			or name:find("monitor", 1, true)
-			or name:find("keyboard", 1, true)
-			or name:find("hack", 1, true) then
-
-			task.delay(2, function()
-				if not computerScanRunning and tick() - lastComputerCandidateScan > 8 then
-					rescanComputerCandidates()
-				end
-			end)
-		end
-	end
-end)
-
 workspace.DescendantRemoving:Connect(function(obj)
 	local root = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
 	if root and computerCandidateCache[root] then
@@ -1443,10 +1422,9 @@ workspace.DescendantRemoving:Connect(function(obj)
 	end
 end)
 
-local lastPlayerESPUpdate = 0
 local lastComputerESPUpdate = 0
 
-task.delay(4, function()
+task.delay(5, function()
 	rescanComputerCandidates()
 end)
 
@@ -1461,14 +1439,9 @@ RunService.Heartbeat:Connect(function()
 
 	local now = tick()
 
-	-- Bem mais leve: role muda por evento, isso aqui é só manutenção.
-	if chamsESPEnabled and (now - lastPlayerESPUpdate) >= 1.2 then
-		lastPlayerESPUpdate = now
-		updateChamsESP()
-	end
-
-	-- Usa cache. Scan completo é async e raro, para evitar travadas.
-	if (now - lastComputerESPUpdate) >= 8 then
+	-- Player Chams não faz mais loop: atualiza no toggle, CharacterAdded e IsBeast.Changed.
+	-- Computer ESP usa cache e roda raramente, sem escanear o mapa aqui.
+	if (now - lastComputerESPUpdate) >= 20 then
 		lastComputerESPUpdate = now
 		updateComputerESP()
 	end
@@ -6188,4 +6161,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Suuuuuccessfully ✅")
+print("Cerber X V1.1 • Loaded Successfully ✅")
