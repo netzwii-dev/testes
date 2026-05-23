@@ -136,6 +136,58 @@ local function addTrueRoundedShadow(parent, cornerRadius, strength, shadowColor)
 	end
 end
 
+
+local function addClickAnimation(button, cornerRadius)
+	if not button then
+		return
+	end
+
+	local overlay = Instance.new("Frame")
+	overlay.Name = "ClickOverlay"
+	overlay.Size = UDim2.new(1, 0, 1, 0)
+	overlay.Position = UDim2.new(0, 0, 0, 0)
+	overlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	overlay.BackgroundTransparency = 1
+	overlay.BorderSizePixel = 0
+	overlay.ZIndex = button.ZIndex + 25
+	overlay.Active = false
+	overlay.Parent = button
+
+	Instance.new("UICorner", overlay).CornerRadius = cornerRadius or UDim.new(0, 12)
+
+	local function setAlpha(alpha)
+		if not overlay or not overlay.Parent then
+			return
+		end
+
+		TweenService:Create(
+			overlay,
+			TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{BackgroundTransparency = alpha}
+		):Play()
+	end
+
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			setAlpha(0.82)
+		end
+	end)
+
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			setAlpha(1)
+		end
+	end)
+
+	button.Activated:Connect(function()
+		setAlpha(0.82)
+
+		task.delay(0.08, function()
+			setAlpha(1)
+		end)
+	end)
+end
+
 local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
 	if not root then
 		return
@@ -472,6 +524,7 @@ local function createSwitchRow(parent, yOffset, labelText)
 	row.Selectable = false
 	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
 	setTargetTransparency(row, 0, 1)
+	addClickAnimation(row, UDim.new(0, 12))
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
@@ -541,6 +594,7 @@ local function createSimpleRow(parent, yOffset, labelText)
 	row.Selectable = false
 	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
 	setTargetTransparency(row, 0, 1)
+	addClickAnimation(row, UDim.new(0, 12))
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
@@ -1554,20 +1608,7 @@ local function updateMobilePanelButtons()
 end
 
 local function createHamburgerIcon(parent)
-	parent.Text = ""
-
-	for i = 1, 3 do
-		local line = Instance.new("Frame")
-		line.Name = "Line" .. tostring(i)
-		line.Size = UDim2.new(0, 14, 0, 2)
-		line.Position = UDim2.new(0.5, -7, 0.5, -7 + ((i - 1) * 7))
-		line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		line.BorderSizePixel = 0
-		line.ZIndex = parent.ZIndex + 1
-		line.Parent = parent
-
-		Instance.new("UICorner", line).CornerRadius = UDim.new(1, 0)
-	end
+	parent.Text = "≡"
 end
 
 local function buildMobileGui()
@@ -1602,6 +1643,7 @@ local function buildMobileGui()
 	noTextStroke(MobileButton)
 	addTrueRoundedShadow(MobileButton, 14, 1.15, Color3.fromRGB(0, 0, 0))
 	setTargetTransparency(MobileButton, 0, 0)
+	addClickAnimation(MobileButton, UDim.new(0, 12))
 
 	local inset = GuiService:GetGuiInset()
 
@@ -1622,10 +1664,11 @@ local function buildMobileGui()
 	addTrueRoundedShadow(MobileMenuButton, 999, 1.05, Color3.fromRGB(0, 0, 0))
 	setTargetTransparency(MobileMenuButton, 0, 0)
 	createHamburgerIcon(MobileMenuButton)
+	addClickAnimation(MobileMenuButton, UDim.new(1, 0))
 
 	MobilePanel = Instance.new("Frame")
 	MobilePanel.Name = "SudokuMobilePanel"
-	MobilePanel.Size = UDim2.new(0, 232, 0, 170)
+	MobilePanel.Size = UDim2.new(0, 232, 0, 150)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1654,11 +1697,11 @@ local function buildMobileGui()
 	functionsPage.BorderSizePixel = 0
 	functionsPage.ScrollBarThickness = 3
 	functionsPage.ScrollingDirection = Enum.ScrollingDirection.Y
-	functionsPage.CanvasSize = UDim2.new(0, 0, 0, 125)
+	functionsPage.CanvasSize = UDim2.new(0, 0, 0, 112)
 	functionsPage.Parent = MobilePanel
 
-	local autoFillRow, autoFillSwitch, autoFillKnob, autoFillHitbox = createSwitchRow(functionsPage, 30, "Auto-preencher")
-	local autoNotesRow, autoNotesSwitch, autoNotesKnob, autoNotesHitbox = createSwitchRow(functionsPage, 72, "Auto-notas")
+	local autoFillRow, autoFillSwitch, autoFillKnob, autoFillHitbox = createSwitchRow(functionsPage, 12, "Auto-preencher")
+	local autoNotesRow, autoNotesSwitch, autoNotesKnob, autoNotesHitbox = createSwitchRow(functionsPage, 58, "Auto-notas")
 
 	_G.__SudokuAutoFillSwitch = autoFillSwitch
 	_G.__SudokuAutoFillKnob = autoFillKnob
@@ -1717,8 +1760,8 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 224, 0, 162)
-			elegantShow(MobilePanel, UDim2.new(0, 232, 0, 170), MobilePanel.Position, 0)
+			MobilePanel.Size = UDim2.new(0, 224, 0, 142)
+			elegantShow(MobilePanel, UDim2.new(0, 232, 0, 150), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
@@ -1755,4 +1798,4 @@ end)
 print("Sudoku helper carregado.")
 print("Botão Sudoku e menu no estilo Cerber X.")
 print("Auto-preencher: apenas com Preencher selecionado.")
-print("Auto-notas: apenas com Notas selecionado e só anota o número correto.")
+print("Auto-notas: apenas com Notas selecionado e só anota o númmero correto.")
