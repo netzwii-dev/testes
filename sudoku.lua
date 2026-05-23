@@ -1,9 +1,21 @@
 -- sudoku with friends helper
--- UI igual à versão anterior boa do Cerber X.
--- Correção principal:
--- NÃO usa VirtualInputManager, então não clica fisicamente na tela.
--- Volta a acionar o botão do número por signal/evento como antes.
--- Auto-notas corrigido para colocar somente o número correto da casa atual.
+-- baseado no sudoku_helper_cerber_exact_fixed.txt
+-- GUI compacto com animação/sombra estilo Cerber X:
+-- menu redondo 54x54 em X=86 / botão Sudoku 140x50 em X=150 / painel ao lado do botão
+-- botões arrastáveis igual Cerber X
+--
+-- Sudoku:
+-- clique no botão "Sudoku" para resolver o tabuleiro embaixo de você
+--
+-- Auto-preencher:
+-- só funciona quando a ferramenta "Preencher" estiver selecionada
+-- clica na casa vazia -> o script aperta o número correto
+--
+-- Auto-notas:
+-- só funciona quando a ferramenta "Notas" estiver selecionada
+-- clica na casa vazia -> o script adiciona APENAS a nota com o número correto
+--
+-- Notas não contam como número colocado e não removem a dica azul.
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
@@ -18,15 +30,11 @@ local Camera = workspace.CurrentCamera
 local SCREEN_GUI_NAME = "SudokuCerberMobileGui"
 local SOLVER_VALUE_NAME = "SolverValue"
 
-local ScreenGui
-local MobileButton
-local MobileMenuButton
-local MobilePanel
-local mobileDragHandle
-local autoFillSwitch
-local autoFillKnob
-local autoNotesSwitch
-local autoNotesKnob
+local ScreenGui = nil
+local MobileButton = nil
+local MobileMenuButton = nil
+local MobilePanel = nil
+local mobileDragHandle = nil
 
 local autoFillEnabled = true
 local autoNotesEnabled = false
@@ -41,29 +49,9 @@ local solverConnections = {}
 local dragConnections = {}
 local shadowRegistry = {}
 
-local actionToken = 0
-local lastActionKey = ""
+local lastActionKey = nil
 local lastActionTime = 0
-local numberPadCache = nil
-local numberPadCacheTime = 0
-
-local function clearArray(t)
-	for i = #t, 1, -1 do
-		t[i] = nil
-	end
-end
-
-local function safeDisconnectList(list)
-	for _, c in ipairs(list) do
-		pcall(function()
-			if c and c.Disconnect then
-				c:Disconnect()
-			end
-		end)
-	end
-	clearArray(list)
-end
-
+local actionToken = 0
 
 local function noTextStroke(obj)
 	pcall(function()
@@ -83,12 +71,22 @@ end
 
 local function getTargetBG(obj)
 	local v = obj:GetAttribute("TargetBGTransparency")
-	return typeof(v) == "number" and v or obj.BackgroundTransparency
+
+	if typeof(v) == "number" then
+		return v
+	end
+
+	return obj.BackgroundTransparency
 end
 
 local function getTargetText(obj)
 	local v = obj:GetAttribute("TargetTextTransparency")
-	return typeof(v) == "number" and v or obj.TextTransparency
+
+	if typeof(v) == "number" then
+		return v
+	end
+
+	return obj.TextTransparency
 end
 
 local function registerShadow(host, shadow)
@@ -98,6 +96,7 @@ end
 
 local function setHostShadowVisible(host, visible)
 	local list = shadowRegistry[host]
+
 	if not list then
 		return
 	end
@@ -137,6 +136,7 @@ local function addTrueRoundedShadow(parent, cornerRadius, strength, shadowColor)
 		registerShadow(parent, shadow)
 	end
 end
+
 
 local function addClickAnimation(button, cornerRadius)
 	if not button then
@@ -199,6 +199,7 @@ local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
 	local targetSize = finalSize or root.Size
 	local targetPos = finalPosition or root.Position
 	local targetBg = finalBgTransparency
+
 	if targetBg == nil then
 		targetBg = getTargetBG(root)
 	end
@@ -274,6 +275,7 @@ local function elegantHide(root, onDone)
 		if onDone then
 			onDone()
 		end
+
 		return
 	end
 
@@ -347,9 +349,11 @@ end
 
 local function canUseMobileTap(obj)
 	local lastDragTime = obj:GetAttribute("LastDragTime")
+
 	if typeof(lastDragTime) == "number" then
 		return (tick() - lastDragTime) > 0.12
 	end
+
 	return true
 end
 
@@ -395,6 +399,7 @@ local function bindFreeDrag(handle, target, onMove, holdTime)
 				if delta.Magnitude >= 8 then
 					holdCanceled = true
 				end
+
 				return
 			end
 
@@ -428,10 +433,6 @@ local function bindFreeDrag(handle, target, onMove, holdTime)
 end
 
 local function bindRowPress(button, callback)
-	if not button then
-		return
-	end
-
 	local activeInput = nil
 	local startPos = nil
 	local moved = false
@@ -443,9 +444,11 @@ local function bindRowPress(button, callback)
 
 	local function fire()
 		local now = tick()
+
 		if now - lastTap < 0.08 then
 			return
 		end
+
 		lastTap = now
 		callback()
 	end
@@ -461,6 +464,7 @@ local function bindRowPress(button, callback)
 	button.InputChanged:Connect(function(input)
 		if input == activeInput and startPos then
 			local delta = input.Position - startPos
+
 			if delta.Magnitude > 8 then
 				moved = true
 			end
@@ -521,7 +525,6 @@ local function createSwitchRow(parent, yOffset, labelText)
 	row.Selectable = false
 	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
 	setTargetTransparency(row, 0, 1)
-	addClickAnimation(row, UDim.new(0, 12))
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
@@ -591,7 +594,6 @@ local function createSimpleRow(parent, yOffset, labelText)
 	row.Selectable = false
 	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 12)
 	setTargetTransparency(row, 0, 1)
-	addClickAnimation(row, UDim.new(0, 12))
 
 	local label = Instance.new("TextLabel")
 	label.Name = "Label"
@@ -613,11 +615,23 @@ local function createSimpleRow(parent, yOffset, labelText)
 end
 
 local function clearSolverConnections()
-	safeDisconnectList(solverConnections)
+	for _, c in ipairs(solverConnections) do
+		pcall(function()
+			c:Disconnect()
+		end)
+	end
+
+	table.clear(solverConnections)
 end
 
 local function clearDragConnections()
-	safeDisconnectList(dragConnections)
+	for _, c in ipairs(dragConnections) do
+		pcall(function()
+			c:Disconnect()
+		end)
+	end
+
+	table.clear(dragConnections)
 end
 
 local function clearSolverValues()
@@ -636,9 +650,9 @@ local function clearCurrentSolver()
 	currentBoardKey = nil
 	currentCells = nil
 	currentSolution = nil
-	lastActionKey = ""
+	lastActionKey = nil
 	lastActionTime = 0
-	actionToken = actionToken + 1
+	actionToken += 1
 end
 
 local function getChar()
@@ -655,6 +669,7 @@ local function readPlacedNumberFromCell(cell)
 
 	if clue and clue:IsA("TextLabel") then
 		local txt = tostring(clue.Text or ""):gsub("%s+", "")
+
 		if txt:match("^[1-9]$") then
 			return tonumber(txt)
 		end
@@ -662,6 +677,7 @@ local function readPlacedNumberFromCell(cell)
 
 	if cell:IsA("TextLabel") or cell:IsA("TextButton") or cell:IsA("TextBox") then
 		local txt = tostring(cell.Text or ""):gsub("%s+", "")
+
 		if txt:match("^[1-9]$") then
 			return tonumber(txt)
 		end
@@ -672,6 +688,7 @@ end
 
 local function getCells(surfaceGui)
 	local frame = surfaceGui:FindFirstChild("Frame")
+
 	if not frame then
 		return nil
 	end
@@ -687,7 +704,7 @@ local function getCells(surfaceGui)
 			if row >= 1 and row <= 9 and col >= 1 and col <= 9 then
 				cells[row] = cells[row] or {}
 				cells[row][col] = cell
-				total = total + 1
+				total += 1
 			end
 		end
 	end
@@ -716,12 +733,15 @@ end
 
 local function copyGrid(grid)
 	local new = {}
+
 	for r = 1, 9 do
 		new[r] = {}
+
 		for c = 1, 9 do
 			new[r][c] = grid[r][c]
 		end
 	end
+
 	return new
 end
 
@@ -781,11 +801,13 @@ local function findEmpty(grid)
 			end
 		end
 	end
+
 	return nil, nil
 end
 
 local function solve(grid)
 	local row, col = findEmpty(grid)
+
 	if not row then
 		return true
 	end
@@ -807,6 +829,7 @@ end
 
 local function removeSolverNumber(cell)
 	local old = cell:FindFirstChild(SOLVER_VALUE_NAME)
+
 	if old then
 		old:Destroy()
 	end
@@ -832,21 +855,26 @@ end
 local function watchCell(cell)
 	local function check()
 		task.wait()
+
 		local current = readPlacedNumberFromCell(cell)
+
 		if current ~= 0 then
 			removeSolverNumber(cell)
 		end
 	end
 
 	local clue = cell:FindFirstChild("ClueValue")
+
 	if clue and clue:IsA("TextLabel") then
 		table.insert(solverConnections, clue:GetPropertyChangedSignal("Text"):Connect(check))
 	end
 
 	table.insert(solverConnections, cell.ChildAdded:Connect(function(child)
 		task.wait()
+
 		if child and child.Name == "ClueValue" then
 			check()
+
 			if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
 				table.insert(solverConnections, child:GetPropertyChangedSignal("Text"):Connect(check))
 			end
@@ -855,6 +883,7 @@ local function watchCell(cell)
 
 	table.insert(solverConnections, cell.ChildRemoved:Connect(function(child)
 		task.wait()
+
 		if child and child.Name == "ClueValue" then
 			check()
 		end
@@ -865,9 +894,11 @@ local function getBoardKey(surfaceGui)
 	local ok, name = pcall(function()
 		return surfaceGui:GetFullName()
 	end)
+
 	if ok then
 		return name
 	end
+
 	return tostring(surfaceGui)
 end
 
@@ -877,6 +908,7 @@ local function isValidBoardSurface(surfaceGui)
 	end
 
 	local placedBoards = workspace:FindFirstChild("PlacedBoards")
+
 	if not placedBoards then
 		return false
 	end
@@ -924,6 +956,7 @@ end
 
 local function findBoardUnderPlayer()
 	local hrp = getHRP()
+
 	if not hrp then
 		return nil
 	end
@@ -937,14 +970,17 @@ local function findBoardUnderPlayer()
 	local direction = Vector3.new(0, -18, 0)
 
 	local result = workspace:Raycast(origin, direction, params)
+
 	if result and result.Instance then
 		local board = findBoardFromPart(result.Instance)
+
 		if board then
 			return board
 		end
 	end
 
 	local placedBoards = workspace:FindFirstChild("PlacedBoards")
+
 	if not placedBoards then
 		return nil
 	end
@@ -982,15 +1018,13 @@ local function isGuiActuallyVisible(obj)
 		return false
 	end
 
-	if ScreenGui and obj:IsDescendantOf(ScreenGui) then
-		return false
-	end
-
 	local current = obj
+
 	while current do
 		if current:IsA("GuiObject") and not current.Visible then
 			return false
 		end
+
 		current = current.Parent
 	end
 
@@ -1000,6 +1034,7 @@ end
 local function getDisplayedText(obj)
 	if obj:IsA("TextButton") or obj:IsA("TextLabel") or obj:IsA("TextBox") then
 		local t = tostring(obj.Text or ""):gsub("%s+", "")
+
 		if t ~= "" then
 			return t
 		end
@@ -1008,6 +1043,7 @@ local function getDisplayedText(obj)
 	for _, child in ipairs(obj:GetDescendants()) do
 		if child:IsA("TextLabel") or child:IsA("TextButton") or child:IsA("TextBox") then
 			local t = tostring(child.Text or ""):gsub("%s+", "")
+
 			if t ~= "" then
 				return t
 			end
@@ -1019,6 +1055,7 @@ end
 
 local function collectGuiRoots()
 	local roots = {PlayerGui}
+
 	local ok, coreGui = pcall(function()
 		return game:GetService("CoreGui")
 	end)
@@ -1038,20 +1075,22 @@ local function toolButtonScore(obj)
 	local score = 0
 
 	if obj:IsA("GuiObject") then
-		score = score + colorBlueScore(obj.BackgroundColor3) * 10
+		score += colorBlueScore(obj.BackgroundColor3) * 10
+
 		if obj.BackgroundTransparency < 0.8 then
-			score = score + 2
+			score += 2
 		end
 	end
 
 	for _, child in ipairs(obj:GetDescendants()) do
 		if child:IsA("UIStroke") then
-			score = score + colorBlueScore(child.Color) * (child.Transparency < 0.5 and 16 or 6)
+			score += colorBlueScore(child.Color) * (child.Transparency < 0.5 and 16 or 6)
+
 			if child.Thickness >= 2 then
-				score = score + 4
+				score += 4
 			end
 		elseif child:IsA("GuiObject") then
-			score = score + colorBlueScore(child.BackgroundColor3) * 3
+			score += colorBlueScore(child.BackgroundColor3) * 3
 		end
 	end
 
@@ -1074,7 +1113,7 @@ local function findToolButtonByText(textWanted)
 
 					if size.X >= 40 and size.Y >= 25 then
 						local score = toolButtonScore(obj)
-						score = score + pos.Y * 0.002
+						score += pos.Y * 0.002
 
 						if score > bestScore then
 							bestScore = score
@@ -1113,95 +1152,9 @@ local function getSelectedTool()
 	return "unknown"
 end
 
-local function scoreDigitCluster(map)
-	local viewport = Camera and Camera.ViewportSize or Vector2.new(1920, 1080)
-
-	local minX, minY = math.huge, math.huge
-	local maxX, maxY = -math.huge, -math.huge
-	local areaSum = 0
-	local centers = {}
-
-	for i = 1, 9 do
-		local item = map[tostring(i)]
-		if not item then
-			return -math.huge
-		end
-
-		local p = item.button.AbsolutePosition
-		local s = item.button.AbsoluteSize
-		local c = p + s / 2
-
-		centers[i] = c
-		areaSum = areaSum + s.X * s.Y
-
-		minX = math.min(minX, p.X)
-		minY = math.min(minY, p.Y)
-		maxX = math.max(maxX, p.X + s.X)
-		maxY = math.max(maxY, p.Y + s.Y)
-	end
-
-	local width = maxX - minX
-	local height = maxY - minY
-	local area = width * height
-	local centerX = (minX + maxX) / 2
-	local centerY = (minY + maxY) / 2
-
-	local score = 0
-	score = score + centerX * 0.08
-	score = score + centerY * 0.12
-	score = score + areaSum * 0.002
-
-	if centerX > viewport.X * 0.45 then
-		score = score + 900
-	end
-
-	if centerY > viewport.Y * 0.34 then
-		score = score + 900
-	end
-
-	if area >= 25000 and area <= 320000 then
-		score = score + 420
-	else
-		score -= math.abs(area - 120000) * 0.0015
-	end
-
-	local row1 = (centers[1].Y + centers[2].Y + centers[3].Y) / 3
-	local row2 = (centers[4].Y + centers[5].Y + centers[6].Y) / 3
-	local row3 = (centers[7].Y + centers[8].Y + centers[9].Y) / 3
-
-	local col1 = (centers[1].X + centers[4].X + centers[7].X) / 3
-	local col2 = (centers[2].X + centers[5].X + centers[8].X) / 3
-	local col3 = (centers[3].X + centers[6].X + centers[9].X) / 3
-
-	local gridPenalty = 0
-	gridPenalty = gridPenalty + math.abs(centers[1].Y - row1) + math.abs(centers[2].Y - row1) + math.abs(centers[3].Y - row1)
-	gridPenalty = gridPenalty + math.abs(centers[4].Y - row2) + math.abs(centers[5].Y - row2) + math.abs(centers[6].Y - row2)
-	gridPenalty = gridPenalty + math.abs(centers[7].Y - row3) + math.abs(centers[8].Y - row3) + math.abs(centers[9].Y - row3)
-	gridPenalty = gridPenalty + math.abs(centers[1].X - col1) + math.abs(centers[4].X - col1) + math.abs(centers[7].X - col1)
-	gridPenalty = gridPenalty + math.abs(centers[2].X - col2) + math.abs(centers[5].X - col2) + math.abs(centers[8].X - col2)
-	gridPenalty = gridPenalty + math.abs(centers[3].X - col3) + math.abs(centers[6].X - col3) + math.abs(centers[9].X - col3)
-
-	score -= gridPenalty * 1.8
-
-	if row1 < row2 and row2 < row3 then
-		score = score + 200
-	end
-
-	if col1 < col2 and col2 < col3 then
-		score = score + 200
-	end
-
-	return score
-end
-
 local function findNumberPadCluster()
-	local now = os.clock()
-
-	if numberPadCache and now - numberPadCacheTime < 0.35 then
-		return numberPadCache
-	end
-
-	local rootsToCheck = {}
+	local viewport = Camera and Camera.ViewportSize or Vector2.new(1920, 1080)
+	local allButtons = {}
 
 	for _, root in ipairs(collectGuiRoots()) do
 		for _, obj in ipairs(root:GetDescendants()) do
@@ -1209,107 +1162,148 @@ local function findNumberPadCluster()
 				local shown = getDisplayedText(obj)
 
 				if shown:match("^[1-9]$") then
+					local pos = obj.AbsolutePosition
 					local size = obj.AbsoluteSize
 
 					if size.X >= 30 and size.Y >= 30 then
-						local parent = obj.Parent
-						local depth = 0
-
-						while parent and parent ~= PlayerGui and depth < 7 do
-							if parent:IsA("GuiObject") or parent:IsA("ScreenGui") then
-								rootsToCheck[parent] = true
-							end
-
-							parent = parent.Parent
-							depth = depth + 1
-						end
+						table.insert(allButtons, {
+							button = obj,
+							num = shown,
+							pos = pos,
+							size = size,
+							center = pos + size / 2
+						})
 					end
 				end
 			end
 		end
 	end
 
-	local bestMap = nil
+	local bestCluster = nil
 	local bestScore = -math.huge
 
-	for root in pairs(rootsToCheck) do
-		local map = {}
+	for _, base in ipairs(allButtons) do
+		local cluster = {}
+		local nums = {}
 
-		for _, button in ipairs(root:GetDescendants()) do
-			if button:IsA("GuiButton") and isGuiActuallyVisible(button) then
-				local shown = getDisplayedText(button)
+		for _, item in ipairs(allButtons) do
+			local dx = math.abs(item.center.X - base.center.X)
+			local dy = math.abs(item.center.Y - base.center.Y)
 
-				if shown:match("^[1-9]$") then
-					local old = map[shown]
-
-					if not old or (button.AbsoluteSize.X * button.AbsoluteSize.Y) > (old.button.AbsoluteSize.X * old.button.AbsoluteSize.Y) then
-						map[shown] = {button = button}
-					end
-				end
+			if dx <= 520 and dy <= 360 then
+				cluster[item.num] = item
+				nums[item.num] = true
 			end
 		end
 
 		local hasAll = true
 
 		for i = 1, 9 do
-			if not map[tostring(i)] then
+			if not nums[tostring(i)] then
 				hasAll = false
 				break
 			end
 		end
 
 		if hasAll then
-			local score = scoreDigitCluster(map)
+			local minX, minY = math.huge, math.huge
+			local maxX, maxY = -math.huge, -math.huge
+
+			for i = 1, 9 do
+				local item = cluster[tostring(i)]
+				minX = math.min(minX, item.pos.X)
+				minY = math.min(minY, item.pos.Y)
+				maxX = math.max(maxX, item.pos.X + item.size.X)
+				maxY = math.max(maxY, item.pos.Y + item.size.Y)
+			end
+
+			local area = (maxX - minX) * (maxY - minY)
+			local centerX = (minX + maxX) / 2
+			local centerY = (minY + maxY) / 2
+
+			local score = 0
+			score += centerX * 0.04
+			score += centerY * 0.08
+
+			if centerX > viewport.X * 0.45 then
+				score += 500
+			end
+
+			if centerY > viewport.Y * 0.35 then
+				score += 500
+			end
+
+			if area >= 30000 and area <= 300000 then
+				score += 350
+			else
+				score -= math.abs(area - 110000) * 0.001
+			end
 
 			if score > bestScore then
 				bestScore = score
-				bestMap = map
+				bestCluster = cluster
 			end
 		end
 	end
 
-	numberPadCache = bestMap
-	numberPadCacheTime = now
-
-	return bestMap
+	return bestCluster
 end
 
 local function findNumberPadButton(num)
 	local cluster = findNumberPadCluster()
+
 	if cluster and cluster[tostring(num)] then
 		return cluster[tostring(num)].button
 	end
+
 	return nil
 end
 
-local function fireGuiButton(button)
+local function clickGuiButton(button)
 	if not button or not button.Parent then
 		return false
 	end
 
-	local ok = false
+	local done = false
 
-	-- Sem VirtualInputManager. Isso evita clicar fisicamente na tela.
 	if firesignal then
 		pcall(function()
-			firesignal(button.MouseButton1Down)
-			firesignal(button.MouseButton1Up)
 			firesignal(button.MouseButton1Click)
-			ok = true
+			done = true
 		end)
 
-		if not ok then
+		if not done then
+			pcall(function()
+				firesignal(button.MouseButton1Down)
+				firesignal(button.MouseButton1Up)
+				done = true
+			end)
+		end
+
+		if not done then
 			pcall(function()
 				firesignal(button.Activated)
-				ok = true
+				done = true
 			end)
+		end
+	end
+
+	if not done then
+		pcall(function()
+			local vim = game:GetService("VirtualInputManager")
+			local center = button.AbsolutePosition + button.AbsoluteSize / 2
+
+			vim:SendMouseButtonEvent(center.X, center.Y, 0, true, game, 1)
+			vim:SendMouseButtonEvent(center.X, center.Y, 0, false, game, 1)
+
+			done = true
 		end)
 	end
 
-	return ok
+	return done
 end
 
-local function pressNumber(num, token, delayTime)
+local function clickNumber(num, token, delayTime)
 	task.delay(delayTime or 0, function()
 		if token ~= actionToken then
 			return
@@ -1322,7 +1316,7 @@ local function pressNumber(num, token, delayTime)
 			return
 		end
 
-		fireGuiButton(numberButton)
+		clickGuiButton(numberButton)
 	end)
 end
 
@@ -1359,6 +1353,7 @@ local function autoFillExactCell(cell)
 	end
 
 	local row, col = getCellRowCol(cell)
+
 	if not row then
 		return
 	end
@@ -1369,13 +1364,15 @@ local function autoFillExactCell(cell)
 	end
 
 	local correct = currentSolution[row][col]
+
 	if typeof(correct) ~= "number" or correct < 1 or correct > 9 then
 		return
 	end
 
-	actionToken = actionToken + 1
+	actionToken += 1
 	local token = actionToken
-	local key = tostring(currentBoardKey) .. ":fill:" .. row .. ":" .. col .. ":" .. correct
+
+	local key = tostring(currentBoardKey) .. ":fill:" .. tostring(row) .. ":" .. tostring(col) .. ":" .. tostring(correct)
 	local now = os.clock()
 
 	if lastActionKey == key and now - lastActionTime < 0.28 then
@@ -1385,7 +1382,7 @@ local function autoFillExactCell(cell)
 	lastActionKey = key
 	lastActionTime = now
 
-	task.delay(0.09, function()
+	task.delay(0.035, function()
 		if token ~= actionToken then
 			return
 		end
@@ -1403,7 +1400,7 @@ local function autoFillExactCell(cell)
 			return
 		end
 
-		pressNumber(correct, token, 0)
+		clickNumber(correct, token, 0)
 	end)
 end
 
@@ -1421,6 +1418,7 @@ local function autoNotesExactCell(cell)
 	end
 
 	local row, col = getCellRowCol(cell)
+
 	if not row then
 		return
 	end
@@ -1431,23 +1429,25 @@ local function autoNotesExactCell(cell)
 	end
 
 	local correct = currentSolution[row][col]
+
 	if typeof(correct) ~= "number" or correct < 1 or correct > 9 then
 		return
 	end
 
-	actionToken = actionToken + 1
+	actionToken += 1
 	local token = actionToken
-	local key = tostring(currentBoardKey) .. ":note:" .. row .. ":" .. col .. ":" .. correct
+
+	local key = tostring(currentBoardKey) .. ":note:" .. tostring(row) .. ":" .. tostring(col) .. ":" .. tostring(correct)
 	local now = os.clock()
 
-	if lastActionKey == key and now - lastActionTime < 0.48 then
+	if lastActionKey == key and now - lastActionTime < 0.45 then
 		return
 	end
 
 	lastActionKey = key
 	lastActionTime = now
 
-	task.delay(0.12, function()
+	task.delay(0.045, function()
 		if token ~= actionToken then
 			return
 		end
@@ -1465,8 +1465,9 @@ local function autoNotesExactCell(cell)
 			return
 		end
 
-		-- Auto-notas: apenas 1 ação, apenas o número correto da célula atual.
-		pressNumber(correct, token, 0)
+		-- Auto-notas adiciona somente a nota do número correto da célula.
+		-- Não faz sequência de candidatos para não vazar número da célula anterior.
+		clickNumber(correct, token, 0)
 	end)
 end
 
@@ -1495,13 +1496,13 @@ local function bindCellActions(cell)
 			activeInput = input
 			startPos = input.Position
 			moved = false
-			actionToken = actionToken + 1
 		end
 	end))
 
 	table.insert(solverConnections, cell.InputChanged:Connect(function(input)
 		if input == activeInput and startPos then
 			local delta = input.Position - startPos
+
 			if delta.Magnitude > 8 then
 				moved = true
 			end
@@ -1517,6 +1518,7 @@ local function bindCellActions(cell)
 
 			if not wasMoved then
 				local now = tick()
+
 				if now - lastTap > 0.08 then
 					lastTap = now
 					handleCellTap(cell)
@@ -1527,6 +1529,7 @@ local function bindCellActions(cell)
 
 	table.insert(solverConnections, cell.Activated:Connect(function()
 		local now = tick()
+
 		if now - lastTap > 0.08 then
 			lastTap = now
 			handleCellTap(cell)
@@ -1569,10 +1572,9 @@ local function solveCurrentBoard()
 	currentBoardKey = getBoardKey(board)
 	currentCells = cells
 	currentSolution = solved
-	lastActionKey = ""
+	lastActionKey = nil
 	lastActionTime = 0
-	actionToken = actionToken + 1
-	numberPadCache = nil
+	actionToken += 1
 
 	local count = 0
 
@@ -1584,7 +1586,7 @@ local function solveCurrentBoard()
 				bindCellActions(cell)
 
 				if original[r][c] == 0 then
-					count = count + 1
+					count += 1
 					addNumberOnCell(cell, solved[r][c])
 					watchCell(cell)
 				end
@@ -1600,12 +1602,30 @@ local function updateMobilePanelButtons()
 		MobileButton.Text = "Sudoku"
 	end
 
-	updateSwitchVisual(autoFillSwitch, autoFillKnob, autoFillEnabled)
-	updateSwitchVisual(autoNotesSwitch, autoNotesKnob, autoNotesEnabled)
+	updateSwitchVisual(_G.__SudokuAutoFillSwitch, _G.__SudokuAutoFillKnob, autoFillEnabled)
+	updateSwitchVisual(_G.__SudokuAutoNotesSwitch, _G.__SudokuAutoNotesKnob, autoNotesEnabled)
+end
+
+local function createHamburgerIcon(parent)
+	parent.Text = ""
+
+	for i = 1, 3 do
+		local line = Instance.new("Frame")
+		line.Name = "Line" .. tostring(i)
+		line.Size = UDim2.new(0, 14, 0, 2)
+		line.Position = UDim2.new(0.5, -7, 0.5, -7 + ((i - 1) * 7))
+		line.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		line.BorderSizePixel = 0
+		line.ZIndex = parent.ZIndex + 1
+		line.Parent = parent
+
+		Instance.new("UICorner", line).CornerRadius = UDim.new(1, 0)
+	end
 end
 
 local function buildMobileGui()
 	local old = PlayerGui:FindFirstChild(SCREEN_GUI_NAME)
+
 	if old then
 		old:Destroy()
 	end
@@ -1618,28 +1638,23 @@ local function buildMobileGui()
 	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 	ScreenGui.Parent = PlayerGui
 
-	local function createFloatingMobileButton(name, text)
-		local button = Instance.new("TextButton")
-		button.Name = name
-		button.Size = UDim2.new(0, 140, 0, 50)
-		button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-		button.Text = text
-		button.TextColor3 = Color3.fromRGB(255,255,255)
-		button.Font = Enum.Font.GothamBold
-		button.TextScaled = true
-		button.Visible = true
-		button.Parent = ScreenGui
-		button:SetAttribute("LastDragTime", 0)
-		button:SetAttribute("CustomMoved", false)
-		Instance.new("UICorner", button).CornerRadius = UDim.new(0, 12)
-		noTextStroke(button)
-		addTrueRoundedShadow(button, 14, 1.15, Color3.fromRGB(0, 0, 0))
-		setTargetTransparency(button, 0, 0)
-		addClickAnimation(button, UDim.new(0, 12))
-		return button
-	end
-
-	MobileButton = createFloatingMobileButton("SudokuButton", "Sudoku")
+	MobileButton = Instance.new("TextButton")
+	MobileButton.Name = "SudokuButton"
+	MobileButton.Size = UDim2.new(0, 140, 0, 50)
+	MobileButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	MobileButton.Text = "Sudoku"
+	MobileButton.TextColor3 = Color3.fromRGB(255,255,255)
+	MobileButton.Font = Enum.Font.GothamBold
+	MobileButton.TextScaled = true
+	MobileButton.AutoButtonColor = false
+	MobileButton.BorderSizePixel = 0
+	MobileButton.Parent = ScreenGui
+	MobileButton:SetAttribute("LastDragTime", 0)
+	MobileButton:SetAttribute("CustomMoved", false)
+	Instance.new("UICorner", MobileButton).CornerRadius = UDim.new(0, 12)
+	noTextStroke(MobileButton)
+	addTrueRoundedShadow(MobileButton, 14, 1.15, Color3.fromRGB(0, 0, 0))
+	setTargetTransparency(MobileButton, 0, 0)
 
 	local inset = GuiService:GetGuiInset()
 
@@ -1648,7 +1663,6 @@ local function buildMobileGui()
 	MobileMenuButton.Size = UDim2.new(0, 54, 0, 54)
 	MobileMenuButton.Position = UDim2.new(0, 86, 0, inset.Y - 60)
 	MobileMenuButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	MobileMenuButton.Text = "≡"
 	MobileMenuButton.TextColor3 = Color3.fromRGB(255,255,255)
 	MobileMenuButton.Font = Enum.Font.GothamBold
 	MobileMenuButton.TextSize = 22
@@ -1660,11 +1674,11 @@ local function buildMobileGui()
 	noTextStroke(MobileMenuButton)
 	addTrueRoundedShadow(MobileMenuButton, 999, 1.05, Color3.fromRGB(0, 0, 0))
 	setTargetTransparency(MobileMenuButton, 0, 0)
-	addClickAnimation(MobileMenuButton, UDim.new(1, 0))
+	createHamburgerIcon(MobileMenuButton)
 
 	MobilePanel = Instance.new("Frame")
 	MobilePanel.Name = "SudokuMobilePanel"
-	MobilePanel.Size = UDim2.new(0, 232, 0, 324)
+	MobilePanel.Size = UDim2.new(0, 232, 0, 150)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1693,17 +1707,17 @@ local function buildMobileGui()
 	functionsPage.BorderSizePixel = 0
 	functionsPage.ScrollBarThickness = 3
 	functionsPage.ScrollingDirection = Enum.ScrollingDirection.Y
-	functionsPage.CanvasSize = UDim2.new(0, 0, 0, 145)
+	functionsPage.CanvasSize = UDim2.new(0, 0, 0, 100)
 	functionsPage.Parent = MobilePanel
 
-	local solveRow = createSimpleRow(functionsPage, 8, "Resolver tabuleiro")
-	local autoFillRow, fillSwitch, fillKnob, fillHitbox = createSwitchRow(functionsPage, 52, "Auto-preencher")
-	local autoNotesRow, notesSwitch, notesKnob, notesHitbox = createSwitchRow(functionsPage, 96, "Auto-notas")
+	local solveRow = createSimpleRow(functionsPage, 30, "Resolver")
+	local autoFillRow, autoFillSwitch, autoFillKnob, autoFillHitbox = createSwitchRow(functionsPage, 72, "Auto-preencher")
+	local autoNotesRow, autoNotesSwitch, autoNotesKnob, autoNotesHitbox = createSwitchRow(functionsPage, 114, "Auto-notas")
 
-	autoFillSwitch = fillSwitch
-	autoFillKnob = fillKnob
-	autoNotesSwitch = notesSwitch
-	autoNotesKnob = notesKnob
+	_G.__SudokuAutoFillSwitch = autoFillSwitch
+	_G.__SudokuAutoFillKnob = autoFillKnob
+	_G.__SudokuAutoNotesSwitch = autoNotesSwitch
+	_G.__SudokuAutoNotesKnob = autoNotesKnob
 
 	local function placeMobileButtonDefault()
 		local insetNow = GuiService:GetGuiInset()
@@ -1719,13 +1733,13 @@ local function buildMobileGui()
 		MobilePanel.Position = UDim2.new(0, xOffset, 0, yOffset)
 	end
 
-	table.insert(dragConnections, RunService.RenderStepped:Connect(function()
+	RunService.RenderStepped:Connect(function()
 		placeMobileButtonDefault()
 
 		if mobileMenuOpen and not MobilePanel:GetAttribute("CustomMoved") then
 			placePanelToRightOfSudoku()
 		end
-	end))
+	end)
 
 	placeMobileButtonDefault()
 	placePanelToRightOfSudoku()
@@ -1738,23 +1752,17 @@ local function buildMobileGui()
 		end
 	end, 0.5)
 
-	bindFreeDrag(MobileMenuButton, MobileMenuButton)
+	bindFreeDrag(MobileMenuButton, MobileMenuButton, nil, 0.5)
+
 	bindFreeDrag(mobileDragHandle, MobilePanel, function()
 		MobilePanel:SetAttribute("CustomMoved", true)
-	end)
+	end, 0)
 
-	MobileButton.Activated:Connect(function()
-		if not canUseMobileTap(MobileButton) then
-			return
-		end
+	bindRowPress(MobileButton, function()
 		solveCurrentBoard()
 	end)
 
-	MobileMenuButton.Activated:Connect(function()
-		if not canUseMobileTap(MobileMenuButton) then
-			return
-		end
-
+	bindRowPress(MobileMenuButton, function()
 		mobileMenuOpen = not mobileMenuOpen
 
 		if mobileMenuOpen then
@@ -1763,41 +1771,29 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 224, 0, 316)
-
-			elegantShow(MobilePanel, UDim2.new(0, 232, 0, 324), MobilePanel.Position, 0)
+			MobilePanel.Size = UDim2.new(0, 224, 0, 142)
+			elegantShow(MobilePanel, UDim2.new(0, 232, 0, 150), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
 	end)
 
-	bindRowPress(solveRow, function()
-		solveCurrentBoard()
-	end)
-
-	bindRowPress(autoFillRow, function()
+	local function toggleAutoFill()
 		autoFillEnabled = not autoFillEnabled
-		actionToken = actionToken + 1
+		actionToken += 1
 		updateMobilePanelButtons()
-	end)
+	end
 
-	bindRowPress(fillHitbox, function()
-		autoFillEnabled = not autoFillEnabled
-		actionToken = actionToken + 1
-		updateMobilePanelButtons()
-	end)
-
-	bindRowPress(autoNotesRow, function()
+	local function toggleAutoNotes()
 		autoNotesEnabled = not autoNotesEnabled
-		actionToken = actionToken + 1
+		actionToken += 1
 		updateMobilePanelButtons()
-	end)
+	end
 
-	bindRowPress(notesHitbox, function()
-		autoNotesEnabled = not autoNotesEnabled
-		actionToken = actionToken + 1
-		updateMobilePanelButtons()
-	end)
+	bindRowPress(autoFillRow, toggleAutoFill)
+	bindRowPress(autoFillHitbox, toggleAutoFill)
+	bindRowPress(autoNotesRow, toggleAutoNotes)
+	bindRowPress(autoNotesHitbox, toggleAutoNotes)
 
 	updateMobilePanelButtons()
 	setHostShadowVisible(MobilePanel, false)
@@ -1811,6 +1807,6 @@ LocalPlayer.CharacterAdded:Connect(function()
 end)
 
 print("Sudoku helper carregado.")
-print("UI mantida no estilo atual.")
-print("Auto-preencher: usa signal, sem clicar na tela.")
-print("Auto-notas: usa signal, só número correto da casa atual.")
+print("Botão Sudoku e menu no estilo Cerber X.")
+print("Auto-preencher: apenas com Preencher selecionado.")
+print("Auto-notas: apenas com Notas selecionado e só anota o número correto.")
