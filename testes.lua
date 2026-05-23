@@ -1121,6 +1121,7 @@ end
 
 local computerCandidateCache = {}
 local lastComputerCandidateScan = 0
+local computerScanRunning = false
 
 local function modelHasComputerSignals(model)
 	if not model or not model.Parent or not model:IsA("Model") then
@@ -1224,29 +1225,49 @@ local function removeComputerESP(root)
 end
 
 local function rescanComputerCandidates()
-	local found = {}
-
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		local root = nil
-
-		if obj:IsA("Model") or obj:IsA("BasePart") or obj:IsA("ProximityPrompt") then
-			root = getTopComputerModel(obj)
-		end
-
-		if root and root.Parent then
-			local pos = getRootPosition(root)
-			if pos then
-				found[root] = pos
-			end
-		end
+	if computerScanRunning then
+		return
 	end
 
-	computerCandidateCache = found
-	lastComputerCandidateScan = tick()
+	computerScanRunning = true
+
+	task.spawn(function()
+		local found = {}
+		local descendants = workspace:GetDescendants()
+
+		for i, obj in ipairs(descendants) do
+			local root = nil
+
+			if obj:IsA("Model") or obj:IsA("BasePart") or obj:IsA("ProximityPrompt") then
+				root = getTopComputerModel(obj)
+			end
+
+			if root and root.Parent then
+				local pos = getRootPosition(root)
+				if pos then
+					found[root] = pos
+				end
+			end
+
+			-- Divide o scan em partes pequenas para não congelar a tela.
+			if i % 90 == 0 then
+				task.wait()
+			end
+		end
+
+		computerCandidateCache = found
+		lastComputerCandidateScan = tick()
+		computerScanRunning = false
+
+		pcall(function()
+			updateComputerESP()
+		end)
+	end)
 end
 
 local function getComputerCandidates()
-	if tick() - lastComputerCandidateScan > 12 or not next(computerCandidateCache) then
+	-- Não faz scan completo toda hora. Se precisar, pede scan async e usa cache atual.
+	if (tick() - lastComputerCandidateScan > 45 or not next(computerCandidateCache)) and not computerScanRunning then
 		rescanComputerCandidates()
 	end
 
@@ -1254,7 +1275,7 @@ local function getComputerCandidates()
 
 	for root in pairs(computerCandidateCache) do
 		local pos = getRootPosition(root)
-		if root and root.Parent and pos and modelHasComputerSignals(root) then
+		if root and root.Parent and pos then
 			candidates[root] = pos
 		else
 			computerCandidateCache[root] = nil
@@ -1405,9 +1426,10 @@ workspace.DescendantAdded:Connect(function(obj)
 			or name:find("keyboard", 1, true)
 			or name:find("hack", 1, true) then
 
-			task.delay(1, function()
-				rescanComputerCandidates()
-				updateComputerESP()
+			task.delay(2, function()
+				if not computerScanRunning and tick() - lastComputerCandidateScan > 8 then
+					rescanComputerCandidates()
+				end
 			end)
 		end
 	end
@@ -1424,6 +1446,10 @@ end)
 local lastPlayerESPUpdate = 0
 local lastComputerESPUpdate = 0
 
+task.delay(4, function()
+	rescanComputerCandidates()
+end)
+
 RunService.Heartbeat:Connect(function()
 	if not isThisScriptActive or not isThisScriptActive() then
 		clearChamsESP()
@@ -1435,12 +1461,14 @@ RunService.Heartbeat:Connect(function()
 
 	local now = tick()
 
-	if chamsESPEnabled and (now - lastPlayerESPUpdate) >= 0.35 then
+	-- Bem mais leve: role muda por evento, isso aqui é só manutenção.
+	if chamsESPEnabled and (now - lastPlayerESPUpdate) >= 1.2 then
 		lastPlayerESPUpdate = now
 		updateChamsESP()
 	end
 
-	if (now - lastComputerESPUpdate) >= 3 then
+	-- Usa cache. Scan completo é async e raro, para evitar travadas.
+	if (now - lastComputerESPUpdate) >= 8 then
 		lastComputerESPUpdate = now
 		updateComputerESP()
 	end
@@ -6160,4 +6188,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Suuuccessfully ✅")
+print("Cerber X V1.1 • Loaded Suuuuuccessfully ✅")
