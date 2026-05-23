@@ -213,18 +213,9 @@ isXrayEnabled = false
 realXrayEnabled = false
 isDance2TurnEnabled = false
 isFloorbangEspEnabled = false
-chamsESPEnabled = true
-runnerTimerVisible = true
+chamsESPEnabled = false
 playerESPHighlights = {}
 computerESPMarkers = {}
-RunnerTimerGui = nil
-RunnerTimerLabel = nil
-runnerActiveUntil = 0
-runnerCooldownUntil = 0
-runnerLastHighSpeed = false
-RUNNER_ACTIVE_DURATION = 6
-RUNNER_COOLDOWN_DURATION = 30
-RUNNER_SPEED_THRESHOLD = 19
 floorbangEspMarkers = {}
 FLOORBANG_HORIZONTAL_RANGE = 35
 dance2TurnToken = 0
@@ -436,7 +427,6 @@ local function saveUserPreferences()
 		isDance2TurnEnabled = isDance2TurnEnabled,
 		isFloorbangEspEnabled = isFloorbangEspEnabled,
 		chamsESPEnabled = chamsESPEnabled,
-		runnerTimerVisible = runnerTimerVisible,
 		mobileWallhopGuiHidden = mobileWallhopGuiHidden,
 		mobileCornerWalkButtonVisible = mobileCornerWalkButtonVisible,
 		mobileBeastSlowButtonVisible = mobileBeastSlowButtonVisible,
@@ -504,9 +494,6 @@ local function loadUserPreferences()
 		end
 		if type(decoded.chamsESPEnabled) == "boolean" then
 			chamsESPEnabled = decoded.chamsESPEnabled
-		end
-		if type(decoded.runnerTimerVisible) == "boolean" then
-			runnerTimerVisible = decoded.runnerTimerVisible
 		end
 		if type(decoded.mobileWallhopGuiHidden) == "boolean" then
 			mobileWallhopGuiHidden = decoded.mobileWallhopGuiHidden
@@ -988,35 +975,41 @@ function isPlayerBeast(player)
 	if not player then
 		return false
 	end
-	local teamName = player.Team and tostring(player.Team.Name or ""):lower() or ""
-	if teamName:find("beast", 1, true) or teamName:find("monster", 1, true) then
+
+	local function hasBeastText(value)
+		if value == nil then
+			return false
+		end
+		local s = tostring(value):lower()
+		return s == "beast"
+			or s == "the beast"
+			or s == "monster"
+			or s:find("beast", 1, true) ~= nil
+	end
+
+	local teamName = player.Team and player.Team.Name
+	if hasBeastText(teamName) then
 		return true
 	end
+
 	for _, container in ipairs({player, player.Character}) do
 		if container then
-			for _, attrName in ipairs({"IsBeast", "Beast", "Role", "Class"}) do
-				local attr = container:GetAttribute(attrName)
+			for _, attrName in ipairs({"Role", "CurrentRole", "Class", "Team", "PlayerRole"}) do
+				if hasBeastText(container:GetAttribute(attrName)) then
+					return true
+				end
+			end
+
+			for _, flagName in ipairs({"IsBeast", "Beast"}) do
+				local attr = container:GetAttribute(flagName)
 				if typeof(attr) == "boolean" and attr == true then
 					return true
 				end
-				if typeof(attr) == "string" and attr:lower():find("beast", 1, true) then
-					return true
-				end
 			end
 		end
 	end
-	local backpack = player:FindFirstChildOfClass("Backpack")
-	local character = player.Character
-	for _, container in ipairs({backpack, character}) do
-		if container then
-			for _, obj in ipairs(container:GetChildren()) do
-				local n = tostring(obj.Name or ""):lower()
-				if n:find("hammer", 1, true) or n:find("beast", 1, true) then
-					return true
-				end
-			end
-		end
-	end
+
+	-- Não usa tool/backpack para decidir, porque em alguns mapas isso marca todo mundo como beast.
 	return false
 end
 
@@ -1110,14 +1103,18 @@ end
 
 local function getComputerCandidates()
 	local candidates = {}
+
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		local n = tostring(obj.Name or ""):lower()
 		if (n:find("computer", 1, true) or n:find("hack", 1, true)) and (obj:IsA("Model") or obj:IsA("BasePart")) then
 			local root = getComputerRoot(obj)
 			local pos = getRootPosition(root)
-			if root and pos then candidates[root] = pos end
+			if root and pos then
+				candidates[root] = pos
+			end
 		end
 	end
+
 	return candidates
 end
 
@@ -1126,7 +1123,6 @@ local function removeComputerESP(root)
 	if marker then
 		pcall(function()
 			if marker.highlight then marker.highlight:Destroy() end
-			if marker.billboard then marker.billboard:Destroy() end
 		end)
 	end
 	computerESPMarkers[root] = nil
@@ -1134,127 +1130,45 @@ end
 
 local function updateComputerESP()
 	local candidates = getComputerCandidates()
+	local clustered = {}
+
 	for root, pos in pairs(candidates) do
 		local nearby = 0
 		for otherRoot, otherPos in pairs(candidates) do
-			if otherRoot ~= root and (otherPos - pos).Magnitude <= 32 then nearby += 1 end
+			if otherRoot ~= root and (otherPos - pos).Magnitude <= 32 then
+				nearby += 1
+			end
 		end
-		local label = "Computer"
-		if nearby >= 2 then label = "Triple Computer" elseif nearby >= 1 then label = "Double Computer" end
-		local adornee = getRootAdornee(root)
-		if adornee then
+
+		-- Só mostra computadores próximos em spots duplos/triplos.
+		if nearby >= 1 then
+			clustered[root] = true
 			local marker = computerESPMarkers[root]
-			if not marker or not marker.billboard or not marker.billboard.Parent then
-				local billboard = Instance.new("BillboardGui")
-				billboard.Name = "CerberXComputerESP"
-				billboard.AlwaysOnTop = true
-				billboard.Size = UDim2.new(0, 130, 0, 28)
-				billboard.StudsOffset = Vector3.new(0, 3, 0)
-				billboard.Adornee = adornee
-				billboard.Parent = adornee
-
-				local textLabel = Instance.new("TextLabel")
-				textLabel.Size = UDim2.new(1, 0, 1, 0)
-				textLabel.BackgroundTransparency = 1
-				textLabel.TextColor3 = Color3.fromRGB(0, 255, 170)
-				textLabel.Font = Enum.Font.GothamBold
-				textLabel.TextScaled = true
-				textLabel.TextStrokeTransparency = 0.35
-				textLabel.Parent = billboard
-
+			if not marker or not marker.highlight or not marker.highlight.Parent then
 				local highlight = Instance.new("Highlight")
-				highlight.Name = "CerberXComputerHighlight"
+				highlight.Name = "CerberXComputerChams"
 				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-				highlight.FillColor = Color3.fromRGB(0, 255, 170)
-				highlight.OutlineColor = Color3.fromRGB(0, 255, 170)
-				highlight.FillTransparency = 0.78
-				highlight.OutlineTransparency = 0.15
+				highlight.FillColor = nearby >= 2 and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(0, 185, 255)
+				highlight.OutlineColor = highlight.FillColor
+				highlight.FillTransparency = nearby >= 2 and 0.58 or 0.68
+				highlight.OutlineTransparency = 0.08
 				highlight.Adornee = root
 				highlight.Parent = root
-
-				marker = {billboard = billboard, label = textLabel, highlight = highlight}
+				marker = {highlight = highlight}
 				computerESPMarkers[root] = marker
+			else
+				marker.highlight.FillColor = nearby >= 2 and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(0, 185, 255)
+				marker.highlight.OutlineColor = marker.highlight.FillColor
+				marker.highlight.FillTransparency = nearby >= 2 and 0.58 or 0.68
+				marker.highlight.Adornee = root
 			end
-			marker.billboard.Adornee = adornee
-			marker.label.Text = label
 		end
 	end
+
 	for root in pairs(computerESPMarkers) do
-		if not candidates[root] then removeComputerESP(root) end
-	end
-end
-
-local function ensureRunnerTimerGui()
-	if not runnerTimerVisible or not PlayerGui then return end
-	if RunnerTimerGui and RunnerTimerGui.Parent and RunnerTimerLabel and RunnerTimerLabel.Parent then return end
-	local old = PlayerGui:FindFirstChild("CerberXRunnerTimerGui")
-	if old then old:Destroy() end
-	RunnerTimerGui = Instance.new("ScreenGui")
-	RunnerTimerGui.Name = "CerberXRunnerTimerGui"
-	RunnerTimerGui.ResetOnSpawn = false
-	RunnerTimerGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	RunnerTimerGui.Parent = PlayerGui
-	RunnerTimerLabel = Instance.new("TextLabel")
-	RunnerTimerLabel.Name = "RunnerTimer"
-	RunnerTimerLabel.Size = UDim2.new(0, 175, 0, 28)
-	RunnerTimerLabel.Position = UDim2.new(0.5, -87, 0, 16)
-	RunnerTimerLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	RunnerTimerLabel.BackgroundTransparency = 0.18
-	RunnerTimerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	RunnerTimerLabel.Font = Enum.Font.GothamBold
-	RunnerTimerLabel.TextSize = 12
-	RunnerTimerLabel.Text = "Runner: ready"
-	RunnerTimerLabel.Parent = RunnerTimerGui
-	Instance.new("UICorner", RunnerTimerLabel).CornerRadius = UDim.new(0, 8)
-	noTextStroke(RunnerTimerLabel)
-	local dragging, dragStart, startPos = false, nil, nil
-	RunnerTimerLabel.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			dragging, dragStart, startPos = true, input.Position, RunnerTimerLabel.Position
+		if not clustered[root] then
+			removeComputerESP(root)
 		end
-	end)
-	UserInputService.InputChanged:Connect(function(input)
-		if dragging and dragStart and startPos and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-			local delta = input.Position - dragStart
-			RunnerTimerLabel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-		end
-	end)
-	UserInputService.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
-	end)
-end
-
-local function getBeastHumanoid()
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer and isPlayerBeast(player) then
-			local character = player.Character
-			local hum = character and character:FindFirstChildOfClass("Humanoid")
-			if hum and hum.Health > 0 then return hum, player end
-		end
-	end
-	return nil, nil
-end
-
-local function updateRunnerTimer()
-	ensureRunnerTimerGui()
-	if not RunnerTimerLabel then return end
-	local now = tick()
-	local hum = getBeastHumanoid()
-	local highSpeed = hum and hum.WalkSpeed >= RUNNER_SPEED_THRESHOLD
-	if highSpeed and not runnerLastHighSpeed and now >= runnerActiveUntil then
-		runnerActiveUntil = now + RUNNER_ACTIVE_DURATION
-		runnerCooldownUntil = runnerActiveUntil + RUNNER_COOLDOWN_DURATION
-	end
-	runnerLastHighSpeed = highSpeed and true or false
-	if now < runnerActiveUntil then
-		RunnerTimerLabel.Text = string.format("Runner active: %.1fs", runnerActiveUntil - now)
-		RunnerTimerLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
-	elseif now < runnerCooldownUntil then
-		RunnerTimerLabel.Text = string.format("Runner cooldown: %.1fs", runnerCooldownUntil - now)
-		RunnerTimerLabel.TextColor3 = Color3.fromRGB(255, 210, 90)
-	else
-		RunnerTimerLabel.Text = "Runner: ready"
-		RunnerTimerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	end
 end
 
@@ -1265,7 +1179,6 @@ RunService.RenderStepped:Connect(function()
 		return
 	end
 	updateChamsESP()
-	updateRunnerTimer()
 	if tick() - lastComputerESPUpdate >= 1 then
 		lastComputerESPUpdate = tick()
 		updateComputerESP()
@@ -3233,7 +3146,7 @@ local function buildMobileGui()
 	MobileESPInfoLabel.Size = UDim2.new(1, -14, 0, 56)
 	MobileESPInfoLabel.Position = UDim2.new(0, 7, 0, 76)
 	MobileESPInfoLabel.BackgroundTransparency = 1
-	MobileESPInfoLabel.Text = "Computer ESP is always on. Double/triple spots are marked automatically."
+	MobileESPInfoLabel.Text = "Computer ESP is always on. Only nearby double/triple spots get chams."
 	MobileESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	MobileESPInfoLabel.Font = Enum.Font.Gotham
 	MobileESPInfoLabel.TextSize = 11
@@ -3244,20 +3157,6 @@ local function buildMobileGui()
 	noTextStroke(MobileESPInfoLabel)
 	setTargetTransparency(MobileESPInfoLabel, 1, 0)
 
-	MobileRunnerTimerInfoLabel = Instance.new("TextLabel")
-	MobileRunnerTimerInfoLabel.Size = UDim2.new(1, -14, 0, 40)
-	MobileRunnerTimerInfoLabel.Position = UDim2.new(0, 7, 0, 130)
-	MobileRunnerTimerInfoLabel.BackgroundTransparency = 1
-	MobileRunnerTimerInfoLabel.Text = "Runner timer is always shown. Drag the timer box to move it."
-	MobileRunnerTimerInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
-	MobileRunnerTimerInfoLabel.Font = Enum.Font.Gotham
-	MobileRunnerTimerInfoLabel.TextSize = 11
-	MobileRunnerTimerInfoLabel.TextWrapped = true
-	MobileRunnerTimerInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
-	MobileRunnerTimerInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
-	MobileRunnerTimerInfoLabel.Parent = MobileESPPage
-	noTextStroke(MobileRunnerTimerInfoLabel)
-	setTargetTransparency(MobileRunnerTimerInfoLabel, 1, 0)
 
 	MobileAllFunctionsTitle = Instance.new("TextLabel")
 	MobileAllFunctionsTitle.Size = UDim2.new(1, -14, 0, 22)
@@ -4158,7 +4057,7 @@ local function buildPCGui()
 	PcESPInfoLabel.Size = UDim2.new(1, -36, 0, 46)
 	PcESPInfoLabel.Position = UDim2.new(0, 18, 0, 68)
 	PcESPInfoLabel.BackgroundTransparency = 1
-	PcESPInfoLabel.Text = "Computer ESP is always on. Doubles/triples are detected by nearby computer spots."
+	PcESPInfoLabel.Text = "Computer ESP is always on. Only nearby double/triple computer spots get chams."
 	PcESPInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
 	PcESPInfoLabel.Font = Enum.Font.Gotham
 	PcESPInfoLabel.TextSize = 12
@@ -4169,20 +4068,6 @@ local function buildPCGui()
 	noTextStroke(PcESPInfoLabel)
 	setTargetTransparency(PcESPInfoLabel, 1, 0)
 
-	PcRunnerTimerInfoLabel = Instance.new("TextLabel")
-	PcRunnerTimerInfoLabel.Size = UDim2.new(1, -36, 0, 38)
-	PcRunnerTimerInfoLabel.Position = UDim2.new(0, 18, 0, 118)
-	PcRunnerTimerInfoLabel.BackgroundTransparency = 1
-	PcRunnerTimerInfoLabel.Text = "Runner timer is always shown. Drag the timer box to move it."
-	PcRunnerTimerInfoLabel.TextColor3 = Color3.fromRGB(200,200,200)
-	PcRunnerTimerInfoLabel.Font = Enum.Font.Gotham
-	PcRunnerTimerInfoLabel.TextSize = 12
-	PcRunnerTimerInfoLabel.TextWrapped = true
-	PcRunnerTimerInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
-	PcRunnerTimerInfoLabel.TextYAlignment = Enum.TextYAlignment.Top
-	PcRunnerTimerInfoLabel.Parent = PcESPPage
-	noTextStroke(PcRunnerTimerInfoLabel)
-	setTargetTransparency(PcRunnerTimerInfoLabel, 1, 0)
 
 	local footer = Instance.new("TextLabel")
 	footer.Name = "PcFooter"
@@ -6022,11 +5907,10 @@ createModeSelector(function(mode)
 	updateMobilePanelButtons()
 	updateFlickButtons()
 	updateESPButtons()
-	ensureRunnerTimerGui()
 	applyVisibility()
 	if isFloorbangEspEnabled then
 		updateFloorbangESP()
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Successfully ✅")
+print("Cerber X V1.1 • Loadedd Successfully ✅")
