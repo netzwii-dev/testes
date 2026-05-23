@@ -47,6 +47,24 @@ local lastActionTime = 0
 local numberPadCache = nil
 local numberPadCacheTime = 0
 
+local function clearArray(t)
+	for i = #t, 1, -1 do
+		t[i] = nil
+	end
+end
+
+local function safeDisconnectList(list)
+	for _, c in ipairs(list) do
+		pcall(function()
+			if c and c.Disconnect then
+				c:Disconnect()
+			end
+		end)
+	end
+	clearArray(list)
+end
+
+
 local function noTextStroke(obj)
 	pcall(function()
 		obj.TextStrokeTransparency = 1
@@ -595,21 +613,11 @@ local function createSimpleRow(parent, yOffset, labelText)
 end
 
 local function clearSolverConnections()
-	for _, c in ipairs(solverConnections) do
-		pcall(function()
-			c:Disconnect()
-		end)
-	end
-	table.clear(solverConnections)
+	safeDisconnectList(solverConnections)
 end
 
 local function clearDragConnections()
-	for _, c in ipairs(dragConnections) do
-		pcall(function()
-			c:Disconnect()
-		end)
-	end
-	table.clear(dragConnections)
+	safeDisconnectList(dragConnections)
 end
 
 local function clearSolverValues()
@@ -630,7 +638,7 @@ local function clearCurrentSolver()
 	currentSolution = nil
 	lastActionKey = ""
 	lastActionTime = 0
-	actionToken += 1
+	actionToken = actionToken + 1
 end
 
 local function getChar()
@@ -679,7 +687,7 @@ local function getCells(surfaceGui)
 			if row >= 1 and row <= 9 and col >= 1 and col <= 9 then
 				cells[row] = cells[row] or {}
 				cells[row][col] = cell
-				total += 1
+				total = total + 1
 			end
 		end
 	end
@@ -1030,20 +1038,20 @@ local function toolButtonScore(obj)
 	local score = 0
 
 	if obj:IsA("GuiObject") then
-		score += colorBlueScore(obj.BackgroundColor3) * 10
+		score = score + colorBlueScore(obj.BackgroundColor3) * 10
 		if obj.BackgroundTransparency < 0.8 then
-			score += 2
+			score = score + 2
 		end
 	end
 
 	for _, child in ipairs(obj:GetDescendants()) do
 		if child:IsA("UIStroke") then
-			score += colorBlueScore(child.Color) * (child.Transparency < 0.5 and 16 or 6)
+			score = score + colorBlueScore(child.Color) * (child.Transparency < 0.5 and 16 or 6)
 			if child.Thickness >= 2 then
-				score += 4
+				score = score + 4
 			end
 		elseif child:IsA("GuiObject") then
-			score += colorBlueScore(child.BackgroundColor3) * 3
+			score = score + colorBlueScore(child.BackgroundColor3) * 3
 		end
 	end
 
@@ -1066,7 +1074,7 @@ local function findToolButtonByText(textWanted)
 
 					if size.X >= 40 and size.Y >= 25 then
 						local score = toolButtonScore(obj)
-						score += pos.Y * 0.002
+						score = score + pos.Y * 0.002
 
 						if score > bestScore then
 							bestScore = score
@@ -1124,7 +1132,7 @@ local function scoreDigitCluster(map)
 		local c = p + s / 2
 
 		centers[i] = c
-		areaSum += s.X * s.Y
+		areaSum = areaSum + s.X * s.Y
 
 		minX = math.min(minX, p.X)
 		minY = math.min(minY, p.Y)
@@ -1139,20 +1147,20 @@ local function scoreDigitCluster(map)
 	local centerY = (minY + maxY) / 2
 
 	local score = 0
-	score += centerX * 0.08
-	score += centerY * 0.12
-	score += areaSum * 0.002
+	score = score + centerX * 0.08
+	score = score + centerY * 0.12
+	score = score + areaSum * 0.002
 
 	if centerX > viewport.X * 0.45 then
-		score += 900
+		score = score + 900
 	end
 
 	if centerY > viewport.Y * 0.34 then
-		score += 900
+		score = score + 900
 	end
 
 	if area >= 25000 and area <= 320000 then
-		score += 420
+		score = score + 420
 	else
 		score -= math.abs(area - 120000) * 0.0015
 	end
@@ -1166,21 +1174,21 @@ local function scoreDigitCluster(map)
 	local col3 = (centers[3].X + centers[6].X + centers[9].X) / 3
 
 	local gridPenalty = 0
-	gridPenalty += math.abs(centers[1].Y - row1) + math.abs(centers[2].Y - row1) + math.abs(centers[3].Y - row1)
-	gridPenalty += math.abs(centers[4].Y - row2) + math.abs(centers[5].Y - row2) + math.abs(centers[6].Y - row2)
-	gridPenalty += math.abs(centers[7].Y - row3) + math.abs(centers[8].Y - row3) + math.abs(centers[9].Y - row3)
-	gridPenalty += math.abs(centers[1].X - col1) + math.abs(centers[4].X - col1) + math.abs(centers[7].X - col1)
-	gridPenalty += math.abs(centers[2].X - col2) + math.abs(centers[5].X - col2) + math.abs(centers[8].X - col2)
-	gridPenalty += math.abs(centers[3].X - col3) + math.abs(centers[6].X - col3) + math.abs(centers[9].X - col3)
+	gridPenalty = gridPenalty + math.abs(centers[1].Y - row1) + math.abs(centers[2].Y - row1) + math.abs(centers[3].Y - row1)
+	gridPenalty = gridPenalty + math.abs(centers[4].Y - row2) + math.abs(centers[5].Y - row2) + math.abs(centers[6].Y - row2)
+	gridPenalty = gridPenalty + math.abs(centers[7].Y - row3) + math.abs(centers[8].Y - row3) + math.abs(centers[9].Y - row3)
+	gridPenalty = gridPenalty + math.abs(centers[1].X - col1) + math.abs(centers[4].X - col1) + math.abs(centers[7].X - col1)
+	gridPenalty = gridPenalty + math.abs(centers[2].X - col2) + math.abs(centers[5].X - col2) + math.abs(centers[8].X - col2)
+	gridPenalty = gridPenalty + math.abs(centers[3].X - col3) + math.abs(centers[6].X - col3) + math.abs(centers[9].X - col3)
 
 	score -= gridPenalty * 1.8
 
 	if row1 < row2 and row2 < row3 then
-		score += 200
+		score = score + 200
 	end
 
 	if col1 < col2 and col2 < col3 then
-		score += 200
+		score = score + 200
 	end
 
 	return score
@@ -1213,7 +1221,7 @@ local function findNumberPadCluster()
 							end
 
 							parent = parent.Parent
-							depth += 1
+							depth = depth + 1
 						end
 					end
 				end
@@ -1365,7 +1373,7 @@ local function autoFillExactCell(cell)
 		return
 	end
 
-	actionToken += 1
+	actionToken = actionToken + 1
 	local token = actionToken
 	local key = tostring(currentBoardKey) .. ":fill:" .. row .. ":" .. col .. ":" .. correct
 	local now = os.clock()
@@ -1427,7 +1435,7 @@ local function autoNotesExactCell(cell)
 		return
 	end
 
-	actionToken += 1
+	actionToken = actionToken + 1
 	local token = actionToken
 	local key = tostring(currentBoardKey) .. ":note:" .. row .. ":" .. col .. ":" .. correct
 	local now = os.clock()
@@ -1487,7 +1495,7 @@ local function bindCellActions(cell)
 			activeInput = input
 			startPos = input.Position
 			moved = false
-			actionToken += 1
+			actionToken = actionToken + 1
 		end
 	end))
 
@@ -1563,7 +1571,7 @@ local function solveCurrentBoard()
 	currentSolution = solved
 	lastActionKey = ""
 	lastActionTime = 0
-	actionToken += 1
+	actionToken = actionToken + 1
 	numberPadCache = nil
 
 	local count = 0
@@ -1576,7 +1584,7 @@ local function solveCurrentBoard()
 				bindCellActions(cell)
 
 				if original[r][c] == 0 then
-					count += 1
+					count = count + 1
 					addNumberOnCell(cell, solved[r][c])
 					watchCell(cell)
 				end
@@ -1769,25 +1777,25 @@ local function buildMobileGui()
 
 	bindRowPress(autoFillRow, function()
 		autoFillEnabled = not autoFillEnabled
-		actionToken += 1
+		actionToken = actionToken + 1
 		updateMobilePanelButtons()
 	end)
 
 	bindRowPress(fillHitbox, function()
 		autoFillEnabled = not autoFillEnabled
-		actionToken += 1
+		actionToken = actionToken + 1
 		updateMobilePanelButtons()
 	end)
 
 	bindRowPress(autoNotesRow, function()
 		autoNotesEnabled = not autoNotesEnabled
-		actionToken += 1
+		actionToken = actionToken + 1
 		updateMobilePanelButtons()
 	end)
 
 	bindRowPress(notesHitbox, function()
 		autoNotesEnabled = not autoNotesEnabled
-		actionToken += 1
+		actionToken = actionToken + 1
 		updateMobilePanelButtons()
 	end)
 
