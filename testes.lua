@@ -1042,300 +1042,6 @@ local function updateChamsESP()
 		return
 	end
 	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer then
-			local character = player.Character
-			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			if character and humanoid and humanoid.Health > 0 then
-				local highlight = playerESPHighlights[player]
-				if not highlight or not highlight.Parent then
-					highlight = Instance.new("Highlight")
-					highlight.Name = "CerberXPlayerChams"
-					highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-					highlight.FillTransparency = 0.45
-					highlight.OutlineTransparency = 0.1
-					highlight.Parent = character
-					playerESPHighlights[player] = highlight
-				end
-				highlight.Adornee = character
-				local color = getPlayerESPColor(player)
-				highlight.FillColor = color
-				highlight.OutlineColor = color
-			elseif playerESPHighlights[player] then
-				pcall(function() playerESPHighlights[player]:Destroy() end)
-				playerESPHighlights[player] = nil
-			end
-		end
-	end
-	for player, highlight in pairs(playerESPHighlights) do
-		if not player or not player.Parent or player == LocalPlayer or not player.Character then
-			pcall(function() if highlight then highlight:Destroy() end end)
-			playerESPHighlights[player] = nil
-		end
-	end
-end
-
-local function updateChamsSwitchVisual()
-	if not mobileChamsESPSwitch or not mobileChamsESPKnob then
-		return
-	end
-
-	local enabled = chamsESPEnabled and true or false
-	local offPos = UDim2.new(0, 3, 0.5, -13)
-	local onPos = UDim2.new(1, -29, 0.5, -13)
-
-	pcall(function()
-		TweenService:Create(mobileChamsESPSwitch, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundColor3 = enabled and Color3.fromRGB(190,190,190) or Color3.fromRGB(20,20,24)
-		}):Play()
-
-		TweenService:Create(mobileChamsESPKnob, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			Position = enabled and onPos or offPos,
-			BackgroundColor3 = enabled and Color3.fromRGB(255,255,255) or Color3.fromRGB(0,0,0)
-		}):Play()
-	end)
-end
-
-updateESPButtons = function()
-	if PcChamsESPButton then
-		PcChamsESPButton.Text = chamsESPEnabled and "Player Chams: On" or "Player Chams: Off"
-	end
-
-	if MobileChamsESPRow and MobileChamsESPRow:FindFirstChild("Label") then
-		MobileChamsESPRow.Label.Text = "Player Chams"
-	end
-
-	updateChamsSwitchVisual()
-end
-
-local function setChamsESPEnabled(state)
-	chamsESPEnabled = state and true or false
-	updateChamsESP()
-	updateChamsSwitchVisual()
-
-	if updateESPButtons then
-		updateESPButtons()
-	end
-
-	saveUserPreferences()
-end
-
-local function isLikelyComputerModel(model)
-	if not model or not model.Parent or not model:IsA("Model") then
-		return false
-	end
-
-	if model:FindFirstChildOfClass("Humanoid") then
-		return false
-	end
-
-	local n = tostring(model.Name or ""):lower()
-	local nameLooksRight = n:find("computer", 1, true) ~= nil
-
-	local hasVisiblePart = false
-	local hasComputerPart = false
-	for _, obj in ipairs(model:GetDescendants()) do
-		if obj:IsA("BasePart") then
-			if obj.Transparency < 0.95 and obj.Size.Magnitude > 0.2 then
-				hasVisiblePart = true
-			end
-
-			local partName = tostring(obj.Name or ""):lower()
-			if partName:find("screen", 1, true)
-				or partName:find("keyboard", 1, true)
-				or partName:find("monitor", 1, true)
-				or partName:find("computer", 1, true) then
-				hasComputerPart = true
-			end
-		end
-	end
-
-	return nameLooksRight and hasVisiblePart and hasComputerPart
-end
-
-local function getComputerRoot(obj)
-	if not obj or not obj.Parent then
-		return nil
-	end
-
-	local current = obj
-	while current and current ~= workspace do
-		if current:IsA("Model") and isLikelyComputerModel(current) then
-			return current
-		end
-		current = current.Parent
-	end
-
-	return nil
-end
-
-local function getRootPosition(root)
-	if not root or not root.Parent then
-		return nil
-	end
-
-	if root:IsA("Model") then
-		local ok, cf = pcall(function()
-			return root:GetPivot()
-		end)
-		if ok and cf then
-			return cf.Position
-		end
-
-		local primary = root.PrimaryPart or root:FindFirstChildWhichIsA("BasePart", true)
-		if primary then
-			return primary.Position
-		end
-	end
-
-	return nil
-end
-
-local function getRootAdornee(root)
-	if not root or not root.Parent then
-		return nil
-	end
-
-	if root:IsA("Model") then
-		return root
-	end
-
-	return nil
-end
-
-local function getComputerCandidates()
-	local candidates = {}
-
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Model") then
-			local root = getComputerRoot(obj)
-			local pos = getRootPosition(root)
-			if root and pos then
-				candidates[root] = pos
-			end
-		end
-	end
-
-	return candidates
-end
-
-local function removeComputerESP(root)
-	local marker = computerESPMarkers[root]
-	if marker then
-		pcall(function()
-			if marker.highlight then marker.highlight:Destroy() end
-		end)
-	end
-	computerESPMarkers[root] = nil
-end
-
-local function updateComputerESP()
-	local candidates = getComputerCandidates()
-	local clustered = {}
-
-	for root, pos in pairs(candidates) do
-		local nearby = 0
-		for otherRoot, otherPos in pairs(candidates) do
-			if otherRoot ~= root and (otherPos - pos).Magnitude <= COMPUTER_CLUSTER_RANGE then
-				nearby += 1
-			end
-		end
-
-		-- Só computadores com pelo menos 1 outro computador dentro de 35 studs recebem chams.
-		if nearby >= 1 then
-			clustered[root] = true
-
-			local marker = computerESPMarkers[root]
-			if not marker or not marker.highlight or not marker.highlight.Parent then
-				local highlight = Instance.new("Highlight")
-				highlight.Name = "CerberXComputerChams"
-				highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-				highlight.FillTransparency = nearby >= 2 and 0.58 or 0.68
-				highlight.OutlineTransparency = 0.08
-				highlight.FillColor = nearby >= 2 and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(0, 185, 255)
-				highlight.OutlineColor = highlight.FillColor
-				highlight.Adornee = root
-				highlight.Parent = root
-
-				marker = {highlight = highlight}
-				computerESPMarkers[root] = marker
-			else
-				marker.highlight.Adornee = root
-				marker.highlight.FillTransparency = nearby >= 2 and 0.58 or 0.68
-				marker.highlight.FillColor = nearby >= 2 and Color3.fromRGB(0, 255, 170) or Color3.fromRGB(0, 185, 255)
-				marker.highlight.OutlineColor = marker.highlight.FillColor
-			end
-		end
-	end
-
-	for root in pairs(computerESPMarkers) do
-		if not clustered[root] then
-			removeComputerESP(root)
-		end
-	end
-end
-
-
-local function disconnectRoleWatch(player)
-	local cons = roleWatchConnections[player]
-	if cons then
-		for _, con in ipairs(cons) do
-			pcall(function()
-				con:Disconnect()
-			end)
-		end
-	end
-	roleWatchConnections[player] = nil
-end
-
-local function watchPlayerRole(player)
-	if not player or player == LocalPlayer then
-		return
-	end
-
-	disconnectRoleWatch(player)
-	roleWatchConnections[player] = {}
-
-	local function refreshSoon()
-		task.defer(function()
-			if chamsESPEnabled then
-				updateChamsESP()
-			end
-		end)
-	end
-
-	local stats = player:FindFirstChild("TempPlayerStatsModule")
-	if stats then
-		local isBeastValue = stats:FindFirstChild("IsBeast")
-		if isBeastValue and isBeastValue:IsA("BoolValue") then
-			table.insert(roleWatchConnections[player], isBeastValue.Changed:Connect(refreshSoon))
-		end
-
-		table.insert(roleWatchConnections[player], stats.ChildAdded:Connect(function(child)
-			if child.Name == "IsBeast" and child:IsA("BoolValue") then
-				refreshSoon()
-				watchPlayerRole(player)
-			end
-		end))
-	end
-
-	table.insert(roleWatchConnections[player], player.ChildAdded:Connect(function(child)
-		if child.Name == "TempPlayerStatsModule" then
-			task.wait(0.1)
-			refreshSoon()
-			watchPlayerRole(player)
-		end
-	end))
-
-	table.insert(roleWatchConnections[player], player.CharacterAdded:Connect(function()
-		task.wait(0.25)
-		refreshSoon()
-		watchPlayerRole(player)
-	end))
-
-	refreshSoon()
-end
-
-for _, player in ipairs(Players:GetPlayers()) do
 	watchPlayerRole(player)
 end
 
@@ -1352,8 +1058,10 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
+local lastPlayerESPUpdate = 0
 local lastComputerESPUpdate = 0
-RunService.RenderStepped:Connect(function()
+
+RunService.Heartbeat:Connect(function()
 	if not isThisScriptActive or not isThisScriptActive() then
 		clearChamsESP()
 		for root in pairs(computerESPMarkers) do
@@ -1362,13 +1070,21 @@ RunService.RenderStepped:Connect(function()
 		return
 	end
 
-	updateChamsESP()
+	local now = tick()
 
-	if tick() - lastComputerESPUpdate >= 1 then
-		lastComputerESPUpdate = tick()
+	-- Player Chams: atualização leve, com refresh instantâneo quando IsBeast muda.
+	if chamsESPEnabled and (now - lastPlayerESPUpdate) >= 0.35 then
+		lastPlayerESPUpdate = now
+		updateChamsESP()
+	end
+
+	-- Computer ESP: não escaneia o mapa toda hora para evitar congeladas.
+	if (now - lastComputerESPUpdate) >= 3 then
+		lastComputerESPUpdate = now
 		updateComputerESP()
 	end
 end)
+
 
 local function restoreDance2Noclip()
 	for part, oldValue in pairs(dance2NoclipOriginalCanCollide) do
@@ -6084,4 +5800,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Successfully ✅")
+print("Cerber X V1.1 • Loaded Successssfully ✅")
