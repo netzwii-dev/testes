@@ -1,6 +1,5 @@
 -- sudoku with friends helper
--- baseado no sudoku_helper_cerber_exact_fixed.txt
--- GUI compacto com animação/sombra estilo Cerber X:
+-- UI mobile fiel ao estilo Cerber X:
 -- menu redondo 54x54 em X=86 / botão Sudoku 140x50 em X=150 / painel ao lado do botão
 -- botões arrastáveis igual Cerber X
 --
@@ -135,58 +134,6 @@ local function addTrueRoundedShadow(parent, cornerRadius, strength, shadowColor)
 
 		registerShadow(parent, shadow)
 	end
-end
-
-
-local function addClickAnimation(button, cornerRadius)
-	if not button then
-		return
-	end
-
-	local overlay = Instance.new("Frame")
-	overlay.Name = "ClickOverlay"
-	overlay.Size = UDim2.new(1, 0, 1, 0)
-	overlay.Position = UDim2.new(0, 0, 0, 0)
-	overlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	overlay.BackgroundTransparency = 1
-	overlay.BorderSizePixel = 0
-	overlay.ZIndex = button.ZIndex + 25
-	overlay.Active = false
-	overlay.Parent = button
-
-	Instance.new("UICorner", overlay).CornerRadius = cornerRadius or UDim.new(0, 12)
-
-	local function setAlpha(alpha)
-		if not overlay or not overlay.Parent then
-			return
-		end
-
-		TweenService:Create(
-			overlay,
-			TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{BackgroundTransparency = alpha}
-		):Play()
-	end
-
-	button.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			setAlpha(0.82)
-		end
-	end)
-
-	button.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			setAlpha(1)
-		end
-	end)
-
-	button.Activated:Connect(function()
-		setAlpha(0.82)
-
-		task.delay(0.08, function()
-			setAlpha(1)
-		end)
-	end)
 end
 
 local function elegantShow(root, finalSize, finalPosition, finalBgTransparency)
@@ -1678,7 +1625,7 @@ local function buildMobileGui()
 
 	MobilePanel = Instance.new("Frame")
 	MobilePanel.Name = "SudokuMobilePanel"
-	MobilePanel.Size = UDim2.new(0, 232, 0, 150)
+	MobilePanel.Size = UDim2.new(0, 232, 0, 170)
 	MobilePanel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	MobilePanel.BorderSizePixel = 0
 	MobilePanel.Visible = false
@@ -1707,12 +1654,11 @@ local function buildMobileGui()
 	functionsPage.BorderSizePixel = 0
 	functionsPage.ScrollBarThickness = 3
 	functionsPage.ScrollingDirection = Enum.ScrollingDirection.Y
-	functionsPage.CanvasSize = UDim2.new(0, 0, 0, 100)
+	functionsPage.CanvasSize = UDim2.new(0, 0, 0, 125)
 	functionsPage.Parent = MobilePanel
 
-	local solveRow = createSimpleRow(functionsPage, 30, "Resolver")
-	local autoFillRow, autoFillSwitch, autoFillKnob, autoFillHitbox = createSwitchRow(functionsPage, 72, "Auto-preencher")
-	local autoNotesRow, autoNotesSwitch, autoNotesKnob, autoNotesHitbox = createSwitchRow(functionsPage, 114, "Auto-notas")
+	local autoFillRow, autoFillSwitch, autoFillKnob, autoFillHitbox = createSwitchRow(functionsPage, 30, "Auto-preencher")
+	local autoNotesRow, autoNotesSwitch, autoNotesKnob, autoNotesHitbox = createSwitchRow(functionsPage, 72, "Auto-notas")
 
 	_G.__SudokuAutoFillSwitch = autoFillSwitch
 	_G.__SudokuAutoFillKnob = autoFillKnob
@@ -1771,8 +1717,8 @@ local function buildMobileGui()
 			end
 
 			MobilePanel.BackgroundTransparency = 1
-			MobilePanel.Size = UDim2.new(0, 224, 0, 142)
-			elegantShow(MobilePanel, UDim2.new(0, 232, 0, 150), MobilePanel.Position, 0)
+			MobilePanel.Size = UDim2.new(0, 224, 0, 162)
+			elegantShow(MobilePanel, UDim2.new(0, 232, 0, 170), MobilePanel.Position, 0)
 		else
 			elegantHide(MobilePanel)
 		end
