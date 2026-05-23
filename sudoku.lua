@@ -1,6 +1,8 @@
 -- sudoku with friends helper
 -- botão estilo Wallhop do Cerber X
--- sem On/Off: clicou, executa o solver inteiro no tabuleiro embaixo de você
+-- clicou no botão: resolve o tabuleiro embaixo de você
+-- clicou em uma casa vazia do tabuleiro: preenche com o número correto daquela casa
+-- versão mais precisa: usa o Row/Col da casa clicada, não tenta adivinhar pela cor/seleção
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -19,15 +21,13 @@ local currentBoard = nil
 local currentBoardKey = nil
 local currentCells = nil
 local currentSolution = nil
-local currentCellStates = nil
 
 local solverConnections = {}
 local dragConnections = {}
 local shadowRegistry = {}
 
-local lastAutoFill = 0
-local AUTOFILL_INTERVAL = 0.08
-local lastAutoFillKey = nil
+local lastClickedCellKey = nil
+local lastClickedTime = 0
 
 local function noTextStroke(obj)
 	pcall(function()
@@ -82,6 +82,68 @@ local function addTrueRoundedShadow(parent, cornerRadius, strength, shadowColor)
 	end
 end
 
+local function addCerberClickAnimation(button)
+	if not button then
+		return
+	end
+
+	local pressOverlay = Instance.new("Frame")
+	pressOverlay.Name = "PressOverlay"
+	pressOverlay.Size = UDim2.new(1, 0, 1, 0)
+	pressOverlay.Position = UDim2.new(0, 0, 0, 0)
+	pressOverlay.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	pressOverlay.BackgroundTransparency = 1
+	pressOverlay.BorderSizePixel = 0
+	pressOverlay.ZIndex = button.ZIndex + 1
+	pressOverlay.Active = false
+	pressOverlay.Parent = button
+
+	Instance.new("UICorner", pressOverlay).CornerRadius = UDim.new(0, 12)
+
+	local pressing = false
+
+	local function setOverlay(alpha)
+		pcall(function()
+			TweenService:Create(
+				pressOverlay,
+				TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{BackgroundTransparency = alpha}
+			):Play()
+		end)
+	end
+
+	button.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			pressing = true
+			setOverlay(0.82)
+		end
+	end)
+
+	button.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			pressing = false
+			setOverlay(1)
+		end
+	end)
+
+	button.MouseLeave:Connect(function()
+		if pressing then
+			pressing = false
+			setOverlay(1)
+		end
+	end)
+
+	button.Activated:Connect(function()
+		setOverlay(0.82)
+
+		task.delay(0.08, function()
+			if pressOverlay and pressOverlay.Parent then
+				setOverlay(1)
+			end
+		end)
+	end)
+end
+
 local function clearSolverConnections()
 	for _, c in ipairs(solverConnections) do
 		pcall(function()
@@ -118,8 +180,8 @@ local function clearCurrentSolver()
 	currentBoardKey = nil
 	currentCells = nil
 	currentSolution = nil
-	currentCellStates = nil
-	lastAutoFillKey = nil
+	lastClickedCellKey = nil
+	lastClickedTime = 0
 end
 
 local function getChar()
@@ -485,103 +547,6 @@ local function findBoardUnderPlayer()
 	return bestBoard
 end
 
-local function captureCellStates(cells)
-	local states = {}
-
-	for r = 1, 9 do
-		for c = 1, 9 do
-			local cell = cells[r] and cells[r][c]
-
-			if cell then
-				states[cell] = {
-					color = cell.BackgroundColor3,
-					transparency = cell.BackgroundTransparency
-				}
-			end
-		end
-	end
-
-	return states
-end
-
-local function colorDistance(a, b)
-	local dr = a.R - b.R
-	local dg = a.G - b.G
-	local db = a.B - b.B
-
-	return math.sqrt(dr * dr + dg * dg + db * db)
-end
-
-local function getSelectionScore(cell)
-	local score = 0
-
-	for _, attrName in ipairs({"Selected", "IsSelected", "Focused", "Current", "ActiveCell"}) do
-		local v = cell:GetAttribute(attrName)
-
-		if v == true then
-			score += 100
-		end
-	end
-
-	local base = currentCellStates and currentCellStates[cell]
-
-	if base then
-		local dist = colorDistance(cell.BackgroundColor3, base.color)
-		local transDiff = math.abs(cell.BackgroundTransparency - base.transparency)
-
-		score += dist * 40
-		score += transDiff * 10
-	end
-
-	local c = cell.BackgroundColor3
-
-	if c.B >= 0.8 and c.G >= 0.75 and c.R >= 0.65 then
-		score += 8
-	end
-
-	local stroke = cell:FindFirstChildOfClass("UIStroke")
-
-	if stroke and stroke.Transparency < 0.8 then
-		score += 2
-	end
-
-	return score
-end
-
-local function findSelectedEmptyCell()
-	if not currentCells then
-		return nil
-	end
-
-	local bestCell = nil
-	local bestRow = nil
-	local bestCol = nil
-	local bestScore = 0
-
-	for r = 1, 9 do
-		for c = 1, 9 do
-			local cell = currentCells[r] and currentCells[r][c]
-
-			if cell and readNumberFromCell(cell) == 0 then
-				local score = getSelectionScore(cell)
-
-				if score > bestScore and score >= 3 then
-					bestScore = score
-					bestCell = cell
-					bestRow = r
-					bestCol = c
-				end
-			end
-		end
-	end
-
-	if bestCell then
-		return bestCell, bestRow, bestCol
-	end
-
-	return nil
-end
-
 local function isGuiActuallyVisible(obj)
 	if not obj or not obj:IsA("GuiObject") then
 		return false
@@ -636,48 +601,112 @@ local function collectGuiRoots()
 	return roots
 end
 
-local function findNumberPadButton(num)
-	local target = tostring(num)
+local function findNumberPadCluster()
 	local viewport = Camera and Camera.ViewportSize or Vector2.new(1920, 1080)
-
-	local best = nil
-	local bestScore = -math.huge
+	local allButtons = {}
 
 	for _, root in ipairs(collectGuiRoots()) do
 		for _, obj in ipairs(root:GetDescendants()) do
 			if obj:IsA("GuiButton") and isGuiActuallyVisible(obj) then
 				local shown = getDisplayedText(obj)
 
-				if shown == target then
+				if shown:match("^[1-9]$") then
 					local pos = obj.AbsolutePosition
 					local size = obj.AbsoluteSize
 
 					if size.X >= 30 and size.Y >= 30 then
-						local score = 0
-
-						if pos.X > viewport.X * 0.5 then
-							score += 250
-						end
-
-						if pos.Y > viewport.Y * 0.45 then
-							score += 250
-						end
-
-						score += size.X + size.Y
-						score += pos.X * 0.05
-						score += pos.Y * 0.03
-
-						if score > bestScore then
-							bestScore = score
-							best = obj
-						end
+						table.insert(allButtons, {
+							button = obj,
+							num = shown,
+							pos = pos,
+							size = size,
+							center = pos + size / 2
+						})
 					end
 				end
 			end
 		end
 	end
 
-	return best
+	local bestCluster = nil
+	local bestScore = -math.huge
+
+	for _, base in ipairs(allButtons) do
+		local cluster = {}
+		local nums = {}
+
+		for _, item in ipairs(allButtons) do
+			local dx = math.abs(item.center.X - base.center.X)
+			local dy = math.abs(item.center.Y - base.center.Y)
+
+			if dx <= 520 and dy <= 360 then
+				cluster[item.num] = item
+				nums[item.num] = true
+			end
+		end
+
+		local hasAll = true
+		for i = 1, 9 do
+			if not nums[tostring(i)] then
+				hasAll = false
+				break
+			end
+		end
+
+		if hasAll then
+			local minX, minY = math.huge, math.huge
+			local maxX, maxY = -math.huge, -math.huge
+
+			for i = 1, 9 do
+				local item = cluster[tostring(i)]
+				minX = math.min(minX, item.pos.X)
+				minY = math.min(minY, item.pos.Y)
+				maxX = math.max(maxX, item.pos.X + item.size.X)
+				maxY = math.max(maxY, item.pos.Y + item.size.Y)
+			end
+
+			local width = maxX - minX
+			local height = maxY - minY
+			local area = width * height
+			local centerX = (minX + maxX) / 2
+			local centerY = (minY + maxY) / 2
+
+			local score = 0
+			score += centerX * 0.04
+			score += centerY * 0.08
+
+			if centerX > viewport.X * 0.45 then
+				score += 500
+			end
+
+			if centerY > viewport.Y * 0.35 then
+				score += 500
+			end
+
+			if area >= 30000 and area <= 300000 then
+				score += 350
+			else
+				score -= math.abs(area - 110000) * 0.001
+			end
+
+			if score > bestScore then
+				bestScore = score
+				bestCluster = cluster
+			end
+		end
+	end
+
+	return bestCluster
+end
+
+local function findNumberPadButton(num)
+	local cluster = findNumberPadCluster()
+
+	if cluster and cluster[tostring(num)] then
+		return cluster[tostring(num)].button
+	end
+
+	return nil
 end
 
 local function clickGuiButton(button)
@@ -724,6 +753,132 @@ local function clickGuiButton(button)
 	return done
 end
 
+local function autoFillExactCell(cell)
+	if not currentBoard or not currentCells or not currentSolution then
+		return
+	end
+
+	if not cell or not cell.Parent then
+		return
+	end
+
+	local row = cell:GetAttribute("Row")
+	local col = cell:GetAttribute("Col")
+
+	if typeof(row) ~= "number" or typeof(col) ~= "number" then
+		return
+	end
+
+	if row < 1 or row > 9 or col < 1 or col > 9 then
+		return
+	end
+
+	if readNumberFromCell(cell) ~= 0 then
+		removeSolverNumber(cell)
+		return
+	end
+
+	local correct = currentSolution[row][col]
+
+	if typeof(correct) ~= "number" or correct < 1 or correct > 9 then
+		return
+	end
+
+	local key = tostring(currentBoardKey) .. ":" .. tostring(row) .. ":" .. tostring(col) .. ":" .. tostring(correct)
+	local now = os.clock()
+
+	if lastClickedCellKey == key and now - lastClickedTime < 0.28 then
+		return
+	end
+
+	lastClickedCellKey = key
+	lastClickedTime = now
+
+	task.delay(0.035, function()
+		if not currentBoard or not cell or not cell.Parent then
+			return
+		end
+
+		if readNumberFromCell(cell) ~= 0 then
+			removeSolverNumber(cell)
+			return
+		end
+
+		local numberButton = findNumberPadButton(correct)
+
+		if not numberButton then
+			warn("Sudoku: não achei o botão " .. tostring(correct) .. " do teclado 1-9.")
+			return
+		end
+
+		local ok = clickGuiButton(numberButton)
+
+		if ok then
+			task.delay(0.18, function()
+				if cell and cell.Parent and readNumberFromCell(cell) ~= 0 then
+					removeSolverNumber(cell)
+				end
+			end)
+		end
+	end)
+end
+
+local function bindCellAutoFill(cell)
+	if not cell or not cell:IsA("GuiButton") then
+		return
+	end
+
+	local activeInput = nil
+	local startPos = nil
+	local moved = false
+	local lastTap = 0
+
+	table.insert(solverConnections, cell.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+			activeInput = input
+			startPos = input.Position
+			moved = false
+		end
+	end))
+
+	table.insert(solverConnections, cell.InputChanged:Connect(function(input)
+		if input == activeInput and startPos then
+			local delta = input.Position - startPos
+
+			if delta.Magnitude > 8 then
+				moved = true
+			end
+		end
+	end))
+
+	table.insert(solverConnections, cell.InputEnded:Connect(function(input)
+		if input == activeInput then
+			local wasMoved = moved
+			activeInput = nil
+			startPos = nil
+			moved = false
+
+			if not wasMoved then
+				local now = tick()
+
+				if now - lastTap > 0.08 then
+					lastTap = now
+					autoFillExactCell(cell)
+				end
+			end
+		end
+	end))
+
+	table.insert(solverConnections, cell.Activated:Connect(function()
+		local now = tick()
+
+		if now - lastTap > 0.08 then
+			lastTap = now
+			autoFillExactCell(cell)
+		end
+	end))
+end
+
 local function solveCurrentBoard()
 	clearCurrentSolver()
 
@@ -759,17 +914,19 @@ local function solveCurrentBoard()
 	currentBoardKey = getBoardKey(board)
 	currentCells = cells
 	currentSolution = solved
-	currentCellStates = captureCellStates(cells)
-	lastAutoFillKey = nil
+	lastClickedCellKey = nil
+	lastClickedTime = 0
 
 	local count = 0
 
 	for r = 1, 9 do
 		for c = 1, 9 do
-			if original[r][c] == 0 then
-				local cell = cells[r] and cells[r][c]
+			local cell = cells[r] and cells[r][c]
 
-				if cell then
+			if cell then
+				bindCellAutoFill(cell)
+
+				if original[r][c] == 0 then
 					count += 1
 					addNumberOnCell(cell, solved[r][c])
 					watchCell(cell)
@@ -778,54 +935,7 @@ local function solveCurrentBoard()
 		end
 	end
 
-	print("Sudoku executado. Dicas mostradas: " .. tostring(count))
-end
-
-local function tryAutoFillSelectedCell()
-	if not currentBoard or not currentCells or not currentSolution then
-		return
-	end
-
-	local cell, row, col = findSelectedEmptyCell()
-
-	if not cell or not row or not col then
-		lastAutoFillKey = nil
-		return
-	end
-
-	if readNumberFromCell(cell) ~= 0 then
-		return
-	end
-
-	local correct = currentSolution[row][col]
-
-	if not correct then
-		return
-	end
-
-	local key = tostring(currentBoardKey) .. ":" .. tostring(row) .. ":" .. tostring(col)
-
-	if lastAutoFillKey == key then
-		return
-	end
-
-	local numberButton = findNumberPadButton(correct)
-
-	if not numberButton then
-		return
-	end
-
-	local ok = clickGuiButton(numberButton)
-
-	if ok then
-		lastAutoFillKey = key
-
-		task.delay(0.35, function()
-			if cell and cell.Parent and readNumberFromCell(cell) == 0 then
-				lastAutoFillKey = nil
-			end
-		end)
-	end
+	print("Sudoku executado com clique preciso. Dicas mostradas: " .. tostring(count))
 end
 
 local function canUseMobileTap(obj)
@@ -938,6 +1048,7 @@ local function createSudokuButton()
 	button.TextScaled = true
 	button.AutoButtonColor = false
 	button.BorderSizePixel = 0
+	button.ZIndex = 50
 	button.Parent = screenGui
 	button:SetAttribute("LastDragTime", 0)
 	button:SetAttribute("CustomMoved", false)
@@ -945,6 +1056,7 @@ local function createSudokuButton()
 	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 12)
 	noTextStroke(button)
 	addTrueRoundedShadow(button, 14, 1.15, Color3.fromRGB(0, 0, 0))
+	addCerberClickAnimation(button)
 
 	local function placeDefault()
 		local insetNow = GuiService:GetGuiInset()
@@ -954,7 +1066,7 @@ local function createSudokuButton()
 		end
 	end
 
-	RunService.RenderStepped:Connect(placeDefault)
+	table.insert(dragConnections, RunService.RenderStepped:Connect(placeDefault))
 	placeDefault()
 
 	bindFreeDrag(button, button, function()
@@ -966,36 +1078,15 @@ local function createSudokuButton()
 			return
 		end
 
-		TweenService:Create(button, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-		}):Play()
-
-		task.delay(0.1, function()
-			if button and button.Parent then
-				TweenService:Create(button, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-					BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-				}):Play()
-			end
-		end)
-
 		solveCurrentBoard()
 	end)
 end
 
 createSudokuButton()
 
-RunService.Heartbeat:Connect(function()
-	local now = os.clock()
-
-	if now - lastAutoFill >= AUTOFILL_INTERVAL then
-		lastAutoFill = now
-		tryAutoFillSelectedCell()
-	end
-end)
-
 LocalPlayer.CharacterAdded:Connect(function()
 	task.wait(1)
 	clearCurrentSolver()
 end)
 
-print("Sudoku helper carregado. Clique no botão Sudoku para executar.")
+print("Sudoku helper carregado. Clique no botão Sudoku para resolver. Clique em uma casa vazia para auto-preencher.")
