@@ -1,463 +1,319 @@
---// Caos na Cozinha - ESP automático por imagem do pedido
---// tenta detectar ingrediente automaticamente pelo ícone/asset id
+--// Caos na Cozinha - Scanner Profundo Mobile v2
+--// objetivo: descobrir o nome real do pedido atual e dos ingredientes do mapa
+--// use: execute, clique "COPIAR SCAN", cole o resultado no ChatGPT
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
 
 local lp = Players.LocalPlayer
 
-local ESP = {
-    Enabled = true,
-    CurrentHighlight = nil,
-    CurrentBillboard = nil,
-    CurrentTarget = nil,
-}
+local function copy(txt)
+    if setclipboard then
+        setclipboard(txt)
+    elseif toclipboard then
+        toclipboard(txt)
+    elseif syn and syn.write_clipboard then
+        syn.write_clipboard(txt)
+    else
+        warn("seu executor nao tem setclipboard/toclipboard")
+    end
+end
 
-local SETTINGS = {
-    SearchRoot = workspace:FindFirstChild("Interactables") or workspace,
-    RecipeRootPath = {"Root", "HUD", "Recipes"},
+local function path(x)
+    local ok, res = pcall(function()
+        return x:GetFullName()
+    end)
+    return ok and res or tostring(x)
+end
 
-    -- nomes prováveis das estações
-    CutNames = {"chopping", "cut", "knife", "faca"},
-    CookNames = {"stove", "pot", "pan", "cook", "panela", "fogao", "fogão"},
-    PlateNames = {"plate", "dish", "prato", "countertop"},
-
-    -- nomes que geralmente representam ingredientes
-    IngredientContainerNames = {"foodbin", "seaweed", "rice", "salmon", "cucumber", "tuna", "shrimp", "fish"},
-}
-
-local function normAsset(x)
+local function assetId(x)
     x = tostring(x or "")
-    local id = x:match("rbxassetid://(%d+)") or x:match("rbxasset://(%d+)") or x:match("id=(%d+)") or x:match("(%d+)")
-    return id
+    return x:match("rbxassetid://(%d+)") or x:match("(%d+)") or x
 end
 
-local function getPath(root, path)
-    local cur = root
-    for _, name in ipairs(path) do
-        cur = cur and cur:FindFirstChild(name)
-    end
-    return cur
-end
-
-local function getChar()
-    return lp.Character or lp.CharacterAdded:Wait()
-end
-
-local function getHRP()
-    return getChar():FindFirstChild("HumanoidRootPart")
-end
-
-local function getPos(obj)
-    if not obj then return nil end
-
+local function posOf(obj)
+    local p
     if obj:IsA("BasePart") then
-        return obj.Position
+        p = obj
+    elseif obj:IsA("Model") then
+        p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
+    else
+        p = obj:FindFirstAncestorWhichIsA("BasePart")
     end
 
-    if obj:IsA("Model") then
-        local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
-        return part and part.Position
+    if p then
+        return string.format("%d, %d, %d", p.Position.X, p.Position.Y, p.Position.Z)
     end
 
-    local part = obj:FindFirstAncestorWhichIsA("BasePart")
-    return part and part.Position
+    return "sem pos"
 end
 
-local function getAdornee(obj)
-    if not obj then return nil end
+local function addAttrs(lines, obj, prefix)
+    local attrs = obj:GetAttributes()
+    local has = false
 
-    if obj:IsA("Model") or obj:IsA("BasePart") then
-        return obj
-    end
-
-    return obj:FindFirstAncestorOfClass("Model") or obj:FindFirstAncestorWhichIsA("BasePart")
-end
-
-local function hasName(obj, names)
-    local n = string.lower(obj.Name)
-
-    for _, key in ipairs(names) do
-        key = string.lower(key)
-        if string.find(n, key, 1, true) then
-            return true
+    for k, v in pairs(attrs) do
+        if not has then
+            table.insert(lines, prefix .. "ATTRIBUTES:")
+            has = true
         end
-    end
-
-    return false
-end
-
-local function destroyESP()
-    if ESP.CurrentHighlight then
-        ESP.CurrentHighlight:Destroy()
-        ESP.CurrentHighlight = nil
-    end
-
-    if ESP.CurrentBillboard then
-        ESP.CurrentBillboard:Destroy()
-        ESP.CurrentBillboard = nil
-    end
-
-    ESP.CurrentTarget = nil
-end
-
-local function makeESP(obj, text)
-    local adornee = getAdornee(obj)
-    if not adornee then return end
-    if ESP.CurrentTarget == adornee then return end
-
-    destroyESP()
-
-    ESP.CurrentTarget = adornee
-
-    local h = Instance.new("Highlight")
-    h.Name = "CaosKitchenESP"
-    h.Adornee = adornee
-    h.FillColor = Color3.fromRGB(255, 0, 0)
-    h.OutlineColor = Color3.fromRGB(255, 255, 255)
-    h.FillTransparency = 0.35
-    h.OutlineTransparency = 0
-    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    h.Parent = game.CoreGui
-
-    ESP.CurrentHighlight = h
-
-    local part
-    if adornee:IsA("BasePart") then
-        part = adornee
-    elseif adornee:IsA("Model") then
-        part = adornee.PrimaryPart or adornee:FindFirstChildWhichIsA("BasePart", true)
-    end
-
-    if part then
-        local bb = Instance.new("BillboardGui")
-        bb.Name = "CaosKitchenLabel"
-        bb.Adornee = part
-        bb.Size = UDim2.new(0, 190, 0, 42)
-        bb.StudsOffset = Vector3.new(0, 3.5, 0)
-        bb.AlwaysOnTop = true
-        bb.Parent = game.CoreGui
-
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-        label.BackgroundTransparency = 0.25
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextStrokeTransparency = 0
-        label.TextScaled = true
-        label.Font = Enum.Font.GothamBold
-        label.Text = text
-        label.Parent = bb
-
-        Instance.new("UICorner", label).CornerRadius = UDim.new(0, 8)
-
-        ESP.CurrentBillboard = bb
+        table.insert(lines, prefix .. "  " .. tostring(k) .. " = " .. tostring(v))
     end
 end
 
-local function getVisibleRecipeImages()
-    local recipes = getPath(lp.PlayerGui, SETTINGS.RecipeRootPath)
-    if not recipes then return {} end
-
-    local result = {}
-
-    for _, ui in ipairs(recipes:GetDescendants()) do
-        if ui:IsA("ImageLabel") or ui:IsA("ImageButton") then
-            local img = tostring(ui.Image or "")
-            local id = normAsset(img)
-            local size = ui.AbsoluteSize
-
-            if ui.Visible and id and img ~= "" and size.X > 10 and size.Y > 10 then
-                table.insert(result, {
-                    ui = ui,
-                    name = ui.Name,
-                    image = img,
-                    id = id,
-                    pos = ui.AbsolutePosition,
-                    size = ui.AbsoluteSize,
-                    path = ui:GetFullName(),
-                })
-            end
+local function interestingValue(v)
+    if v:IsA("StringValue") then
+        return "StringValue = " .. tostring(v.Value)
+    elseif v:IsA("IntValue") or v:IsA("NumberValue") then
+        return v.ClassName .. " = " .. tostring(v.Value)
+    elseif v:IsA("BoolValue") then
+        return "BoolValue = " .. tostring(v.Value)
+    elseif v:IsA("ObjectValue") then
+        return "ObjectValue = " .. (v.Value and path(v.Value) or "nil")
+    elseif v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then
+        if tostring(v.Text or "") ~= "" then
+            return v.ClassName .. " Text = " .. tostring(v.Text)
         end
+    elseif v:IsA("ImageLabel") or v:IsA("ImageButton") then
+        if tostring(v.Image or "") ~= "" then
+            return v.ClassName .. " Image = " .. tostring(v.Image) .. " | id=" .. tostring(assetId(v.Image))
+        end
+    elseif v:IsA("Decal") or v:IsA("Texture") then
+        if tostring(v.Texture or "") ~= "" then
+            return v.ClassName .. " Texture = " .. tostring(v.Texture) .. " | id=" .. tostring(assetId(v.Texture))
+        end
+    elseif v:IsA("MeshPart") then
+        local a = {}
+        if tostring(v.MeshId or "") ~= "" then table.insert(a, "MeshId=" .. tostring(v.MeshId)) end
+        if tostring(v.TextureID or "") ~= "" then table.insert(a, "TextureID=" .. tostring(v.TextureID) .. " | id=" .. tostring(assetId(v.TextureID))) end
+        if #a > 0 then return "MeshPart " .. table.concat(a, " | ") end
+    elseif v:IsA("SpecialMesh") then
+        local a = {}
+        if tostring(v.MeshId or "") ~= "" then table.insert(a, "MeshId=" .. tostring(v.MeshId)) end
+        if tostring(v.TextureId or "") ~= "" then table.insert(a, "TextureId=" .. tostring(v.TextureId) .. " | id=" .. tostring(assetId(v.TextureId))) end
+        if #a > 0 then return "SpecialMesh " .. table.concat(a, " | ") end
+    elseif v:IsA("ProximityPrompt") then
+        return "ProximityPrompt ActionText=" .. tostring(v.ActionText) .. " | ObjectText=" .. tostring(v.ObjectText)
     end
 
-    return result
+    return nil
 end
 
-local function isIngredientUI(info)
-    local path = string.lower(info.path)
-    local name = string.lower(info.name)
+local function dumpObject(lines, obj, title, maxDesc)
+    table.insert(lines, "")
+    table.insert(lines, "------------------------------")
+    table.insert(lines, title)
+    table.insert(lines, "NAME: " .. obj.Name)
+    table.insert(lines, "CLASS: " .. obj.ClassName)
+    table.insert(lines, "PATH: " .. path(obj))
+    table.insert(lines, "POS: " .. posOf(obj))
 
-    if string.find(path, "ingredient", 1, true) then
-        if not string.find(name, "template", 1, true) then
-            return true
-        end
+    addAttrs(lines, obj, "")
+
+    local tags = {}
+    pcall(function()
+        tags = CollectionService:GetTags(obj)
+    end)
+    if #tags > 0 then
+        table.insert(lines, "TAGS: " .. table.concat(tags, ", "))
     end
 
-    -- às vezes o template visível é o próprio item
-    if string.find(path, "ingredients", 1, true) and info.id ~= normAsset("rbxasset://textures/ui/GuiImagePlaceholder.png") then
-        return true
-    end
-
-    return false
-end
-
-local function getCurrentIngredientAsset()
-    local imgs = getVisibleRecipeImages()
-
-    -- prioridade: imagens dentro de Ingredients
-    for _, info in ipairs(imgs) do
-        if isIngredientUI(info) then
-            if info.id and not string.find(info.image, "Placeholder") then
-                return info.id, info
-            end
-        end
-    end
-
-    -- fallback: pega imagem pequena do pedido
-    for _, info in ipairs(imgs) do
-        local path = string.lower(info.path)
-
-        if string.find(path, "recipe", 1, true)
-            and not string.find(path, "border", 1, true)
-            and not string.find(path, "timer", 1, true)
-            and not string.find(info.name:lower(), "border", 1, true) then
-
-            return info.id, info
-        end
-    end
-
-    return nil, nil
-end
-
-local function getCookingMethodAsset()
-    local recipes = getPath(lp.PlayerGui, SETTINGS.RecipeRootPath)
-    if not recipes then return nil end
-
-    for _, ui in ipairs(recipes:GetDescendants()) do
-        if ui:IsA("ImageLabel") or ui:IsA("ImageButton") then
-            local path = string.lower(ui:GetFullName())
-            if ui.Visible and string.find(path, "cookingmethod", 1, true) then
-                return normAsset(ui.Image), ui
-            end
-        end
-    end
-
-    return nil, nil
-end
-
-local function objectHasAsset(obj, wantedId)
-    if not wantedId then return false end
-
+    local count = 0
     for _, d in ipairs(obj:GetDescendants()) do
-        if d:IsA("Decal") or d:IsA("Texture") then
-            if normAsset(d.Texture) == wantedId then
-                return true
-            end
+        local val = interestingValue(d)
+        if val then
+            count += 1
+            table.insert(lines, "DESC: " .. path(d))
+            table.insert(lines, "  " .. val)
+            addAttrs(lines, d, "  ")
 
-        elseif d:IsA("ImageLabel") or d:IsA("ImageButton") then
-            if normAsset(d.Image) == wantedId then
-                return true
-            end
-
-        elseif d:IsA("MeshPart") then
-            if normAsset(d.TextureID) == wantedId then
-                return true
-            end
-
-        elseif d:IsA("SpecialMesh") then
-            if normAsset(d.TextureId) == wantedId then
-                return true
+            if count >= maxDesc then
+                table.insert(lines, "  ... limite de descendentes atingido")
+                break
             end
         end
     end
-
-    return false
 end
 
-local function findIngredientByAsset(assetId)
-    local root = SETTINGS.SearchRoot
-    local hrp = getHRP()
-    if not root or not hrp or not assetId then return nil end
+local function scanGui(lines)
+    table.insert(lines, "========== GUI / PEDIDO ==========")
 
-    local best
-    local bestDist = math.huge
-
-    for _, obj in ipairs(root:GetDescendants()) do
-        if obj:IsA("Model") or obj:IsA("Folder") then
-            if hasName(obj, SETTINGS.IngredientContainerNames) or objectHasAsset(obj, assetId) then
-                if objectHasAsset(obj, assetId) then
-                    local pos = getPos(obj)
-                    if pos then
-                        local dist = (pos - hrp.Position).Magnitude
-                        if dist < bestDist then
-                            best = obj
-                            bestDist = dist
-                        end
-                    end
-                end
-            end
-        elseif obj:IsA("BasePart") then
-            if objectHasAsset(obj, assetId) then
-                local pos = getPos(obj)
-                if pos then
-                    local dist = (pos - hrp.Position).Magnitude
-                    if dist < bestDist then
-                        best = obj
-                        bestDist = dist
-                    end
-                end
-            end
-        end
-    end
-
-    return best
-end
-
-local function findNearestByNames(names)
-    local root = SETTINGS.SearchRoot
-    local hrp = getHRP()
-    if not root or not hrp then return nil end
-
-    local best
-    local bestDist = math.huge
-
-    for _, obj in ipairs(root:GetDescendants()) do
-        if obj:IsA("Model") or obj:IsA("BasePart") then
-            if hasName(obj, names) then
-                local pos = getPos(obj)
-                if pos then
-                    local dist = (pos - hrp.Position).Magnitude
-                    if dist < bestDist then
-                        best = obj
-                        bestDist = dist
-                    end
-                end
-            end
-        end
-    end
-
-    return best
-end
-
-local function isHoldingItem()
-    local char = getChar()
-
-    for _, v in ipairs(char:GetChildren()) do
-        if v:IsA("Tool") then
-            return true, v.Name
-        end
-    end
-
-    -- alguns jogos grudam o item como Model/Part no personagem
-    for _, v in ipairs(char:GetDescendants()) do
-        local n = string.lower(v.Name)
-
-        if string.find(n, "food", 1, true)
-            or string.find(n, "ingredient", 1, true)
-            or string.find(n, "seaweed", 1, true)
-            or string.find(n, "rice", 1, true)
-            or string.find(n, "salmon", 1, true)
-            or string.find(n, "cucumber", 1, true)
-            or string.find(n, "fish", 1, true) then
-            return true, v.Name
-        end
-    end
-
-    return false, nil
-end
-
-local stage = "getIngredient"
-local lastIngredientAsset = nil
-local lastHolding = false
-
-RunService.RenderStepped:Connect(function()
-    if not ESP.Enabled then
-        destroyESP()
+    local root = lp:FindFirstChild("PlayerGui")
+    if not root then
+        table.insert(lines, "sem PlayerGui")
         return
     end
 
-    local ingredientAsset = getCurrentIngredientAsset()
-    if not ingredientAsset then
-        destroyESP()
+    for _, d in ipairs(root:GetDescendants()) do
+        local p = string.lower(path(d))
+        local n = string.lower(d.Name)
+
+        local relevant =
+            string.find(p, "recipe", 1, true)
+            or string.find(p, "ingredient", 1, true)
+            or string.find(p, "order", 1, true)
+            or string.find(p, "pedido", 1, true)
+            or string.find(p, "hud", 1, true)
+
+        if relevant then
+            local val = interestingValue(d)
+            if val then
+                table.insert(lines, "")
+                table.insert(lines, "UI: " .. path(d))
+                table.insert(lines, val)
+                if d:IsA("GuiObject") then
+                    table.insert(lines, "Visible=" .. tostring(d.Visible) .. " Size=" .. tostring(math.floor(d.AbsoluteSize.X)) .. "x" .. tostring(math.floor(d.AbsoluteSize.Y)) .. " Pos=" .. tostring(math.floor(d.AbsolutePosition.X)) .. "," .. tostring(math.floor(d.AbsolutePosition.Y)))
+                end
+                addAttrs(lines, d, "")
+            end
+        end
+    end
+end
+
+local function scanInteractables(lines)
+    table.insert(lines, "")
+    table.insert(lines, "========== WORKSPACE.INTERACTABLES ==========")
+
+    local root = workspace:FindFirstChild("Interactables")
+    if not root then
+        table.insert(lines, "nao achei workspace.Interactables")
         return
     end
 
-    if ingredientAsset ~= lastIngredientAsset then
-        lastIngredientAsset = ingredientAsset
-        stage = "getIngredient"
+    local keywords = {
+        "food", "bin", "ingredient", "rice", "seaweed", "salmon", "cucumber", "fish",
+        "tuna", "shrimp", "egg", "meat", "cheese", "tomato", "lettuce", "onion",
+        "chopping", "cut", "knife", "board", "plate", "dish", "counter", "stove",
+        "pot", "pan", "cook", "appliance"
+    }
+
+    local used = {}
+    for _, obj in ipairs(root:GetDescendants()) do
+        if obj:IsA("Model") or obj:IsA("Folder") or obj:IsA("BasePart") then
+            local low = string.lower(obj.Name)
+            local full = string.lower(path(obj))
+            local ok = false
+
+            for _, k in ipairs(keywords) do
+                if string.find(low, k, 1, true) or string.find(full, k, 1, true) then
+                    ok = true
+                    break
+                end
+            end
+
+            if ok and not used[path(obj)] then
+                used[path(obj)] = true
+                dumpObject(lines, obj, "OBJETO DO MAPA", 25)
+            end
+        end
     end
+end
 
-    local holding = isHoldingItem()
+local function scanReplicatedStorage(lines)
+    table.insert(lines, "")
+    table.insert(lines, "========== REPLICATEDSTORAGE POSSIVEIS DADOS ==========")
 
-    if holding and not lastHolding then
-        local methodAsset = getCookingMethodAsset()
+    local keywords = {
+        "recipe", "recipes", "ingredient", "ingredients", "food", "foods",
+        "order", "orders", "kitchen", "cook", "dish", "dishes"
+    }
 
-        -- por enquanto tenta decidir pela imagem/nome do cooking method.
-        -- se não souber, manda para cortar primeiro, porque sushi geralmente precisa cortar.
-        stage = "prepare"
-    elseif not holding and lastHolding then
-        stage = "getIngredient"
-    end
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        local low = string.lower(obj.Name)
+        local full = string.lower(path(obj))
+        local ok = false
 
-    lastHolding = holding
-
-    if stage == "getIngredient" then
-        local target = findIngredientByAsset(ingredientAsset)
-
-        if target then
-            makeESP(target, "PEGAR INGREDIENTE")
-        else
-            destroyESP()
+        for _, k in ipairs(keywords) do
+            if string.find(low, k, 1, true) or string.find(full, k, 1, true) then
+                ok = true
+                break
+            end
         end
 
-    elseif stage == "prepare" then
-        local methodId = getCookingMethodAsset()
-        local target
-
-        -- sem mapa dos ícones ainda, então tenta achar estação mais provável.
-        -- se tiver ChoppingBoard no mapa, usa ele primeiro.
-        target = findNearestByNames(SETTINGS.CutNames)
-
-        if target then
-            makeESP(target, "PREPARAR / CORTAR")
-        else
-            target = findNearestByNames(SETTINGS.CookNames)
-            if target then
-                makeESP(target, "COZINHAR")
+        if ok then
+            if obj:IsA("ModuleScript") then
+                table.insert(lines, "")
+                table.insert(lines, "MODULE: " .. path(obj))
             else
-                target = findNearestByNames(SETTINGS.PlateNames)
-                if target then
-                    makeESP(target, "LEVAR AO PRATO")
+                local val = interestingValue(obj)
+                if val then
+                    table.insert(lines, "")
+                    table.insert(lines, "DATA: " .. path(obj))
+                    table.insert(lines, val)
+                    addAttrs(lines, obj, "")
                 end
             end
         end
     end
-end)
+end
 
--- botão mobile liga/desliga
+local function buildScan()
+    local lines = {}
+    table.insert(lines, "CAOS NA COZINHA SCAN V2")
+    table.insert(lines, "Player: " .. lp.Name)
+    table.insert(lines, "Time: " .. os.date("%H:%M:%S"))
+
+    scanGui(lines)
+    scanInteractables(lines)
+    scanReplicatedStorage(lines)
+
+    return table.concat(lines, "\n")
+end
+
+local old = lp.PlayerGui:FindFirstChild("CaosScannerV2")
+if old then old:Destroy() end
+
 local gui = Instance.new("ScreenGui")
-gui.Name = "CaosKitchenAutoESPButton"
+gui.Name = "CaosScannerV2"
 gui.ResetOnSpawn = false
 gui.Parent = lp:WaitForChild("PlayerGui")
 
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 230, 0, 95)
+frame.Position = UDim2.new(0, 20, 0.42, 0)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BackgroundTransparency = 0.15
+frame.Parent = gui
+
+local c = Instance.new("UICorner")
+c.CornerRadius = UDim.new(0, 10)
+c.Parent = frame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -10, 0, 35)
+title.Position = UDim2.new(0, 5, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "Scanner V2"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.Parent = frame
+
 local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(0, 135, 0, 42)
-btn.Position = UDim2.new(0, 20, 0.35, 0)
+btn.Size = UDim2.new(1, -20, 0, 42)
+btn.Position = UDim2.new(0, 10, 0, 45)
 btn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+btn.Text = "COPIAR SCAN"
 btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 btn.TextScaled = true
 btn.Font = Enum.Font.GothamBold
-btn.Text = "ESP: ON"
-btn.Parent = gui
+btn.Parent = frame
 
-Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+local bc = Instance.new("UICorner")
+bc.CornerRadius = UDim.new(0, 8)
+bc.Parent = btn
 
 btn.MouseButton1Click:Connect(function()
-    ESP.Enabled = not ESP.Enabled
-    btn.Text = ESP.Enabled and "ESP: ON" or "ESP: OFF"
+    btn.Text = "SCANEANDO..."
+    task.wait()
 
-    if not ESP.Enabled then
-        destroyESP()
-    end
+    local text = buildScan()
+    copy(text)
+    print(text)
+    warn("SCAN V2 COPIADO")
+
+    btn.Text = "COPIADO!"
+    task.wait(1.2)
+    btn.Text = "COPIAR SCAN"
 end)
