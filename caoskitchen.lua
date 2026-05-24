@@ -1,319 +1,459 @@
---// Caos na Cozinha - Scanner Profundo Mobile v2
---// objetivo: descobrir o nome real do pedido atual e dos ingredientes do mapa
---// use: execute, clique "COPIAR SCAN", cole o resultado no ChatGPT
+--// Caos na Cozinha - Console Scanner V3 Mobile
+--// Feito para jogar no console em partes pequenas, sem copiar texto gigante
+--// Botões:
+--// PRINT PEDIDO = mostra só pedido atual / ingredientes visíveis
+--// PRINT MAPA = mostra ingredientes/estações encontrados no mapa
+--// PRINT PERTO = mostra objetos próximos importantes
+--// SALVAR TXT = tenta salvar em arquivo, se o executor suportar writefile
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CollectionService = game:GetService("CollectionService")
+local HttpService = game:GetService("HttpService")
 
 local lp = Players.LocalPlayer
 
-local function copy(txt)
-    if setclipboard then
-        setclipboard(txt)
-    elseif toclipboard then
-        toclipboard(txt)
-    elseif syn and syn.write_clipboard then
-        syn.write_clipboard(txt)
-    else
-        warn("seu executor nao tem setclipboard/toclipboard")
-    end
+local function now()
+    return os.date("%H:%M:%S")
 end
 
-local function path(x)
-    local ok, res = pcall(function()
-        return x:GetFullName()
-    end)
-    return ok and res or tostring(x)
-end
-
-local function assetId(x)
+local function normAsset(x)
     x = tostring(x or "")
-    return x:match("rbxassetid://(%d+)") or x:match("(%d+)") or x
+    local id = x:match("rbxassetid://(%d+)") or x:match("id=(%d+)")
+    if id then return id end
+    if x:find("textures/ui/GuiImagePlaceholder") then
+        return "PLACEHOLDER"
+    end
+    return x
 end
 
-local function posOf(obj)
-    local p
-    if obj:IsA("BasePart") then
-        p = obj
-    elseif obj:IsA("Model") then
-        p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
-    else
-        p = obj:FindFirstAncestorWhichIsA("BasePart")
-    end
-
-    if p then
-        return string.format("%d, %d, %d", p.Position.X, p.Position.Y, p.Position.Z)
-    end
-
-    return "sem pos"
-end
-
-local function addAttrs(lines, obj, prefix)
-    local attrs = obj:GetAttributes()
-    local has = false
-
-    for k, v in pairs(attrs) do
-        if not has then
-            table.insert(lines, prefix .. "ATTRIBUTES:")
-            has = true
-        end
-        table.insert(lines, prefix .. "  " .. tostring(k) .. " = " .. tostring(v))
-    end
-end
-
-local function interestingValue(v)
-    if v:IsA("StringValue") then
-        return "StringValue = " .. tostring(v.Value)
-    elseif v:IsA("IntValue") or v:IsA("NumberValue") then
-        return v.ClassName .. " = " .. tostring(v.Value)
-    elseif v:IsA("BoolValue") then
-        return "BoolValue = " .. tostring(v.Value)
-    elseif v:IsA("ObjectValue") then
-        return "ObjectValue = " .. (v.Value and path(v.Value) or "nil")
-    elseif v:IsA("TextLabel") or v:IsA("TextButton") or v:IsA("TextBox") then
-        if tostring(v.Text or "") ~= "" then
-            return v.ClassName .. " Text = " .. tostring(v.Text)
-        end
-    elseif v:IsA("ImageLabel") or v:IsA("ImageButton") then
-        if tostring(v.Image or "") ~= "" then
-            return v.ClassName .. " Image = " .. tostring(v.Image) .. " | id=" .. tostring(assetId(v.Image))
-        end
-    elseif v:IsA("Decal") or v:IsA("Texture") then
-        if tostring(v.Texture or "") ~= "" then
-            return v.ClassName .. " Texture = " .. tostring(v.Texture) .. " | id=" .. tostring(assetId(v.Texture))
-        end
-    elseif v:IsA("MeshPart") then
-        local a = {}
-        if tostring(v.MeshId or "") ~= "" then table.insert(a, "MeshId=" .. tostring(v.MeshId)) end
-        if tostring(v.TextureID or "") ~= "" then table.insert(a, "TextureID=" .. tostring(v.TextureID) .. " | id=" .. tostring(assetId(v.TextureID))) end
-        if #a > 0 then return "MeshPart " .. table.concat(a, " | ") end
-    elseif v:IsA("SpecialMesh") then
-        local a = {}
-        if tostring(v.MeshId or "") ~= "" then table.insert(a, "MeshId=" .. tostring(v.MeshId)) end
-        if tostring(v.TextureId or "") ~= "" then table.insert(a, "TextureId=" .. tostring(v.TextureId) .. " | id=" .. tostring(assetId(v.TextureId))) end
-        if #a > 0 then return "SpecialMesh " .. table.concat(a, " | ") end
-    elseif v:IsA("ProximityPrompt") then
-        return "ProximityPrompt ActionText=" .. tostring(v.ActionText) .. " | ObjectText=" .. tostring(v.ObjectText)
-    end
-
-    return nil
-end
-
-local function dumpObject(lines, obj, title, maxDesc)
-    table.insert(lines, "")
-    table.insert(lines, "------------------------------")
-    table.insert(lines, title)
-    table.insert(lines, "NAME: " .. obj.Name)
-    table.insert(lines, "CLASS: " .. obj.ClassName)
-    table.insert(lines, "PATH: " .. path(obj))
-    table.insert(lines, "POS: " .. posOf(obj))
-
-    addAttrs(lines, obj, "")
-
-    local tags = {}
-    pcall(function()
-        tags = CollectionService:GetTags(obj)
+local function path(obj)
+    local ok, res = pcall(function()
+        return obj:GetFullName()
     end)
-    if #tags > 0 then
-        table.insert(lines, "TAGS: " .. table.concat(tags, ", "))
+    return ok and res or tostring(obj)
+end
+
+local function pos(obj)
+    local part
+
+    if obj:IsA("BasePart") then
+        part = obj
+    elseif obj:IsA("Model") then
+        part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
+    else
+        part = obj:FindFirstAncestorWhichIsA("BasePart")
     end
 
+    if not part then
+        return "sem pos"
+    end
+
+    return math.floor(part.Position.X) .. "," .. math.floor(part.Position.Y) .. "," .. math.floor(part.Position.Z)
+end
+
+local function getRoot()
+    return lp:FindFirstChild("PlayerGui")
+end
+
+local function getRecipes()
+    local pg = getRoot()
+    if not pg then return nil end
+
+    local root = pg:FindFirstChild("Root")
+    local hud = root and root:FindFirstChild("HUD")
+    return hud and hud:FindFirstChild("Recipes")
+end
+
+local function printLine(s)
+    print("[CKSCAN] " .. tostring(s))
+end
+
+local function warnLine(s)
+    warn("[CKSCAN] " .. tostring(s))
+end
+
+local function printSection(title, lines)
+    warnLine("========== " .. title .. " | " .. now() .. " ==========")
+
+    local chunk = {}
     local count = 0
-    for _, d in ipairs(obj:GetDescendants()) do
-        local val = interestingValue(d)
-        if val then
-            count += 1
-            table.insert(lines, "DESC: " .. path(d))
-            table.insert(lines, "  " .. val)
-            addAttrs(lines, d, "  ")
 
-            if count >= maxDesc then
-                table.insert(lines, "  ... limite de descendentes atingido")
-                break
-            end
+    for _, line in ipairs(lines) do
+        table.insert(chunk, line)
+        count = count + 1
+
+        if count >= 18 then
+            printLine(table.concat(chunk, "\n"))
+            table.clear(chunk)
+            count = 0
+            task.wait(0.15)
         end
     end
-end
 
-local function scanGui(lines)
-    table.insert(lines, "========== GUI / PEDIDO ==========")
-
-    local root = lp:FindFirstChild("PlayerGui")
-    if not root then
-        table.insert(lines, "sem PlayerGui")
-        return
+    if #chunk > 0 then
+        printLine(table.concat(chunk, "\n"))
     end
 
-    for _, d in ipairs(root:GetDescendants()) do
-        local p = string.lower(path(d))
-        local n = string.lower(d.Name)
-
-        local relevant =
-            string.find(p, "recipe", 1, true)
-            or string.find(p, "ingredient", 1, true)
-            or string.find(p, "order", 1, true)
-            or string.find(p, "pedido", 1, true)
-            or string.find(p, "hud", 1, true)
-
-        if relevant then
-            local val = interestingValue(d)
-            if val then
-                table.insert(lines, "")
-                table.insert(lines, "UI: " .. path(d))
-                table.insert(lines, val)
-                if d:IsA("GuiObject") then
-                    table.insert(lines, "Visible=" .. tostring(d.Visible) .. " Size=" .. tostring(math.floor(d.AbsoluteSize.X)) .. "x" .. tostring(math.floor(d.AbsoluteSize.Y)) .. " Pos=" .. tostring(math.floor(d.AbsolutePosition.X)) .. "," .. tostring(math.floor(d.AbsolutePosition.Y)))
-                end
-                addAttrs(lines, d, "")
-            end
-        end
-    end
+    warnLine("========== FIM " .. title .. " ==========")
 end
 
-local function scanInteractables(lines)
+local function collectPedido()
+    local lines = {}
+    local recipes = getRecipes()
+
+    table.insert(lines, "Player: " .. lp.Name)
+
+    if not recipes then
+        table.insert(lines, "Recipes não encontrado em PlayerGui.Root.HUD.Recipes")
+        return lines
+    end
+
+    table.insert(lines, "Recipes path: " .. path(recipes))
     table.insert(lines, "")
-    table.insert(lines, "========== WORKSPACE.INTERACTABLES ==========")
 
-    local root = workspace:FindFirstChild("Interactables")
-    if not root then
-        table.insert(lines, "nao achei workspace.Interactables")
-        return
+    local recipeIndex = 0
+
+    for _, recipeFrame in ipairs(recipes:GetChildren()) do
+        if recipeFrame:IsA("GuiObject") and recipeFrame.Visible then
+            local lower = recipeFrame.Name:lower()
+
+            if lower:find("recipe") then
+                recipeIndex = recipeIndex + 1
+                table.insert(lines, "---- RECEITA #" .. recipeIndex .. " ----")
+                table.insert(lines, "Frame: " .. path(recipeFrame))
+
+                local recipeImage = recipeFrame:FindFirstChild("RecipeImage", true)
+                if recipeImage and recipeImage:IsA("ImageLabel") then
+                    table.insert(lines, "RecipeImage: " .. tostring(recipeImage.Image) .. " | id=" .. normAsset(recipeImage.Image))
+                end
+
+                local ingredientCount = 0
+
+                for _, d in ipairs(recipeFrame:GetDescendants()) do
+                    if (d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Visible then
+                        local p = path(d):lower()
+                        local img = tostring(d.Image or "")
+                        local id = normAsset(img)
+
+                        local isUseful =
+                            p:find("ingredient") or
+                            d.Name:lower():find("cookingmethod") or
+                            d.Name:lower():find("recipeimage")
+
+                        if isUseful and id ~= "PLACEHOLDER" then
+                            ingredientCount += 1
+                            table.insert(lines, ingredientCount .. ") UI " .. d.Name)
+                            table.insert(lines, "   img=" .. img .. " | id=" .. id)
+                            table.insert(lines, "   visible=" .. tostring(d.Visible) .. " size=" .. math.floor(d.AbsoluteSize.X) .. "x" .. math.floor(d.AbsoluteSize.Y))
+                            table.insert(lines, "   path=" .. path(d))
+                        end
+                    elseif (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Visible then
+                        local txt = tostring(d.Text or "")
+                        if txt ~= "" and txt ~= " " then
+                            table.insert(lines, "TEXT " .. d.Name .. " = " .. txt)
+                            table.insert(lines, "   path=" .. path(d))
+                        end
+                    end
+                end
+
+                table.insert(lines, "")
+            end
+        end
     end
 
-    local keywords = {
-        "food", "bin", "ingredient", "rice", "seaweed", "salmon", "cucumber", "fish",
-        "tuna", "shrimp", "egg", "meat", "cheese", "tomato", "lettuce", "onion",
-        "chopping", "cut", "knife", "board", "plate", "dish", "counter", "stove",
-        "pot", "pan", "cook", "appliance"
+    if recipeIndex == 0 then
+        table.insert(lines, "Nenhuma RecipeFrame visível achada. Vou listar imagens úteis dentro de Recipes:")
+        for _, d in ipairs(recipes:GetDescendants()) do
+            if (d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Visible then
+                local p = path(d):lower()
+                local id = normAsset(d.Image)
+                if p:find("recipe") or p:find("ingredient") or p:find("cooking") then
+                    table.insert(lines, d.Name .. " | id=" .. id .. " | path=" .. path(d))
+                end
+            end
+        end
+    end
+
+    return lines
+end
+
+local function objectImages(obj)
+    local out = {}
+
+    for _, d in ipairs(obj:GetDescendants()) do
+        if d:IsA("Decal") or d:IsA("Texture") then
+            table.insert(out, d.ClassName .. " " .. d.Name .. " texture=" .. tostring(d.Texture) .. " id=" .. normAsset(d.Texture))
+        elseif d:IsA("ImageLabel") or d:IsA("ImageButton") then
+            table.insert(out, d.ClassName .. " " .. d.Name .. " image=" .. tostring(d.Image) .. " id=" .. normAsset(d.Image))
+        elseif d:IsA("MeshPart") then
+            local tid = tostring(d.TextureID or "")
+            if tid ~= "" then
+                table.insert(out, "MeshPart " .. d.Name .. " textureID=" .. tid .. " id=" .. normAsset(tid))
+            end
+        elseif d:IsA("SpecialMesh") then
+            local tid = tostring(d.TextureId or "")
+            if tid ~= "" then
+                table.insert(out, "SpecialMesh " .. d.Name .. " textureId=" .. tid .. " id=" .. normAsset(tid))
+            end
+        end
+    end
+
+    return out
+end
+
+local function attrs(obj)
+    local out = {}
+
+    for k, v in pairs(obj:GetAttributes()) do
+        table.insert(out, tostring(k) .. "=" .. tostring(v))
+    end
+
+    return out
+end
+
+local function collectMapa()
+    local lines = {}
+    local root = workspace:FindFirstChild("Interactables") or workspace
+
+    table.insert(lines, "Root: " .. path(root))
+    table.insert(lines, "")
+
+    local keys = {
+        "FoodBin",
+        "Seaweed",
+        "Rice",
+        "Salmon",
+        "Cucumber",
+        "Tuna",
+        "Shrimp",
+        "Fish",
+        "Plate",
+        "Dish",
+        "ChoppingBoard",
+        "Countertop",
+        "Stove",
+        "Pot",
+        "Pan",
+        "Appliance",
     }
 
+    local found = {}
     local used = {}
+
     for _, obj in ipairs(root:GetDescendants()) do
         if obj:IsA("Model") or obj:IsA("Folder") or obj:IsA("BasePart") then
-            local low = string.lower(obj.Name)
-            local full = string.lower(path(obj))
-            local ok = false
+            local n = obj.Name:lower()
 
-            for _, k in ipairs(keywords) do
-                if string.find(low, k, 1, true) or string.find(full, k, 1, true) then
-                    ok = true
+            for _, key in ipairs(keys) do
+                if n:find(key:lower(), 1, true) then
+                    local p = path(obj)
+
+                    -- evita listar peça demais dentro do mesmo model
+                    local model = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model")
+                    if model and model:IsDescendantOf(root) then
+                        p = path(model)
+                        obj = model
+                    end
+
+                    if not used[p] then
+                        used[p] = true
+                        table.insert(found, obj)
+                    end
+
                     break
                 end
             end
-
-            if ok and not used[path(obj)] then
-                used[path(obj)] = true
-                dumpObject(lines, obj, "OBJETO DO MAPA", 25)
-            end
         end
     end
-end
 
-local function scanReplicatedStorage(lines)
+    table.insert(lines, "Encontrados: " .. tostring(#found))
     table.insert(lines, "")
-    table.insert(lines, "========== REPLICATEDSTORAGE POSSIVEIS DADOS ==========")
 
-    local keywords = {
-        "recipe", "recipes", "ingredient", "ingredients", "food", "foods",
-        "order", "orders", "kitchen", "cook", "dish", "dishes"
-    }
+    for i, obj in ipairs(found) do
+        table.insert(lines, "---- OBJ #" .. i .. " ----")
+        table.insert(lines, "Name: " .. obj.Name .. " [" .. obj.ClassName .. "]")
+        table.insert(lines, "Path: " .. path(obj))
+        table.insert(lines, "Pos: " .. pos(obj))
 
-    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
-        local low = string.lower(obj.Name)
-        local full = string.lower(path(obj))
-        local ok = false
-
-        for _, k in ipairs(keywords) do
-            if string.find(low, k, 1, true) or string.find(full, k, 1, true) then
-                ok = true
-                break
+        local a = attrs(obj)
+        if #a > 0 then
+            table.insert(lines, "Attributes:")
+            for _, x in ipairs(a) do
+                table.insert(lines, "  " .. x)
             end
         end
 
-        if ok then
-            if obj:IsA("ModuleScript") then
-                table.insert(lines, "")
-                table.insert(lines, "MODULE: " .. path(obj))
-            else
-                local val = interestingValue(obj)
-                if val then
-                    table.insert(lines, "")
-                    table.insert(lines, "DATA: " .. path(obj))
-                    table.insert(lines, val)
-                    addAttrs(lines, obj, "")
-                end
+        local imgs = objectImages(obj)
+        if #imgs > 0 then
+            table.insert(lines, "Images/Meshes:")
+            for _, x in ipairs(imgs) do
+                table.insert(lines, "  " .. x)
+            end
+        end
+
+        local childNames = {}
+        for _, c in ipairs(obj:GetChildren()) do
+            table.insert(childNames, c.Name .. "[" .. c.ClassName .. "]")
+        end
+
+        if #childNames > 0 then
+            table.insert(lines, "Children: " .. table.concat(childNames, ", "))
+        end
+
+        table.insert(lines, "")
+    end
+
+    return lines
+end
+
+local function collectPerto()
+    local lines = {}
+    local char = lp.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+    if not hrp then
+        table.insert(lines, "HumanoidRootPart não encontrado")
+        return lines
+    end
+
+    local root = workspace:FindFirstChild("Interactables") or workspace
+    local radius = 18
+    local found = {}
+
+    for _, obj in ipairs(root:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local dist = (obj.Position - hrp.Position).Magnitude
+            if dist <= radius then
+                local model = obj:FindFirstAncestorOfClass("Model")
+                table.insert(found, {
+                    dist = dist,
+                    obj = model or obj,
+                    part = obj
+                })
             end
         end
     end
+
+    table.sort(found, function(a, b)
+        return a.dist < b.dist
+    end)
+
+    local used = {}
+    for _, item in ipairs(found) do
+        local obj = item.obj
+        local p = path(obj)
+
+        if not used[p] then
+            used[p] = true
+            table.insert(lines, "[" .. math.floor(item.dist) .. " studs] " .. obj.Name .. " [" .. obj.ClassName .. "]")
+            table.insert(lines, "Path: " .. p)
+            table.insert(lines, "Part: " .. item.part.Name)
+            table.insert(lines, "Pos: " .. pos(obj))
+
+            local imgs = objectImages(obj)
+            for i = 1, math.min(#imgs, 4) do
+                table.insert(lines, "  " .. imgs[i])
+            end
+
+            table.insert(lines, "")
+        end
+    end
+
+    return lines
 end
 
-local function buildScan()
-    local lines = {}
-    table.insert(lines, "CAOS NA COZINHA SCAN V2")
-    table.insert(lines, "Player: " .. lp.Name)
-    table.insert(lines, "Time: " .. os.date("%H:%M:%S"))
+local lastDump = ""
 
-    scanGui(lines)
-    scanInteractables(lines)
-    scanReplicatedStorage(lines)
+local function saveTxt(title, lines)
+    local txt = "CAOS NA COZINHA " .. title .. "\nPlayer: " .. lp.Name .. "\nTime: " .. now() .. "\n\n" .. table.concat(lines, "\n")
+    lastDump = txt
 
-    return table.concat(lines, "\n")
+    if writefile then
+        local filename = "caos_kitchen_" .. title:gsub("%s+", "_"):lower() .. ".txt"
+        writefile(filename, txt)
+        warnLine("Arquivo salvo: " .. filename)
+    else
+        warnLine("writefile não suportado pelo executor")
+    end
+
+    if setclipboard then
+        local small = txt:sub(1, 4500)
+        setclipboard(small)
+        warnLine("Primeiros 4500 caracteres copiados também")
+    end
 end
 
-local old = lp.PlayerGui:FindFirstChild("CaosScannerV2")
-if old then old:Destroy() end
+local function makeGui()
+    local old = lp.PlayerGui:FindFirstChild("CKConsoleScannerV3")
+    if old then old:Destroy() end
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "CaosScannerV2"
-gui.ResetOnSpawn = false
-gui.Parent = lp:WaitForChild("PlayerGui")
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "CKConsoleScannerV3"
+    gui.ResetOnSpawn = false
+    gui.Parent = lp:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 230, 0, 95)
-frame.Position = UDim2.new(0, 20, 0.42, 0)
-frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-frame.BackgroundTransparency = 0.15
-frame.Parent = gui
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 190, 0, 205)
+    frame.Position = UDim2.new(0, 15, 0.35, 0)
+    frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    frame.BackgroundTransparency = 0.12
+    frame.Parent = gui
 
-local c = Instance.new("UICorner")
-c.CornerRadius = UDim.new(0, 10)
-c.Parent = frame
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -10, 0, 35)
-title.Position = UDim2.new(0, 5, 0, 5)
-title.BackgroundTransparency = 1
-title.Text = "Scanner V2"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextScaled = true
-title.Font = Enum.Font.GothamBold
-title.Parent = frame
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -10, 0, 30)
+    title.Position = UDim2.new(0, 5, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = "CK Scanner V3"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.TextScaled = true
+    title.Font = Enum.Font.GothamBold
+    title.Parent = frame
 
-local btn = Instance.new("TextButton")
-btn.Size = UDim2.new(1, -20, 0, 42)
-btn.Position = UDim2.new(0, 10, 0, 45)
-btn.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-btn.Text = "COPIAR SCAN"
-btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-btn.TextScaled = true
-btn.Font = Enum.Font.GothamBold
-btn.Parent = frame
+    local function btn(text, y, cb)
+        local b = Instance.new("TextButton")
+        b.Size = UDim2.new(1, -20, 0, 35)
+        b.Position = UDim2.new(0, 10, 0, y)
+        b.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+        b.TextColor3 = Color3.fromRGB(255, 255, 255)
+        b.TextScaled = true
+        b.Font = Enum.Font.GothamBold
+        b.Text = text
+        b.Parent = frame
+        Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
 
-local bc = Instance.new("UICorner")
-bc.CornerRadius = UDim.new(0, 8)
-bc.Parent = btn
+        b.MouseButton1Click:Connect(function()
+            b.Text = "AGUARDE..."
+            task.spawn(function()
+                pcall(cb)
+                task.wait(0.8)
+                b.Text = text
+            end)
+        end)
+    end
 
-btn.MouseButton1Click:Connect(function()
-    btn.Text = "SCANEANDO..."
-    task.wait()
+    btn("PRINT PEDIDO", 42, function()
+        local lines = collectPedido()
+        printSection("PEDIDO", lines)
+        saveTxt("PEDIDO", lines)
+    end)
 
-    local text = buildScan()
-    copy(text)
-    print(text)
-    warn("SCAN V2 COPIADO")
+    btn("PRINT MAPA", 82, function()
+        local lines = collectMapa()
+        printSection("MAPA", lines)
+        saveTxt("MAPA", lines)
+    end)
 
-    btn.Text = "COPIADO!"
-    task.wait(1.2)
-    btn.Text = "COPIAR SCAN"
-end)
+    btn("PRINT PERTO", 122, function()
+        local lines = collectPerto()
+        printSection("PERTO", lines)
+        saveTxt("PERTO", lines)
+    end)
+
+    btn("DESTRUIR GUI", 162, function()
+        gui:Destroy()
+    end)
+end
+
+makeGui()
+warnLine("Scanner V3 carregado. Abra o console e use PRINT PEDIDO / PRINT MAPA / PRINT PERTO.")
