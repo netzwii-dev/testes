@@ -1,22 +1,13 @@
+-- Mogged [Skins Battle] - Focused MogerStat / RemoteEvent Detector
+-- Seguro/read-only: não altera nota, não chama RemoteFunction e não mexe em valores.
+-- Objetivo: descobrir melhor de onde a nota aparece e quais RemoteEvents do servidor disparam perto da mudança.
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local keywords = {
-	"moger", "mog", "stat", "score", "rating", "rate",
-	"elo", "1v1", "battle", "result", "winner", "enemy", "you"
-}
-
-local function hasKeyword(s)
-	s = tostring(s or ""):lower()
-	for _, k in ipairs(keywords) do
-		if s:find(k, 1, true) then
-			return true
-		end
-	end
-	return false
-end
+local AGRemotes = ReplicatedStorage:WaitForChild("AGGameRemotes", 10)
 
 local function full(obj)
 	local ok, name = pcall(function()
@@ -25,74 +16,252 @@ local function full(obj)
 	return ok and name or tostring(obj)
 end
 
-print("===== MOGGED FORMULA / SCRIPT FINDER =====")
+local function serialize(v, depth)
+	depth = depth or 0
+	if depth > 2 then
+		return "..."
+	end
 
-print("\n--- GUI 1v1 TREE ---")
-local gui = PlayerGui:FindFirstChild("ScreenGui")
-local frame = gui and gui:FindFirstChild("Frame")
-local onevone = frame and frame:FindFirstChild("1v1")
+	local t = typeof(v)
 
-if onevone then
-	print("1v1 path:", full(onevone))
+	if t == "Instance" then
+		return full(v) .. " [" .. v.ClassName .. "]"
+	elseif t == "table" then
+		local parts = {}
+		local count = 0
 
-	for _, obj in ipairs(onevone:GetDescendants()) do
-		if hasKeyword(obj.Name) or obj:IsA("LocalScript") or obj:IsA("ModuleScript") or obj:IsA("TextLabel") then
-			local extra = ""
-
-			if obj:IsA("TextLabel") or obj:IsA("TextButton") then
-				extra = " | Text=" .. tostring(obj.Text)
-			elseif obj:IsA("StringValue") or obj:IsA("BoolValue") or obj:IsA("IntValue") or obj:IsA("NumberValue") then
-				extra = " | Value=" .. tostring(obj.Value)
+		for k, val in pairs(v) do
+			count += 1
+			if count > 20 then
+				table.insert(parts, "...+" .. tostring(count - 20))
+				break
 			end
 
-			print(full(obj), "[" .. obj.ClassName .. "]" .. extra)
+			table.insert(parts, "[" .. tostring(k) .. "]=" .. serialize(val, depth + 1))
 		end
-	end
-else
-	warn("Não achei PlayerGui.ScreenGui.Frame.1v1")
-end
 
-print("\n--- LOCAL SCRIPTS IN PLAYERGUI ---")
-for _, obj in ipairs(PlayerGui:GetDescendants()) do
-	if obj:IsA("LocalScript") or obj:IsA("ModuleScript") then
-		if hasKeyword(obj.Name) or hasKeyword(full(obj)) then
-			print(full(obj), "[" .. obj.ClassName .. "]")
-		end
-	end
-end
-
-print("\n--- REPLICATEDSTORAGE CANDIDATES ---")
-for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
-	if hasKeyword(obj.Name) or obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-		print(full(obj), "[" .. obj.ClassName .. "]")
-	end
-end
-
-print("\n--- CURRENT SCORE PATHS ---")
-
-local function printLabel(pathName, obj)
-	if obj and obj:IsA("TextLabel") then
-		print(pathName .. " =", obj.Text, "| path:", full(obj))
+		return "{" .. table.concat(parts, ", ") .. "}"
 	else
-		print(pathName .. " = nil")
+		return tostring(v)
 	end
 end
 
-if onevone then
-	local you = onevone:FindFirstChild("You")
-	local enemy = onevone:FindFirstChild("Enemy")
-	local ending = onevone:FindFirstChild("end")
+local function get1v1()
+	local screenGui = PlayerGui:FindFirstChild("ScreenGui")
+	local frame = screenGui and screenGui:FindFirstChild("Frame")
+	return frame and frame:FindFirstChild("1v1")
+end
 
-	printLabel("You MogerStat", you and you:FindFirstChild("Stat") and you.Stat:FindFirstChild("MogerStat"))
-	printLabel("Enemy MogerStat", enemy and enemy:FindFirstChild("Stat") and enemy.Stat:FindFirstChild("MogerStat"))
+local function getLabel(path)
+	local obj = get1v1()
+	if not obj then
+		return nil
+	end
 
-	if ending then
-		local endYou = ending:FindFirstChild("YOU")
-		local endEnemy = ending:FindFirstChild("ENEMY")
+	for _, name in ipairs(path) do
+		obj = obj and obj:FindFirstChild(name)
+	end
 
-		printLabel("End YOU MogerStat", endYou and endYou:FindFirstChild("MogerStat"))
-		printLabel("End ENEMY MogerStat", endEnemy and endEnemy:FindFirstChild("MogerStat"))
+	if obj and obj:IsA("TextLabel") then
+		return obj
+	end
+
+	return nil
+end
+
+local labels = {
+	YouLive = {"You", "Stat", "MogerStat"},
+	EnemyLive = {"Enemy", "Stat", "MogerStat"},
+	YouEnd = {"end", "YOU", "MogerStat"},
+	EnemyEnd = {"end", "ENEMY", "MogerStat"},
+	YouElo = {"You", "Stat", "Elo"},
+	EnemyElo = {"Enemy", "Stat", "Elo"},
+	EndYouElo = {"end", "YOU", "Elo"},
+	EndEnemyElo = {"end", "ENEMY", "Elo"},
+	Timer = {"TIMER"},
+	PreStartTimer = {"PreStart", "Timer"},
+}
+
+local lastText = {}
+local recentRemoteEvents = {}
+
+local function logRemote(name, args)
+	local line = os.date("%X") .. " | " .. name .. " | " .. args
+	table.insert(recentRemoteEvents, line)
+
+	if #recentRemoteEvents > 15 then
+		table.remove(recentRemoteEvents, 1)
+	end
+
+	print("[REMOTE EVENT]", line)
+end
+
+local function printRecentRemotes()
+	if #recentRemoteEvents == 0 then
+		print("  recent remotes: none")
+		return
+	end
+
+	print("  recent remotes:")
+	for _, line in ipairs(recentRemoteEvents) do
+		print("   ", line)
 	end
 end
 
-print("===== END =====")
+local function readCurrent()
+	local current = {}
+
+	for key, path in pairs(labels) do
+		local label = getLabel(path)
+		current[key] = label and tostring(label.Text) or "nil"
+	end
+
+	return current
+end
+
+local function printCurrentSnapshot(reason)
+	local c = readCurrent()
+
+	print("\n========== MOGGED SCORE SNAPSHOT:", reason, "==========")
+	print("YouLive:", c.YouLive)
+	print("EnemyLive:", c.EnemyLive)
+	print("YouEnd:", c.YouEnd)
+	print("EnemyEnd:", c.EnemyEnd)
+	print("YouElo:", c.YouElo)
+	print("EnemyElo:", c.EnemyElo)
+	print("EndYouElo:", c.EndYouElo)
+	print("EndEnemyElo:", c.EndEnemyElo)
+	print("Timer:", c.Timer)
+	print("PreStartTimer:", c.PreStartTimer)
+	printRecentRemotes()
+	print("====================================================\n")
+end
+
+local function attachLabelWatcher(key, label)
+	if not label or lastText[label] ~= nil then
+		return
+	end
+
+	lastText[label] = tostring(label.Text)
+
+	print("[LABEL FOUND]", key, full(label), "=", tostring(label.Text))
+
+	label:GetPropertyChangedSignal("Text"):Connect(function()
+		local newText = tostring(label.Text)
+		local oldText = lastText[label]
+
+		if newText ~= oldText then
+			lastText[label] = newText
+			print("[MOGER CHANGE]", key, full(label), ":", tostring(oldText), "->", newText)
+
+			if key == "YouEnd" or key == "EnemyEnd" or key == "EndYouElo" or key == "EndEnemyElo" then
+				printCurrentSnapshot("END VALUE CHANGED")
+			end
+		end
+	end)
+end
+
+local function scanLabels()
+	local onevone = get1v1()
+	if not onevone then
+		return
+	end
+
+	for key, path in pairs(labels) do
+		local label = getLabel(path)
+		if label then
+			attachLabelWatcher(key, label)
+		end
+	end
+end
+
+local function connectRemoteEvents()
+	if not AGRemotes then
+		warn("AGGameRemotes não encontrado.")
+		return
+	end
+
+	print("\n========== AGGameRemotes ==========")
+
+	for _, obj in ipairs(AGRemotes:GetDescendants()) do
+		if obj:IsA("RemoteEvent") then
+			print("[CONNECT REMOTE EVENT]", full(obj))
+
+			obj.OnClientEvent:Connect(function(...)
+				local args = table.pack(...)
+				local parts = {}
+
+				for i = 1, args.n do
+					table.insert(parts, "#" .. tostring(i) .. "=" .. serialize(args[i]))
+				end
+
+				logRemote(full(obj), table.concat(parts, " | "))
+			end)
+		elseif obj:IsA("RemoteFunction") then
+			print("[REMOTE FUNCTION FOUND]", full(obj), "-- não dá pra ouvir passivamente sem hook.")
+		end
+	end
+
+	print("===================================\n")
+end
+
+local function listImportant()
+	print("===== IMPORTANT PATHS =====")
+
+	local analyze = AGRemotes and AGRemotes:FindFirstChild("AnalyzePreviewSkin")
+	if analyze then
+		print("AnalyzePreviewSkin:", full(analyze), "[" .. analyze.ClassName .. "]")
+	end
+
+	local match = AGRemotes and AGRemotes:FindFirstChild("MatchEvent")
+	if match then
+		print("MatchEvent:", full(match), "[" .. match.ClassName .. "]")
+	end
+
+	local rankConfig = ReplicatedStorage:FindFirstChild("AGRankConfig")
+	if rankConfig then
+		print("AGRankConfig:", full(rankConfig), "[" .. rankConfig.ClassName .. "]")
+	end
+
+	local moger = ReplicatedStorage:FindFirstChild("Moger")
+	if moger then
+		print("Moger:", full(moger), "[" .. moger.ClassName .. "]")
+	end
+
+	print("===========================\n")
+end
+
+print("===== MOGGED FOCUSED DETECTOR START =====")
+print("PlaceId:", game.PlaceId)
+print("LocalPlayer:", LocalPlayer.Name)
+
+listImportant()
+connectRemoteEvents()
+
+-- tenta achar labels já existentes
+scanLabels()
+printCurrentSnapshot("INITIAL")
+
+-- continua procurando caso a tela 1v1 recrie a GUI
+PlayerGui.DescendantAdded:Connect(function(obj)
+	task.defer(function()
+		if obj:IsA("TextLabel") then
+			local name = full(obj)
+			if name:find("MogerStat", 1, true) or name:find("Elo", 1, true) or name:find("TIMER", 1, true) then
+				scanLabels()
+			end
+		end
+	end)
+end)
+
+task.spawn(function()
+	while task.wait(0.25) do
+		scanLabels()
+	end
+end)
+
+print("Detector ativo. Entre/termine uma batalha e copie:")
+print("- [MOGER CHANGE]")
+print("- [REMOTE EVENT]")
+print("- snapshots de END VALUE CHANGED")
+print("===== MOGGED FOCUSED DETECTOR READY =====")
