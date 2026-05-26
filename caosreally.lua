@@ -18,6 +18,9 @@ local Interactables = Workspace:WaitForChild("Interactables")
 local ACTION_COOLDOWN = 0.45
 local MOVE_TIMEOUT = 4
 local INTERACT_DISTANCE = 8
+
+-- Observação: este arquivo corrige a detecção de item na mão.
+-- Noclip/forçar speed não foi incluído aqui; use apenas mecânicas permitidas no seu próprio projeto/teste.
 local WAIT_ITEM_TIMEOUT = 8
 local WAIT_COOK_TIMEOUT = 14
 local WAIT_SINK_TIMEOUT = 12
@@ -108,33 +111,183 @@ end
 -- ITEM NA MÃO
 ------------------------------------------------------------
 
+local VALID_HELD_TYPES = {
+    RawBeef = true,
+    Pineapple = true,
+    Tomato = true,
+    ChoppedMeat = true,
+    PineappleRings = true,
+    ChoppedTomato = true,
+    Plate = true,
+    DirtyPlate = true,
+}
+
+local lastHeldDebugType = nil
+local lastHeldDebugPath = nil
+
 local function getHeldItem()
     local char = getCharacter()
     if not char then return nil, nil end
 
-    for _, child in ipairs(char:GetChildren()) do
-        local itemType = child:GetAttribute("Type")
-        if itemType then
-            return child, itemType
+    -- Correção principal v2:
+    -- Em Cooking Chaos, o item pode NÃO ser filho do Character.
+    -- Às vezes ele continua dentro de Workspace.Interactables e só fica soldado/perto da mão.
+    -- Então a detecção agora faz 2 passagens:
+    -- 1) Character/Tool/descendentes.
+    -- 2) Interactables próximos da mão/root, evitando FoodBins/appliances estáticos.
+    local bestItem = nil
+    local bestType = nil
+    local bestScore = -math.huge
+
+    local function normalizeType(obj)
+        if not obj then return nil end
+
+        local itemType = obj:GetAttribute("Type")
+            or obj:GetAttribute("FoodType")
+            or obj.Name
+
+        if VALID_HELD_TYPES[itemType] then
+            return itemType
+        end
+
+        return nil
+    end
+
+    local function getMainItemObject(obj)
+        if not obj then return nil end
+        if obj:IsA("Tool") then return obj end
+
+        local cur = obj
+        while cur and cur ~= char and cur ~= Interactables and cur ~= Workspace do
+            local t = normalizeType(cur)
+            if t and (cur:IsA("Model") or cur:IsA("Tool")) then
+                return cur
+            end
+            cur = cur.Parent
+        end
+
+        return obj
+    end
+
+    local function consider(obj, score, forcedType)
+        if not obj then return end
+
+        local itemType = forcedType or normalizeType(obj)
+        if not VALID_HELD_TYPES[itemType] then
+            return
+        end
+
+        local mainObj = getMainItemObject(obj)
+        if not mainObj then return end
+
+        if mainObj:IsA("Tool") then
+            score += 80
+        elseif mainObj:IsA("Model") then
+            score += 65
+        elseif mainObj:IsA("BasePart") then
+            score += 20
+        end
+
+        local path = mainObj:GetFullName()
+        if string.find(path, "Hand") or string.find(path, "Right") or string.find(path, "Left") then
+            score += 20
+        end
+
+        if score > bestScore then
+            bestItem = mainObj
+            bestType = itemType
+            bestScore = score
         end
     end
 
-    local tool = char:FindFirstChildOfClass("Tool")
-    if tool then
-        local itemType = tool:GetAttribute("Type")
-        if itemType then
-            return tool, itemType
+    -- 1) Busca normal dentro do Character.
+    for _, child in ipairs(char:GetChildren()) do
+        consider(child, 200)
+    end
+
+    for _, d in ipairs(char:GetDescendants()) do
+        consider(d, 120)
+    end
+
+    -- 2) Fallback importante: item ainda em Workspace.Interactables, mas perto/na mão.
+    -- Isso resolve RawBeef que aparece como Workspace.Interactables.RawBeef mesmo após pegar.
+    local root = getRoot()
+    local handParts = {}
+
+    local possibleHands = {
+        "RightHand",
+        "LeftHand",
+        "Right Arm",
+        "Left Arm",
+        "RightLowerArm",
+        "LeftLowerArm",
+        "RightUpperArm",
+        "LeftUpperArm",
+    }
+
+    for _, name in ipairs(possibleHands) do
+        local part = char:FindFirstChild(name, true)
+        if part and part:IsA("BasePart") then
+            table.insert(handParts, part)
+        end
+    end
+
+    local function nearCharacterHandsOrRoot(obj)
+        local pos = safePivot(obj)
+        if not pos then return false, math.huge end
+
+        local bestD = math.huge
+
+        for _, hand in ipairs(handParts) do
+            local d = (hand.Position - pos).Magnitude
+            if d < bestD then bestD = d end
         end
 
-        for _, d in ipairs(tool:GetDescendants()) do
-            local t = d:GetAttribute("Type")
-            if t then
-                return tool, t
+        if root then
+            local d = (root.Position - pos).Magnitude
+            if d < bestD then bestD = d end
+        end
+
+        -- Distância maior para root porque alguns models ficam no centro do personagem.
+        return bestD <= 7, bestD
+    end
+
+    local function isStaticHolder(obj)
+        if not obj then return false end
+        local applianceType = obj:GetAttribute("ApplianceType")
+        if applianceType then return true end
+        if obj.Name == "FoodBin" or obj.Name == "Countertop" or obj.Name == "ChoppingBoard" or obj.Name == "Hob" or obj.Name == "Sink" or obj.Name == "PlateSpawner" or obj.Name == "Sell" or obj.Name == "SellPoint" then
+            return true
+        end
+        return false
+    end
+
+    for _, obj in ipairs(Interactables:GetDescendants()) do
+        local itemType = normalizeType(obj)
+        if itemType then
+            local mainObj = getMainItemObject(obj)
+
+            if mainObj and not isDescendantOfCharacter(mainObj) and not isStaticHolder(mainObj.Parent) and not isStaticHolder(mainObj) then
+                local near, d = nearCharacterHandsOrRoot(mainObj)
+                if near then
+                    -- Quanto mais perto, maior a chance de ser o item segurado.
+                    consider(mainObj, 100 - d, itemType)
+                end
             end
         end
     end
 
-    return nil, nil
+    if bestItem and (bestType ~= lastHeldDebugType or bestItem:GetFullName() ~= lastHeldDebugPath) then
+        lastHeldDebugType = bestType
+        lastHeldDebugPath = bestItem:GetFullName()
+        print("[Autofarm][MÃO]", tostring(bestType), bestItem:GetFullName())
+    elseif not bestItem and lastHeldDebugType ~= nil then
+        lastHeldDebugType = nil
+        lastHeldDebugPath = nil
+        print("[Autofarm][MÃO] vazia")
+    end
+
+    return bestItem, bestType
 end
 
 local function waitForHeldType(wantedType, timeout)
@@ -1121,3 +1274,4 @@ RunService.Heartbeat:Connect(function()
         handleEmptyHands()
     end
 end)
+print(carregado com sucesso!)
