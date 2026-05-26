@@ -1,5 +1,8 @@
 -- AUTOFARM: CAOS NA COZINHA / COOKING CHAOS
+-- Fluxo corrigido: carne primeiro -> abacaxi -> tomate -> vender
 -- Baseado nas regras do TXT: Kebab / Cidade Symmetri
+
+print("[Autofarm] Carregado: Cooking Chaos / Caos na Cozinha - fluxo corrigido")
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -8,8 +11,6 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Interactables = Workspace:WaitForChild("Interactables")
 
-print("[Autofarm] Cooking Chaos carregado com sucesso!")
-
 ------------------------------------------------------------
 -- CONFIG
 ------------------------------------------------------------
@@ -17,10 +18,17 @@ print("[Autofarm] Cooking Chaos carregado com sucesso!")
 local ACTION_COOLDOWN = 0.45
 local MOVE_TIMEOUT = 4
 local INTERACT_DISTANCE = 8
+local WAIT_ITEM_TIMEOUT = 8
+local WAIT_COOK_TIMEOUT = 14
+local WAIT_SINK_TIMEOUT = 12
 
 local busy = false
 local lastAction = 0
 local currentState = "Idle"
+
+-- Ordem principal de produção.
+-- A carne SEMPRE vem primeiro. Depois Pineapple e Tomato.
+local productionStep = "Meat" -- Meat -> Pineapple -> Tomato -> Meat...
 
 ------------------------------------------------------------
 -- UTILS BÁSICOS
@@ -89,10 +97,15 @@ local function isDescendantOfCharacter(obj)
     return char and obj:IsDescendantOf(char)
 end
 
+local function hasTypeOrName(obj, wanted)
+    if not obj then return false end
+    if obj.Name == wanted then return true end
+    if obj:GetAttribute("Type") == wanted then return true end
+    return false
+end
+
 ------------------------------------------------------------
 -- ITEM NA MÃO
--- O TXT indica itens como Model com Attribute Type,
--- então não depender apenas de Tool.
 ------------------------------------------------------------
 
 local function getHeldItem()
@@ -106,7 +119,6 @@ local function getHeldItem()
         end
     end
 
-    -- fallback: caso algum item esteja dentro de Tool
     local tool = char:FindFirstChildOfClass("Tool")
     if tool then
         local itemType = tool:GetAttribute("Type")
@@ -123,6 +135,36 @@ local function getHeldItem()
     end
 
     return nil, nil
+end
+
+local function waitForHeldType(wantedType, timeout)
+    local started = now()
+    timeout = timeout or WAIT_ITEM_TIMEOUT
+
+    while now() - started < timeout do
+        local held, heldType = getHeldItem()
+        if heldType == wantedType then
+            return held
+        end
+        task.wait(0.12)
+    end
+
+    return nil
+end
+
+local function waitUntilHandsEmpty(timeout)
+    local started = now()
+    timeout = timeout or 3
+
+    while now() - started < timeout do
+        local _, heldType = getHeldItem()
+        if not heldType then
+            return true
+        end
+        task.wait(0.12)
+    end
+
+    return false
 end
 
 ------------------------------------------------------------
@@ -171,6 +213,20 @@ local function getNearestFoodBin(foodType)
         return obj.Name == "FoodBin"
             and obj:GetAttribute("FoodType") == foodType
     end)
+end
+
+local function hasIngredient(container, ingredientName)
+    if not container then return false end
+
+    if container.Name == ingredientName then
+        return true
+    end
+
+    if container:GetAttribute("Type") == ingredientName then
+        return true
+    end
+
+    return container:FindFirstChild(ingredientName, true) ~= nil
 end
 
 local function getNearestEmptyCountertop()
@@ -252,14 +308,13 @@ local function tryInteract(target)
 
     local reached = moveNear(target)
     if not reached then
+        print("[Autofarm] Falhou ao chegar em:", target.Name)
         return false
     end
 
     local prompt = findPrompt(target)
 
     if prompt then
-        -- Em jogos próprios/testes, isto costuma funcionar com ProximityPrompt.
-        -- Se seu sistema usa RemoteEvent customizado, troque esta parte pela chamada oficial do seu projeto.
         local hold = prompt.HoldDuration or 0
 
         pcall(function()
@@ -275,9 +330,6 @@ local function tryInteract(target)
         return true
     end
 
-    -- Fallback:
-    -- Caso seu jogo use outro sistema de interação, implemente aqui.
-    -- Exemplo: RemoteEvent oficial do seu projeto, BindableEvent, InteractionController etc.
     warn("[Autofarm] Nenhum ProximityPrompt encontrado em:", target:GetFullName())
     return false
 end
@@ -285,12 +337,11 @@ end
 local function doAction(stateName, fn)
     if not canAct() then return end
 
+    print("[Autofarm][AÇÃO]", stateName)
     setBusy(true, stateName)
     lastAction = now()
 
     task.spawn(function()
-        print("[Autofarm] Ação:", stateName)
-
         local ok, err = pcall(fn)
         if not ok then
             warn("[Autofarm erro][" .. tostring(stateName) .. "]", err)
@@ -302,27 +353,12 @@ local function doAction(stateName, fn)
 end
 
 ------------------------------------------------------------
--- DETECÇÃO DE PRATO / INGREDIENTES
+-- PRATOS / INGREDIENTES
 ------------------------------------------------------------
 
-local FINAL_INGREDIENTS = {
-    CookedMeat = true,
-    PineappleRings = true,
-    ChoppedTomato = true,
-}
-
-local function hasIngredient(container, ingredientName)
-    if not container then return false end
-
-    if container.Name == ingredientName then
-        return true
-    end
-
-    if container:GetAttribute("Type") == ingredientName then
-        return true
-    end
-
-    return container:FindFirstChild(ingredientName, true) ~= nil
+local function isPlateObject(obj)
+    if not obj then return false end
+    return obj:GetAttribute("Type") == "Plate" or obj.Name == "Plate"
 end
 
 local function getPlateState(plate)
@@ -368,20 +404,6 @@ local function wouldCompletePlate(state, ingredientType)
     return false
 end
 
-local function isPlateObject(obj)
-    if not obj then return false end
-
-    if obj:GetAttribute("Type") == "Plate" then
-        return true
-    end
-
-    if obj.Name == "Plate" then
-        return true
-    end
-
-    return false
-end
-
 local function getAllWorldPlates()
     local plates = {}
     local seen = {}
@@ -398,6 +420,14 @@ local function getAllWorldPlates()
     return plates
 end
 
+local function getNearestCleanEmptyPlate()
+    return getNearestWhere(function(obj)
+        if not isPlateObject(obj) or isDescendantOfCharacter(obj) then return false end
+        local state = getPlateState(obj)
+        return state.count == 0
+    end)
+end
+
 local function getBestPlate(ingredientType)
     local bestPlate = nil
     local bestScore = -math.huge
@@ -406,22 +436,22 @@ local function getBestPlate(ingredientType)
     for _, plate in ipairs(getAllWorldPlates()) do
         local state = getPlateState(plate)
 
-        -- Nunca usar prato completo nem prato que já tem o ingrediente.
         if not state.complete and not plateAlreadyHasIngredient(state, ingredientType) then
             local score = 0
 
-            -- Regra 10.2: maior prioridade é completar o prato.
             if wouldCompletePlate(state, ingredientType) then
                 score += 1000
             end
 
-            -- Depois, prato com mais ingredientes úteis.
+            -- Prioridade extra: depois que a carne existe, abacaxi/tomate devem preferir prato com carne.
+            if ingredientType ~= "CookedMeat" and state.hasMeat then
+                score += 350
+            end
+
             score += state.count * 100
 
-            -- Pequeno bônus para prato mais perto.
             local d = distanceTo(plate)
-            local distancePenalty = d * 0.01
-            score -= distancePenalty
+            score -= d * 0.01
 
             if score > bestScore or (score == bestScore and d < bestDistance) then
                 bestPlate = plate
@@ -436,7 +466,7 @@ end
 
 local function getNearestCompletePlate()
     return getNearestWhere(function(obj)
-        if not isPlateObject(obj) then return false end
+        if not isPlateObject(obj) or isDescendantOfCharacter(obj) then return false end
         local state = getPlateState(obj)
         return state.complete
     end)
@@ -444,13 +474,12 @@ end
 
 local function isHeldPlateComplete(held)
     if not held then return false end
-    local state = getPlateState(held)
-    return state.complete
+    return getPlateState(held).complete
 end
 
-local function isHeldPlateOnlyMeatOrPartial(held)
+local function isHeldPlatePartial(held)
     if not held then return false end
-    if held:GetAttribute("Type") ~= "Plate" and held.Name ~= "Plate" then return false end
+    if not isPlateObject(held) then return false end
     local state = getPlateState(held)
     return state.count > 0 and not state.complete
 end
@@ -511,7 +540,6 @@ end
 local function panHasChoppedMeat(hob)
     local pan = getFryingPan(hob)
     if not pan then return false end
-
     return hasIngredient(pan, "ChoppedMeat")
 end
 
@@ -523,6 +551,25 @@ local function getNearestReadyPan()
 
         return isPanReady(obj)
     end)
+end
+
+local function waitForPanReady(hob)
+    local started = now()
+
+    while now() - started < WAIT_COOK_TIMEOUT do
+        if isPanReady(hob) then
+            return true
+        end
+
+        if isPanBurnt(hob) then
+            warn("[Autofarm] Carne queimou na panela.")
+            return false
+        end
+
+        task.wait(0.15)
+    end
+
+    return false
 end
 
 ------------------------------------------------------------
@@ -552,7 +599,7 @@ end
 local function waitForSinkToFinish(sink)
     local started = now()
 
-    while now() - started < 12 do
+    while now() - started < WAIT_SINK_TIMEOUT do
         if not isSinkWashing(sink) then
             return true
         end
@@ -562,83 +609,333 @@ local function waitForSinkToFinish(sink)
     return false
 end
 
+local function getActiveSink()
+    return getNearestWhere(function(obj)
+        if obj:GetAttribute("ApplianceType") == "Sink" or obj.Name == "Sink" then
+            return isSinkWashing(obj)
+        end
+        return false
+    end)
+end
+
 ------------------------------------------------------------
--- FLUXOS DE AÇÃO
+-- FLUXOS AUXILIARES
+------------------------------------------------------------
+
+local function getSellPoint()
+    return getNearestByName("SellPoint")
+        or getNearestAppliance("Sell")
+        or getNearestByName("Sell")
+end
+
+local function putHeldPlateOnCounter()
+    local counter = getNearestEmptyCountertop()
+    if counter then
+        return tryInteract(counter)
+    end
+    return false
+end
+
+local function sellHeldOrWorldCompletePlate(held)
+    local sellPoint = getSellPoint()
+    if not sellPoint then return false end
+
+    if held and isHeldPlateComplete(held) then
+        return tryInteract(sellPoint)
+    end
+
+    local complete = getNearestCompletePlate()
+    if complete then
+        if tryInteract(complete) then
+            task.wait(0.2)
+            local heldNow = select(1, getHeldItem())
+            if heldNow and isHeldPlateComplete(heldNow) then
+                return tryInteract(sellPoint)
+            end
+        end
+    end
+
+    return false
+end
+
+local function cutHeldRawIngredient(rawType, resultType)
+    local board = getNearestAppliance("ChoppingBoard")
+    if not board then return false end
+
+    if not tryInteract(board) then return false end
+
+    local started = now()
+    while now() - started < WAIT_ITEM_TIMEOUT do
+        local _, heldType = getHeldItem()
+
+        if heldType == resultType then
+            return true
+        end
+
+        if board:FindFirstChild(resultType, true) or hasIngredient(board, resultType) then
+            -- Alguns mapas deixam o item cortado na tábua. Interage de novo para pegar.
+            tryInteract(board)
+            task.wait(0.2)
+
+            local _, afterType = getHeldItem()
+            if afterType == resultType then
+                return true
+            end
+        end
+
+        task.wait(0.15)
+    end
+
+    return false
+end
+
+local function getFoodAndWait(foodType)
+    local bin = getNearestFoodBin(foodType)
+    if not bin then return false end
+
+    if tryInteract(bin) then
+        return waitForHeldType(foodType, 3) ~= nil
+    end
+
+    return false
+end
+
+------------------------------------------------------------
+-- FLUXO PRINCIPAL DA CARNE
+------------------------------------------------------------
+
+local function fullMeatFlowFromRawBeef()
+    -- 1. Garantir RawBeef na mão.
+    local _, heldType = getHeldItem()
+    if heldType ~= "RawBeef" then
+        print("[Autofarm] Pegando RawBeef no FoodBin")
+        if not getFoodAndWait("RawBeef") then
+            print("[Autofarm] Não conseguiu confirmar RawBeef na mão")
+            return false
+        end
+    end
+
+    -- 2. RawBeef -> ChoppedMeat na bancada de corte.
+    print("[Autofarm] RawBeef detectado. Indo cortar na ChoppingBoard")
+    if not cutHeldRawIngredient("RawBeef", "ChoppedMeat") then
+        print("[Autofarm] Falhou ao transformar RawBeef em ChoppedMeat")
+        return false
+    end
+
+    -- 3. ChoppedMeat -> panela.
+    local hob = getNearestHobWithPan()
+    if not hob then return false end
+
+    if isPanBurnt(hob) then
+        warn("[Autofarm] Panela encontrada está queimada. Ignorando fluxo da carne.")
+        return false
+    end
+
+    print("[Autofarm] ChoppedMeat detectado. Indo colocar na panela")
+    if not tryInteract(hob) then return false end
+
+    -- 4. Enquanto assa, pegar o prato limpo mais próximo.
+    task.wait(0.25)
+    local _, afterPanType = getHeldItem()
+    if afterPanType == "ChoppedMeat" then
+        print("[Autofarm] Ainda está com ChoppedMeat; interação na panela pode ter falhado")
+        return false
+    end
+
+    local plate = getNearestCleanEmptyPlate()
+    if plate then
+        print("[Autofarm] Carne assando. Pegando Plate limpo mais próximo")
+        tryInteract(plate)
+        waitForHeldType("Plate", 3)
+    else
+        print("[Autofarm] Nenhum Plate limpo encontrado enquanto a carne assa")
+    end
+
+    -- 5. Voltar para a panela e aguardar ficar pronta.
+    print("[Autofarm] Voltando para a panela e aguardando TickImage")
+    moveNear(hob)
+    if not waitForPanReady(hob) then
+        return false
+    end
+
+    -- 6. Precisa estar com Plate para pegar a carne pronta.
+    local heldPlate, heldPlateType = getHeldItem()
+    if heldPlateType ~= "Plate" then
+        local newPlate = getNearestCleanEmptyPlate()
+        if newPlate then
+            print("[Autofarm] Pegando Plate antes de retirar CookedMeat")
+            tryInteract(newPlate)
+            heldPlate = waitForHeldType("Plate", 3)
+        end
+    end
+
+    if not heldPlate then
+        print("[Autofarm] Não há Plate na mão para pegar a carne pronta")
+        return false
+    end
+
+    print("[Autofarm] Carne pronta. Pegando CookedMeat com o Plate")
+    if not tryInteract(hob) then return false end
+
+    task.wait(0.35)
+
+    -- 7. Colocar prato com CookedMeat em bancada vazia mais próxima.
+    local heldAfter = select(1, getHeldItem())
+    if heldAfter and hasIngredient(heldAfter, "CookedMeat") then
+        print("[Autofarm] Plate com CookedMeat. Colocando na Countertop vazia mais próxima")
+        putHeldPlateOnCounter()
+        waitUntilHandsEmpty(2)
+        productionStep = "Pineapple"
+        return true
+    end
+
+    print("[Autofarm] Não confirmou CookedMeat no prato após pegar da panela")
+    return false
+end
+
+------------------------------------------------------------
+-- FLUXOS DOS INGREDIENTES FINAIS
+------------------------------------------------------------
+
+local function fullCutAndPlateFlow(foodType, finalType, nextStep)
+    local _, heldType = getHeldItem()
+
+    if heldType ~= foodType and heldType ~= finalType then
+        print("[Autofarm] Pegando " .. foodType .. " no FoodBin")
+        if not getFoodAndWait(foodType) then
+            print("[Autofarm] Não conseguiu confirmar " .. foodType .. " na mão")
+            return false
+        end
+    end
+
+    heldType = select(2, getHeldItem())
+    if heldType == foodType then
+        print("[Autofarm] " .. foodType .. " detectado. Indo cortar")
+        if not cutHeldRawIngredient(foodType, finalType) then
+            print("[Autofarm] Falhou ao transformar " .. foodType .. " em " .. finalType)
+            return false
+        end
+    end
+
+    heldType = select(2, getHeldItem())
+    if heldType ~= finalType then
+        print("[Autofarm] Ainda não está segurando " .. finalType)
+        return false
+    end
+
+    local plate = getBestPlate(finalType)
+    if not plate then
+        print("[Autofarm] Nenhum prato válido para " .. finalType)
+        return false
+    end
+
+    print("[Autofarm] Colocando " .. finalType .. " no melhor Plate")
+    if not tryInteract(plate) then return false end
+
+    task.wait(0.35)
+
+    -- Se completou, vender. Se não, continuar para o próximo ingrediente.
+    local complete = getNearestCompletePlate()
+    if complete then
+        print("[Autofarm] Prato completo detectado. Vendendo")
+        if tryInteract(complete) then
+            task.wait(0.2)
+            local held = select(1, getHeldItem())
+            if held and isHeldPlateComplete(held) then
+                sellHeldOrWorldCompletePlate(held)
+            end
+        end
+        productionStep = "Meat"
+        return true
+    end
+
+    productionStep = nextStep
+    return true
+end
+
+------------------------------------------------------------
+-- FLUXOS POR ITEM NA MÃO
 ------------------------------------------------------------
 
 local function handleRawIngredient(itemType)
-    local board = getNearestAppliance("ChoppingBoard")
-    if not board then return end
+    local expected
+    if itemType == "RawBeef" then
+        expected = "ChoppedMeat"
+    elseif itemType == "Pineapple" then
+        expected = "PineappleRings"
+    elseif itemType == "Tomato" then
+        expected = "ChoppedTomato"
+    end
 
-    doAction("Cutting " .. itemType, function()
-        tryInteract(board)
+    if not expected then return end
 
-        -- Espera básica para evitar spam enquanto o item muda.
-        local expected
-        if itemType == "RawBeef" then
-            expected = "ChoppedMeat"
-        elseif itemType == "Pineapple" then
-            expected = "PineappleRings"
-        elseif itemType == "Tomato" then
-            expected = "ChoppedTomato"
-        end
-
-        local started = now()
-        while now() - started < 8 do
-            local _, heldType = getHeldItem()
-
-            if heldType == expected then
-                break
-            end
-
-            if board:FindFirstChild(expected, true) then
-                break
-            end
-
-            task.wait(0.15)
-        end
+    doAction("Cortar " .. itemType, function()
+        cutHeldRawIngredient(itemType, expected)
     end)
 end
 
 local function handleChoppedMeat()
-    local hob = getNearestHobWithPan()
-    if not hob then return end
+    doAction("Fluxo da carne: colocar ChoppedMeat na panela, pegar prato e retirar CookedMeat", function()
+        local hob = getNearestHobWithPan()
+        if not hob then return end
 
-    if isPanBurnt(hob) then
-        warn("[Autofarm] Panela mais próxima está queimada. Ignorando.")
-        return
-    end
+        if isPanBurnt(hob) then
+            warn("[Autofarm] Panela mais próxima está queimada. Ignorando.")
+            return
+        end
 
-    doAction("Putting ChoppedMeat on Hob", function()
-        tryInteract(hob)
+        if not tryInteract(hob) then return end
 
-        -- Espera a carne ficar pronta ou queimar.
-        local started = now()
-        while now() - started < 12 do
-            if isPanReady(hob) then
-                break
+        local plate = getNearestCleanEmptyPlate()
+        if plate then
+            print("[Autofarm] Pegando Plate enquanto a carne assa")
+            tryInteract(plate)
+            waitForHeldType("Plate", 3)
+        end
+
+        moveNear(hob)
+        if waitForPanReady(hob) then
+            local _, heldType = getHeldItem()
+            if heldType == "Plate" then
+                tryInteract(hob)
+                task.wait(0.35)
+                local held = select(1, getHeldItem())
+                if held and hasIngredient(held, "CookedMeat") then
+                    putHeldPlateOnCounter()
+                    productionStep = "Pineapple"
+                end
             end
-
-            if isPanBurnt(hob) then
-                warn("[Autofarm] Carne queimou.")
-                break
-            end
-
-            task.wait(0.15)
         end
     end)
 end
 
 local function handleFinalIngredient(itemType)
-    local plate = getBestPlate(itemType)
-    if not plate then
-        -- Se não houver prato, tentar buscar um limpo/colocar em bancada depois.
-        warn("[Autofarm] Nenhum prato válido encontrado para:", itemType)
-        return
-    end
+    doAction("Colocar " .. itemType .. " no melhor Plate", function()
+        local plate = getBestPlate(itemType)
+        if not plate then
+            print("[Autofarm] Nenhum prato válido encontrado para:", itemType)
+            return
+        end
 
-    doAction("Adding " .. itemType .. " to plate", function()
         tryInteract(plate)
+        task.wait(0.35)
+
+        local complete = getNearestCompletePlate()
+        if complete then
+            print("[Autofarm] Prato completo detectado após adicionar ingrediente. Vendendo")
+            if tryInteract(complete) then
+                task.wait(0.2)
+                local held = select(1, getHeldItem())
+                if held and isHeldPlateComplete(held) then
+                    sellHeldOrWorldCompletePlate(held)
+                end
+            end
+            productionStep = "Meat"
+        elseif itemType == "PineappleRings" then
+            productionStep = "Tomato"
+        elseif itemType == "ChoppedTomato" then
+            productionStep = "Meat"
+        end
     end)
 end
 
@@ -646,80 +943,54 @@ local function handleDirtyPlate()
     local sink = getNearestAppliance("Sink")
     if not sink then return end
 
-    doAction("Washing DirtyPlate", function()
+    doAction("Lavar DirtyPlate", function()
         tryInteract(sink)
-
-        -- Regra do TXT: durante a lavagem, não fazer mais nada.
         waitForSinkToFinish(sink)
 
         task.wait(0.2)
 
-        local held, heldType = getHeldItem()
+        local _, heldType = getHeldItem()
         if heldType == "Plate" then
-            local counter = getNearestEmptyCountertop()
-            if counter then
-                tryInteract(counter)
-            end
+            print("[Autofarm] Plate limpo após lavar. Colocando na Countertop vazia")
+            putHeldPlateOnCounter()
         end
     end)
 end
 
 local function handleCleanPlate(held)
-    -- 1. Se o prato na mão já está completo, entregar.
     if isHeldPlateComplete(held) then
-        local sellPoint = getNearestByName("SellPoint")
-            or getNearestAppliance("Sell")
-            or getNearestByName("Sell")
-
-        if sellPoint then
-            doAction("Selling Complete Plate", function()
-                tryInteract(sellPoint)
-            end)
-        end
-
+        doAction("Vender Plate completo", function()
+            sellHeldOrWorldCompletePlate(held)
+            productionStep = "Meat"
+        end)
         return
     end
 
-    -- 2. Se há carne pronta na panela, prato limpo deve ir até a panela.
     local readyPan = getNearestReadyPan()
     if readyPan then
-        doAction("Taking CookedMeat with Plate", function()
+        doAction("Pegar CookedMeat pronto com Plate", function()
             tryInteract(readyPan)
+            task.wait(0.35)
 
-            task.wait(0.25)
-
-            -- Depois de pegar carne, colocar o prato em bancada vazia.
-            local heldAfter, heldTypeAfter = getHeldItem()
-            if heldTypeAfter == "Plate" and hasIngredient(heldAfter, "CookedMeat") then
-                local counter = getNearestEmptyCountertop()
-                if counter then
-                    tryInteract(counter)
-                end
+            local heldAfter = select(1, getHeldItem())
+            if heldAfter and hasIngredient(heldAfter, "CookedMeat") then
+                putHeldPlateOnCounter()
+                productionStep = "Pineapple"
             end
         end)
-
         return
     end
 
-    -- 3. Se é prato parcial, deixar na bancada para juntar ingredientes.
-    if isHeldPlateOnlyMeatOrPartial(held) then
-        local counter = getNearestEmptyCountertop()
-        if counter then
-            doAction("Placing Partial Plate", function()
-                tryInteract(counter)
-            end)
-        end
-
-        return
-    end
-
-    -- 4. Se é prato limpo sem necessidade imediata, colocar na bancada.
-    local counter = getNearestEmptyCountertop()
-    if counter then
-        doAction("Placing Clean Plate", function()
-            tryInteract(counter)
+    if isHeldPlatePartial(held) then
+        doAction("Colocar Plate parcial na Countertop vazia", function()
+            putHeldPlateOnCounter()
         end)
+        return
     end
+
+    doAction("Colocar Plate limpo na Countertop vazia", function()
+        putHeldPlateOnCounter()
+    end)
 end
 
 ------------------------------------------------------------
@@ -727,63 +998,45 @@ end
 ------------------------------------------------------------
 
 local function handleEmptyHands()
-    -- 1. Se existe prato completo no mapa, entregar.
+    -- 1. Vender prato completo primeiro.
     local completePlate = getNearestCompletePlate()
     if completePlate then
-        doAction("Picking Complete Plate", function()
-            tryInteract(completePlate)
+        doAction("Pegar e vender Plate completo", function()
+            sellHeldOrWorldCompletePlate(nil)
+            productionStep = "Meat"
+        end)
+        return
+    end
 
-            task.wait(0.2)
-
-            local held = select(1, getHeldItem())
-            if held and isHeldPlateComplete(held) then
-                local sellPoint = getNearestByName("SellPoint")
-                    or getNearestAppliance("Sell")
-                    or getNearestByName("Sell")
-
-                if sellPoint then
-                    tryInteract(sellPoint)
+    -- 2. Se existe panela pronta por algum motivo, pegar Plate e retirar.
+    local readyPan = getNearestReadyPan()
+    if readyPan then
+        doAction("Panela pronta: pegar Plate e retirar CookedMeat", function()
+            local plate = getNearestCleanEmptyPlate()
+            if plate then
+                tryInteract(plate)
+                if waitForHeldType("Plate", 3) then
+                    tryInteract(readyPan)
+                    task.wait(0.35)
+                    local held = select(1, getHeldItem())
+                    if held and hasIngredient(held, "CookedMeat") then
+                        putHeldPlateOnCounter()
+                        productionStep = "Pineapple"
+                    end
                 end
             end
         end)
-
         return
     end
 
-    -- 2. Se há panela pronta, precisa pegar Plate antes.
-    local readyPan = getNearestReadyPan()
-    if readyPan then
-        local plate = getNearestWhere(function(obj)
-            if not isPlateObject(obj) then return false end
-            local state = getPlateState(obj)
-            return state.count == 0
-        end)
-
-        if plate then
-            doAction("Getting Plate for Ready Meat", function()
-                tryInteract(plate)
-
-                task.wait(0.2)
-
-                local _, heldType = getHeldItem()
-                if heldType == "Plate" then
-                    tryInteract(readyPan)
-                end
-            end)
-        end
-
-        return
-    end
-
-    -- 3. Se tem DirtyPlate no PlateSpawner, lavar.
+    -- 3. Lavar pratos sujos quando spawnarem.
     local dirty = getNearestWhere(function(obj)
         return obj:GetAttribute("Type") == "DirtyPlate" or obj.Name == "DirtyPlate"
     end)
 
     if dirty then
-        doAction("Picking DirtyPlate", function()
+        doAction("Pegar DirtyPlate e lavar", function()
             tryInteract(dirty)
-
             task.wait(0.2)
 
             local _, heldType = getHeldItem()
@@ -792,39 +1045,41 @@ local function handleEmptyHands()
                 if sink then
                     tryInteract(sink)
                     waitForSinkToFinish(sink)
+                    task.wait(0.2)
+
+                    local _, afterType = getHeldItem()
+                    if afterType == "Plate" then
+                        putHeldPlateOnCounter()
+                    end
                 end
             end
         end)
-
         return
     end
 
-    -- 4. Produção básica: tentar manter os três ingredientes andando.
-    -- Ordem simples: carne > abacaxi > tomate.
-    -- Você pode sofisticar depois contando quantos pratos precisam de cada ingrediente.
-    local rawBeefBin = getNearestFoodBin("RawBeef")
-    if rawBeefBin then
-        doAction("Getting RawBeef", function()
-            tryInteract(rawBeefBin)
+    -- 4. Produção em ordem: CARNE SEMPRE PRIMEIRO, depois ABACAXI, depois TOMATE.
+    if productionStep == "Meat" then
+        doAction("Fluxo completo da carne", function()
+            fullMeatFlowFromRawBeef()
         end)
         return
     end
 
-    local pineappleBin = getNearestFoodBin("Pineapple")
-    if pineappleBin then
-        doAction("Getting Pineapple", function()
-            tryInteract(pineappleBin)
+    if productionStep == "Pineapple" then
+        doAction("Fluxo do abacaxi", function()
+            fullCutAndPlateFlow("Pineapple", "PineappleRings", "Tomato")
         end)
         return
     end
 
-    local tomatoBin = getNearestFoodBin("Tomato")
-    if tomatoBin then
-        doAction("Getting Tomato", function()
-            tryInteract(tomatoBin)
+    if productionStep == "Tomato" then
+        doAction("Fluxo do tomate", function()
+            fullCutAndPlateFlow("Tomato", "ChoppedTomato", "Meat")
         end)
         return
     end
+
+    productionStep = "Meat"
 end
 
 ------------------------------------------------------------
@@ -839,19 +1094,13 @@ RunService.Heartbeat:Connect(function()
     local char = getCharacter()
     if not char then return end
 
-    local held, itemType = getHeldItem()
-
     -- Se alguma pia está lavando, respeitar a regra de não fazer nada.
-    local activeSink = getNearestWhere(function(obj)
-        if obj:GetAttribute("ApplianceType") == "Sink" or obj.Name == "Sink" then
-            return isSinkWashing(obj)
-        end
-        return false
-    end)
-
+    local activeSink = getActiveSink()
     if activeSink then
         return
     end
+
+    local held, itemType = getHeldItem()
 
     if itemType == "RawBeef" or itemType == "Pineapple" or itemType == "Tomato" then
         handleRawIngredient(itemType)
