@@ -1,7 +1,8 @@
---// Caos na Cozinha - Scan Frente + Scan Panela v2
---// SCAN FRENTE: mantém o scan normal do objeto/interação na frente.
---// SCAN PANELA: scan focado em propriedades visuais da Hob/FryingPan.
---// Ambos copiam o resultado para a área de transferência, se o executor suportar.
+--// Caos na Cozinha - Scan Frente + Panela + Pia v3
+--// SCAN FRENTE: scan normal do objeto/interação na frente.
+--// SCAN PANELA: scan focado em Hob/FryingPan.
+--// SCAN PIA: scan focado em Sink, ProgressBar e Plate/DirtyPlate.
+--// Todos copiam o resultado para a área de transferência, se o executor suportar.
 
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
@@ -10,12 +11,12 @@ local Workspace = game:GetService("Workspace")
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
 local cam = Workspace.CurrentCamera
-local GUI_NAME = "CK_ScanFrentePanelaV2"
+local GUI_NAME = "CK_ScanFrentePanelaPiaV3"
 
 local WORDS = {
     "foodbin","ingredient","tomato","pineapple","beef","meat","carne",
     "chopping","cut","knife","faca","hob","pan","saucepan","pot","cook",
-    "countertop","plate","sink","sell","sellpoint","delivery","serve"
+    "countertop","plate","dirtyplate","sink","sell","sellpoint","delivery","serve"
 }
 
 local function low(x) return string.lower(tostring(x or "")) end
@@ -209,7 +210,7 @@ local function scanFrente()
         printCopy("SCAN FRENTE", lines)
         return
     end
-    local ok, word = hasWord(o)
+    local _, word = hasWord(o)
     table.insert(lines, "Fonte: "..source)
     table.insert(lines, "Name: "..o.Name.." ["..o.ClassName.."]")
     table.insert(lines, "Path: "..path(o))
@@ -233,20 +234,25 @@ local function scanFrente()
     printCopy("SCAN FRENTE", lines)
 end
 
-local function findHob()
+local function findByAppliance(appliance, nameHint)
     local o = getTarget()
-    if o and (o:GetAttribute("ApplianceType") == "Hob" or low(o.Name):find("hob", 1, true)) then return o, "frente" end
+    if o and (o:GetAttribute("ApplianceType") == appliance or low(o.Name):find(low(nameHint), 1, true)) then
+        return o, "frente"
+    end
     if o then
         local cur = o
         while cur and cur ~= workspace do
-            if cur:IsA("Model") and (cur:GetAttribute("ApplianceType") == "Hob" or low(cur.Name):find("hob", 1, true)) then return cur, "ancestor" end
+            if cur:IsA("Model") and (cur:GetAttribute("ApplianceType") == appliance or low(cur.Name):find(low(nameHint), 1, true)) then
+                return cur, "ancestor"
+            end
             cur = cur.Parent
         end
     end
+
     local h = hrp()
     local best, bd = nil, math.huge
     for _, x in ipairs(root():GetDescendants()) do
-        if x:IsA("Model") and (x:GetAttribute("ApplianceType") == "Hob" or low(x.Name):find("hob", 1, true)) then
+        if x:IsA("Model") and (x:GetAttribute("ApplianceType") == appliance or low(x.Name):find(low(nameHint), 1, true)) then
             local p = pos(x)
             if p and h then
                 local d = (p - h.Position).Magnitude
@@ -293,8 +299,19 @@ local function addPath(lines, base, names)
     end
 end
 
+local function addProgressScan(lines, base)
+    addPath(lines, base, {"ProgressBar"})
+    addPath(lines, base, {"ProgressBar","WarningImage"})
+    addPath(lines, base, {"ProgressBar","TickImage"})
+    addPath(lines, base, {"ProgressBar","BurntImage"})
+    addPath(lines, base, {"ProgressBar","Progress"})
+    addPath(lines, base, {"ProgressBar","Progress","Background"})
+    addPath(lines, base, {"ProgressBar","Progress","Shadow"})
+    addPath(lines, base, {"ProgressBar","Progress","Bar"})
+end
+
 local function scanPanela()
-    local hob, source = findHob()
+    local hob, source = findByAppliance("Hob", "hob")
     local lines = {}
     if not hob then
         table.insert(lines, "Nenhuma Hob detectada. Fique perto/de frente da panela.")
@@ -316,22 +333,9 @@ local function scanPanela()
         for _, c in ipairs(pan:GetChildren()) do table.insert(lines, "  - "..c.Name.." ["..c.ClassName.."]") end
     end
 
-    addPath(lines, hob, {"ProgressBar"})
-    addPath(lines, hob, {"ProgressBar","WarningImage"})
-    addPath(lines, hob, {"ProgressBar","TickImage"})
-    addPath(lines, hob, {"ProgressBar","BurntImage"})
-    addPath(lines, hob, {"ProgressBar","Progress"})
-    addPath(lines, hob, {"ProgressBar","Progress","Background"})
-    addPath(lines, hob, {"ProgressBar","Progress","Shadow"})
-
+    addProgressScan(lines, hob)
     if pan then
-        addPath(lines, pan, {"ProgressBar"})
-        addPath(lines, pan, {"ProgressBar","WarningImage"})
-        addPath(lines, pan, {"ProgressBar","TickImage"})
-        addPath(lines, pan, {"ProgressBar","BurntImage"})
-        addPath(lines, pan, {"ProgressBar","Progress"})
-        addPath(lines, pan, {"ProgressBar","Progress","Background"})
-        addPath(lines, pan, {"ProgressBar","Progress","Shadow"})
+        addProgressScan(lines, pan)
         addPath(lines, pan, {"ItemPosition","IngredientsUi"})
         addPath(lines, pan, {"ItemPosition","IngredientsUi","Frame"})
         addPath(lines, pan, {"ItemPosition","IngredientsUi","Frame","PlusIcon","Icon"})
@@ -340,20 +344,88 @@ local function scanPanela()
     end
 
     table.insert(lines, "")
-    table.insert(lines, "Todos GuiObjects importantes da panela:")
-    local scanRoot = pan or hob
-    for _, d in ipairs(scanRoot:GetDescendants()) do
+    table.insert(lines, "Models importantes dentro da panela:")
+    for _, d in ipairs((pan or hob):GetDescendants()) do
+        if d:IsA("Model") then
+            table.insert(lines, "  - "..d.Name.." | "..path(d))
+        end
+    end
+
+    printCopy("SCAN PANELA", lines)
+end
+
+local function scanPia()
+    local sink, source = findByAppliance("Sink", "sink")
+    local lines = {}
+    if not sink then
+        table.insert(lines, "Nenhuma Sink detectada. Fique perto/de frente da pia.")
+        printCopy("SCAN PIA", lines)
+        return
+    end
+
+    table.insert(lines, "Fonte: "..tostring(source))
+    table.insert(lines, "Sink="..path(sink))
+    table.insert(lines, "Dist="..tostring(dist(sink) or "?"))
+    table.insert(lines, "ApplianceType="..tostring(sink:GetAttribute("ApplianceType")))
+    table.insert(lines, "")
+    table.insert(lines, "Children Sink:")
+    for _, c in ipairs(sink:GetChildren()) do table.insert(lines, "  - "..c.Name.." ["..c.ClassName.."]") end
+
+    table.insert(lines, "")
+    table.insert(lines, "ItemPosition:")
+    local itemPos = sink:FindFirstChild("ItemPosition", true)
+    if itemPos then
+        table.insert(lines, "Path="..path(itemPos))
+        table.insert(lines, "Children ItemPosition:")
+        for _, c in ipairs(itemPos:GetChildren()) do table.insert(lines, "  - "..c.Name.." ["..c.ClassName.."]") end
+    else
+        table.insert(lines, "NÃO EXISTE")
+    end
+
+    addProgressScan(lines, sink)
+
+    table.insert(lines, "")
+    table.insert(lines, "Plate/DirtyPlate dentro da Sink:")
+    local foundPlate = false
+    for _, d in ipairs(sink:GetDescendants()) do
+        local n = low(d.Name)
+        if n:find("plate", 1, true) or n:find("dirty", 1, true) then
+            foundPlate = true
+            table.insert(lines, "  - "..d.Name.." ["..d.ClassName.."] | "..path(d))
+        end
+    end
+    if not foundPlate then table.insert(lines, "  nenhum") end
+
+    table.insert(lines, "")
+    table.insert(lines, "GuiObjects importantes dentro da Sink:")
+    for _, d in ipairs(sink:GetDescendants()) do
         if d:IsA("BillboardGui") or d:IsA("ImageLabel") or d:IsA("ImageButton") or d:IsA("Frame") then
             local n, pth = low(d.Name), low(path(d))
             if n:find("warning",1,true) or n:find("tick",1,true) or n:find("burnt",1,true)
-            or n:find("progress",1,true) or n:find("ingredient",1,true) or n:find("icon",1,true)
-            or pth:find("progressbar",1,true) or pth:find("ingredientsui",1,true) then
+            or n:find("progress",1,true) or n:find("bar",1,true)
+            or pth:find("progressbar",1,true) then
                 table.insert(lines, "")
                 for _, x in ipairs(guiLine(d)) do table.insert(lines, x) end
             end
         end
     end
-    printCopy("SCAN PANELA", lines)
+
+    table.insert(lines, "")
+    table.insert(lines, "Plate/DirtyPlate no personagem:")
+    local char = lp.Character
+    local foundChar = false
+    if char then
+        for _, d in ipairs(char:GetDescendants()) do
+            local n = low(d.Name)
+            if n:find("plate", 1, true) or n:find("dirty", 1, true) then
+                foundChar = true
+                table.insert(lines, "  - "..d.Name.." ["..d.ClassName.."] | "..path(d))
+            end
+        end
+    end
+    if not foundChar then table.insert(lines, "  nenhum") end
+
+    printCopy("SCAN PIA", lines)
 end
 
 local old = pg:FindFirstChild(GUI_NAME)
@@ -366,8 +438,8 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = pg
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 108)
-frame.Position = UDim2.new(0, 110, 0.34, 0)
+frame.Size = UDim2.new(0, 205, 0, 158)
+frame.Position = UDim2.new(0, 110, 0.31, 0)
 frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
 frame.BackgroundTransparency = 0.12
 frame.BorderSizePixel = 0
@@ -392,6 +464,7 @@ end
 
 makeBtn("SCAN FRENTE", 8, scanFrente)
 makeBtn("SCAN PANELA", 58, scanPanela)
+makeBtn("SCAN PIA", 108, scanPia)
 
 local dragging, dragStart, startPos = false, nil, nil
 frame.InputBegan:Connect(function(input)
@@ -413,4 +486,4 @@ UIS.InputChanged:Connect(function(input)
     end
 end)
 
-warn("[CK] carregado. SCAN FRENTE e SCAN PANELA copiam o resultado.")
+warn("[CK] carregado. SCAN FRENTE, SCAN PANELA e SCAN PIA copiam o resultado.")
