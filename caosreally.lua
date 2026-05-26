@@ -1274,4 +1274,3 @@ RunService.Heartbeat:Connect(function()
         handleEmptyHands()
     end
 end)
-print(carregado com sucesso!)
