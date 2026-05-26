@@ -1,7 +1,7 @@
 -- AUTOFARM: CAOS NA COZINHA / COOKING CHAOS
+-- Versao: 1 clique por etapa + delay 2s antes de teleporte + espera 0.5s antes de interagir
 -- Baseado nas regras do TXT: Kebab / Cidade Symmetri
--- Versão: teleporte rápido + confirmação obrigatória + atraso global antes de teletransportar
--- Uso recomendado: somente em jogo próprio / ambiente de teste.
+-- Uso recomendado: somente em jogo proprio / ambiente de teste.
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -15,21 +15,12 @@ local Interactables = Workspace:WaitForChild("Interactables")
 ------------------------------------------------------------
 
 local USE_TELEPORT = true
-
--- Espera antes de CADA teleporte.
--- Corrige o bug de teleportar antes do servidor/cliente terminar a ação anterior.
-local PRE_TELEPORT_DELAY = 1.00
-
--- Espera depois do teleporte para a marcação/prompt aparecer.
-local PROMPT_SETTLE_DELAY = 0.35
-
--- Intervalo entre tentativas de interação enquanto espera a condição correta.
-local CLICK_RETRY_DELAY = 0.12
-
-local ACTION_COOLDOWN = 0.18
+local PRE_TELEPORT_DELAY = 2.00      -- espera ANTES de teleportar para a proxima etapa
+local PROMPT_SETTLE_DELAY = 0.50     -- espera DEPOIS de teleportar, antes do unico clique
+local ACTION_COOLDOWN = 0.30
 local INTERACT_DISTANCE = 8
 local TELEPORT_OFFSET = 4.5
-local WAIT_TIMEOUT = 12
+local VERIFY_TIMEOUT = 10
 
 local busy = false
 local lastAction = 0
@@ -44,7 +35,7 @@ local function log(...)
 end
 
 ------------------------------------------------------------
--- UTILS BÁSICOS
+-- UTILS BASICOS
 ------------------------------------------------------------
 
 local function now()
@@ -132,11 +123,28 @@ local function isDescendantOfCharacter(obj)
     return char and obj:IsDescendantOf(char)
 end
 
+local function waitUntil(predicate, label, timeout)
+    timeout = timeout or VERIFY_TIMEOUT
+    local started = now()
+
+    while now() - started < timeout do
+        local ok, result = pcall(predicate)
+        if ok and result then
+            log("Confirmado:", label)
+            return true
+        end
+        task.wait(0.12)
+    end
+
+    log("Nao confirmou:", label)
+    return false
+end
+
 ------------------------------------------------------------
--- ITEM NA MÃO
+-- ITEM NA MAO
 ------------------------------------------------------------
 
-local VALID_ITEM_TYPES = {
+local VALID_TYPES = {
     RawBeef = true,
     Pineapple = true,
     Tomato = true,
@@ -147,89 +155,104 @@ local VALID_ITEM_TYPES = {
     DirtyPlate = true,
 }
 
-local function getTypeFromObject(obj)
+local function typeFromObj(obj)
     if not obj then return nil end
 
     local attr = obj:GetAttribute("Type")
-    if attr and VALID_ITEM_TYPES[attr] then
+    if attr and VALID_TYPES[attr] then
         return attr
     end
 
-    if VALID_ITEM_TYPES[obj.Name] then
+    if VALID_TYPES[obj.Name] then
         return obj.Name
     end
 
     return nil
 end
 
+local function getHandParts()
+    local char = getCharacter()
+    if not char then return {} end
+
+    local parts = {}
+    local names = {
+        "RightHand",
+        "Right Arm",
+        "LeftHand",
+        "Left Arm",
+        "HumanoidRootPart",
+    }
+
+    for _, name in ipairs(names) do
+        local part = char:FindFirstChild(name, true)
+        if part and part:IsA("BasePart") then
+            table.insert(parts, part)
+        end
+    end
+
+    return parts
+end
+
+local function nearHand(obj)
+    local pos = safePivot(obj)
+    if not pos then return false end
+
+    for _, part in ipairs(getHandParts()) do
+        if (part.Position - pos).Magnitude <= 7 then
+            return true
+        end
+    end
+
+    return false
+end
+
 local function getHeldItem()
     local char = getCharacter()
     if not char then return nil, nil end
 
-    -- 1. filhos diretos do Character
+    -- 1. Filhos diretos do Character.
     for _, child in ipairs(char:GetChildren()) do
-        local t = getTypeFromObject(child)
-        if t then
-            return child, t
-        end
+        local t = typeFromObj(child)
+        if t then return child, t end
     end
 
-    -- 2. Tool e descendentes
+    -- 2. Tool e descendentes de Tool.
     local tool = char:FindFirstChildOfClass("Tool")
     if tool then
-        local t = getTypeFromObject(tool)
+        local t = typeFromObj(tool)
         if t then return tool, t end
 
         for _, d in ipairs(tool:GetDescendants()) do
-            t = getTypeFromObject(d)
-            if t then return tool, t end
+            local dt = typeFromObj(d)
+            if dt then return tool, dt end
         end
     end
 
-    -- 3. descendentes do Character
+    -- 3. Descendentes do Character.
     for _, d in ipairs(char:GetDescendants()) do
-        local t = getTypeFromObject(d)
-        if t then
-            return d, t
-        end
+        local t = typeFromObj(d)
+        if t then return d, t end
     end
 
-    -- 4. fallback: item muito perto da mão/corpo, comum quando o item fica em Workspace.Interactables
-    local root = getRoot()
-    if root then
-        local best, bestType, bestD = nil, nil, math.huge
-
-        for _, obj in ipairs(Interactables:GetDescendants()) do
-            local t = getTypeFromObject(obj)
-            if t then
-                local pos = safePivot(obj)
-                if pos then
-                    local d = (root.Position - pos).Magnitude
-                    if d < bestD and d <= 5.5 then
-                        best = obj
-                        bestType = t
-                        bestD = d
-                    end
-                end
-            end
-        end
-
-        if best then
-            return best, bestType
+    -- 4. Fallback: item do Interactables colado/perto da mao.
+    for _, obj in ipairs(Interactables:GetDescendants()) do
+        local t = typeFromObj(obj)
+        if t and nearHand(obj) then
+            return obj, t
         end
     end
 
     return nil, nil
 end
 
-local function heldIs(expectedType)
-    local _, itemType = getHeldItem()
-    return itemType == expectedType
+local function heldIs(itemType)
+    local _, heldType = getHeldItem()
+    return heldType == itemType
 end
 
 local function handEmpty()
-    local _, itemType = getHeldItem()
-    return itemType == nil
+    local _, heldType = getHeldItem()
+    return heldType == nil
 end
 
 ------------------------------------------------------------
@@ -283,238 +306,32 @@ end
 local function hasIngredient(container, ingredientName)
     if not container then return false end
 
-    if container.Name == ingredientName then
-        return true
-    end
-
-    if container:GetAttribute("Type") == ingredientName then
-        return true
-    end
+    if container.Name == ingredientName then return true end
+    if container:GetAttribute("Type") == ingredientName then return true end
 
     return container:FindFirstChild(ingredientName, true) ~= nil
 end
 
-local function getNearestEmptyCountertop()
-    return getNearestWhere(function(obj)
-        if obj:GetAttribute("ApplianceType") ~= "Countertop" and obj.Name ~= "Countertop" then
-            return false
-        end
-
-        local blockedNames = {
-            Plate = true,
-            DirtyPlate = true,
-            Kebab = true,
-            Salad = true,
-            CookedMeat = true,
-            PineappleRings = true,
-            ChoppedTomato = true,
-            RawBeef = true,
-            Pineapple = true,
-            Tomato = true,
-            ChoppedMeat = true,
-            FryingPan = true,
-        }
-
-        for _, d in ipairs(obj:GetDescendants()) do
-            if blockedNames[d.Name] or blockedNames[d:GetAttribute("Type")] then
-                return false
-            end
-        end
-
-        return true
-    end)
-end
-
 ------------------------------------------------------------
--- TELEPORTE / INTERAÇÃO
+-- PRATOS / BANCADAS
 ------------------------------------------------------------
 
-local function teleportNear(target)
-    local root = getRoot()
-    local cf = safeCFrame(target)
-
-    if not root or not cf then
-        return false
-    end
-
-    task.wait(PRE_TELEPORT_DELAY)
-
-    local pos = cf.Position
-    local look = cf.LookVector
-    local targetPos = pos - (look * TELEPORT_OFFSET) + Vector3.new(0, 2.5, 0)
-
-    root.CFrame = CFrame.lookAt(targetPos, pos)
-    task.wait(PROMPT_SETTLE_DELAY)
-
-    return true
-end
-
-local function walkNear(target)
-    local humanoid = getHumanoid()
-    local root = getRoot()
-    local pos = safePivot(target)
-
-    if not humanoid or not root or not pos then
-        return false
-    end
-
-    if (root.Position - pos).Magnitude <= INTERACT_DISTANCE then
-        return true
-    end
-
-    task.wait(PRE_TELEPORT_DELAY)
-
-    humanoid:MoveTo(pos)
-
-    local started = now()
-    while now() - started < 4 do
-        root = getRoot()
-        if not root then return false end
-
-        if (root.Position - pos).Magnitude <= INTERACT_DISTANCE then
-            task.wait(PROMPT_SETTLE_DELAY)
-            return true
-        end
-
-        task.wait(0.05)
-    end
-
-    return false
-end
-
-local function goNear(target)
-    if USE_TELEPORT then
-        local ok = teleportNear(target)
-        if ok then return true end
-    end
-
-    return walkNear(target)
-end
-
-local function findPrompt(target)
-    if not target then return nil end
-
-    if target:IsA("ProximityPrompt") then
-        return target
-    end
-
-    return target:FindFirstChildWhichIsA("ProximityPrompt", true)
-end
-
-local function clickPrompt(prompt)
-    if not prompt then return false end
-
-    local hold = prompt.HoldDuration or 0
-
-    pcall(function()
-        prompt:InputHoldBegin()
-    end)
-
-    task.wait(math.max(hold + 0.03, 0.08))
-
-    pcall(function()
-        prompt:InputHoldEnd()
-    end)
-
-    return true
-end
-
-local function interactOnce(target)
-    if not target then return false end
-
-    local prompt = findPrompt(target)
-
-    if prompt then
-        return clickPrompt(prompt)
-    end
-
-    warn("[Autofarm] Nenhum ProximityPrompt encontrado em:", target:GetFullName())
-    return false
-end
-
--- Interage até a condição ficar verdadeira.
--- Isso impede avançar sem pegar/soltar o item exato esperado.
-local function interactUntil(target, conditionFn, label, timeout)
-    timeout = timeout or WAIT_TIMEOUT
-
-    if not target then
-        log("Falhou:", label, "alvo nil")
-        return false
-    end
-
-    if conditionFn and conditionFn() then
-        log("OK antes de clicar:", label)
-        return true
-    end
-
-    local reached = goNear(target)
-    if not reached then
-        log("Falhou ao chegar:", label)
-        return false
-    end
-
-    local started = now()
-    while now() - started < timeout do
-        if conditionFn and conditionFn() then
-            log("Confirmado:", label)
-            return true
-        end
-
-        interactOnce(target)
-
-        task.wait(CLICK_RETRY_DELAY)
-
-        if conditionFn and conditionFn() then
-            log("Confirmado:", label)
-            return true
-        end
-    end
-
-    log("Timeout:", label)
-    return false
-end
-
-local function waitUntil(conditionFn, label, timeout)
-    timeout = timeout or WAIT_TIMEOUT
-    local started = now()
-
-    while now() - started < timeout do
-        if conditionFn() then
-            log("Confirmado:", label)
-            return true
-        end
-        task.wait(0.12)
-    end
-
-    log("Timeout esperando:", label)
-    return false
-end
-
-local function doAction(stateName, fn)
-    if not canAct() then return end
-
-    setBusy(true, stateName)
-    lastAction = now()
-    log("AÇÃO:", stateName)
-
-    task.spawn(function()
-        local ok, err = pcall(fn)
-        if not ok then
-            warn("[Autofarm erro][" .. tostring(stateName) .. "]", err)
-        end
-
-        task.wait(ACTION_COOLDOWN)
-        setBusy(false, "Idle")
-    end)
-end
-
-------------------------------------------------------------
--- PRATOS / INGREDIENTES
-------------------------------------------------------------
+local BLOCK_COUNTER = {
+    Plate = true,
+    DirtyPlate = true,
+    Kebab = true,
+    Salad = true,
+    CookedMeat = true,
+    PineappleRings = true,
+    ChoppedTomato = true,
+    RawBeef = true,
+    Pineapple = true,
+    Tomato = true,
+    ChoppedMeat = true,
+}
 
 local function isPlateObject(obj)
     if not obj then return false end
-
     return obj:GetAttribute("Type") == "Plate" or obj.Name == "Plate"
 end
 
@@ -538,25 +355,63 @@ local function getPlateState(plate)
 end
 
 local function heldPlateHas(ingredientName)
-    local held, itemType = getHeldItem()
-    return itemType == "Plate" and hasIngredient(held, ingredientName)
+    local held, heldType = getHeldItem()
+    return heldType == "Plate" and hasIngredient(held, ingredientName)
 end
 
 local function heldPlateComplete()
-    local held, itemType = getHeldItem()
-    if itemType ~= "Plate" then return false end
-    return getPlateState(held).complete
+    local held, heldType = getHeldItem()
+    return heldType == "Plate" and getPlateState(held).complete
+end
+
+local function getAllWorldPlates()
+    local plates = {}
+    local seen = {}
+
+    for _, obj in ipairs(Interactables:GetDescendants()) do
+        if isPlateObject(obj) and not isDescendantOfCharacter(obj) and not seen[obj] then
+            seen[obj] = true
+            table.insert(plates, obj)
+        end
+    end
+
+    return plates
+end
+
+local function getNearestCleanEmptyPlate()
+    return getNearestWhere(function(obj)
+        if not isPlateObject(obj) then return false end
+        return getPlateState(obj).count == 0
+    end)
+end
+
+local function getNearestCompletePlate()
+    return getNearestWhere(function(obj)
+        if not isPlateObject(obj) then return false end
+        return getPlateState(obj).complete
+    end)
+end
+
+local function getNearestEmptyCountertop()
+    return getNearestWhere(function(obj)
+        if obj:GetAttribute("ApplianceType") ~= "Countertop" and obj.Name ~= "Countertop" then
+            return false
+        end
+
+        for _, d in ipairs(obj:GetDescendants()) do
+            if BLOCK_COUNTER[d.Name] or BLOCK_COUNTER[d:GetAttribute("Type")] then
+                return false
+            end
+        end
+
+        return true
+    end)
 end
 
 local function plateAlreadyHasIngredient(state, ingredientType)
-    if ingredientType == "CookedMeat" then
-        return state.hasMeat
-    elseif ingredientType == "PineappleRings" then
-        return state.hasPineapple
-    elseif ingredientType == "ChoppedTomato" then
-        return state.hasTomato
-    end
-
+    if ingredientType == "CookedMeat" then return state.hasMeat end
+    if ingredientType == "PineappleRings" then return state.hasPineapple end
+    if ingredientType == "ChoppedTomato" then return state.hasTomato end
     return false
 end
 
@@ -568,24 +423,7 @@ local function wouldCompletePlate(state, ingredientType)
     elseif ingredientType == "ChoppedTomato" then
         return state.hasMeat and state.hasPineapple and not state.hasTomato
     end
-
     return false
-end
-
-local function getAllWorldPlates()
-    local plates = {}
-    local seen = {}
-
-    for _, obj in ipairs(Interactables:GetDescendants()) do
-        if isPlateObject(obj) and not isDescendantOfCharacter(obj) then
-            if not seen[obj] then
-                seen[obj] = true
-                table.insert(plates, obj)
-            end
-        end
-    end
-
-    return plates
 end
 
 local function getBestPlate(ingredientType)
@@ -595,15 +433,16 @@ local function getBestPlate(ingredientType)
 
     for _, plate in ipairs(getAllWorldPlates()) do
         local state = getPlateState(plate)
-
         if not state.complete and not plateAlreadyHasIngredient(state, ingredientType) then
-            local score = 0
-
+            local score = state.count * 100
             if wouldCompletePlate(state, ingredientType) then
                 score += 1000
             end
 
-            score += state.count * 100
+            -- Carne sempre tem prioridade de base: para abacaxi/tomate, preferir prato que ja tem carne.
+            if ingredientType ~= "CookedMeat" and state.hasMeat then
+                score += 500
+            end
 
             local d = distanceTo(plate)
             score -= d * 0.01
@@ -619,70 +458,29 @@ local function getBestPlate(ingredientType)
     return bestPlate
 end
 
-local function getNearestCompletePlate()
-    return getNearestWhere(function(obj)
-        if not isPlateObject(obj) then return false end
-        return getPlateState(obj).complete
-    end)
+local function existsPlateWithMeatNeedsPineapple()
+    for _, plate in ipairs(getAllWorldPlates()) do
+        local s = getPlateState(plate)
+        if s.hasMeat and not s.hasPineapple and not s.complete then return true end
+    end
+    return false
 end
 
-local function getNearestCleanEmptyPlate()
-    return getNearestWhere(function(obj)
-        if not isPlateObject(obj) then return false end
-        return getPlateState(obj).count == 0
-    end)
+local function existsPlateWithMeatPineappleNeedsTomato()
+    for _, plate in ipairs(getAllWorldPlates()) do
+        local s = getPlateState(plate)
+        if s.hasMeat and s.hasPineapple and not s.hasTomato then return true end
+    end
+    return false
 end
 
 ------------------------------------------------------------
--- CHOPPING BOARD
-------------------------------------------------------------
-
-local function boardHas(board, itemType)
-    return hasIngredient(board, itemType)
-end
-
-local function cutIngredient(rawType, choppedType)
-    local board = getNearestAppliance("ChoppingBoard")
-    if not board then
-        log("Sem ChoppingBoard para", rawType)
-        return
-    end
-
-    if not heldIs(rawType) then
-        log("Bloqueado: preciso estar com", rawType, "na mão.")
-        return
-    end
-
-    local placed = interactUntil(board, function()
-        return not heldIs(rawType) or boardHas(board, rawType) or boardHas(board, choppedType)
-    end, "colocar " .. rawType .. " na ChoppingBoard", 8)
-
-    if not placed then return end
-
-    waitUntil(function()
-        return boardHas(board, choppedType) or heldIs(choppedType)
-    end, rawType .. " virar " .. choppedType, 10)
-
-    if heldIs(choppedType) then
-        return
-    end
-
-    interactUntil(board, function()
-        return heldIs(choppedType)
-    end, "pegar " .. choppedType .. " da ChoppingBoard", 8)
-end
-
-------------------------------------------------------------
--- PANELA / HOB / FRYINGPAN
+-- PANELA / HOB
 ------------------------------------------------------------
 
 local function getFryingPan(hob)
     if not hob then return nil end
-
-    if hob.Name == "FryingPan" then
-        return hob
-    end
-
+    if hob.Name == "FryingPan" then return hob end
     return hob:FindFirstChild("FryingPan", true)
 end
 
@@ -702,33 +500,26 @@ local function isPanBurnt(hob)
     local burnt = pan:FindFirstChild("BurntImage", true)
     if not burnt then return false end
 
-    local visible = burnt.Visible == true
-    local transparent = burnt.ImageTransparency ~= nil and burnt.ImageTransparency < 0.5
-
-    return visible and transparent
+    return burnt.Visible == true
+        and burnt.ImageTransparency ~= nil
+        and burnt.ImageTransparency < 0.5
 end
 
 local function isPanReady(hob)
     local pan = getFryingPan(hob)
-    if not pan then return false end
-
-    if isPanBurnt(hob) then
-        return false
-    end
+    if not pan or isPanBurnt(hob) then return false end
 
     local tickImage = pan:FindFirstChild("TickImage", true)
     if not tickImage then return false end
 
-    local visible = tickImage.Visible == true
-    local transparent = tickImage.ImageTransparency ~= nil and tickImage.ImageTransparency < 0.5
-
-    return visible and transparent
+    return tickImage.Visible == true
+        and tickImage.ImageTransparency ~= nil
+        and tickImage.ImageTransparency < 0.5
 end
 
 local function panHasChoppedMeat(hob)
     local pan = getFryingPan(hob)
-    if not pan then return false end
-    return hasIngredient(pan, "ChoppedMeat")
+    return pan and hasIngredient(pan, "ChoppedMeat")
 end
 
 local function getNearestReadyPan()
@@ -736,85 +527,21 @@ local function getNearestReadyPan()
         if obj:GetAttribute("ApplianceType") ~= "Hob" and obj.Name ~= "Hob" then
             return false
         end
-
         return isPanReady(obj)
     end)
 end
 
-local function putChoppedMeatOnPan()
-    local hob = getNearestHobWithPan()
-    if not hob then
-        log("Sem Hob/FryingPan.")
-        return
-    end
-
-    if isPanBurnt(hob) then
-        log("Panela queimada. Ignorando.")
-        return
-    end
-
-    if not heldIs("ChoppedMeat") then
-        log("Bloqueado: só vou para a panela com ChoppedMeat na mão.")
-        return
-    end
-
-    interactUntil(hob, function()
-        return not heldIs("ChoppedMeat") and panHasChoppedMeat(hob)
-    end, "colocar ChoppedMeat na panela", 8)
-end
-
-local function pickPlateForReadyPan(hob)
-    if not hob then return end
-
-    if not handEmpty() then
-        log("Bloqueado: só vou buscar Plate se a mão estiver vazia.")
-        return
-    end
-
-    local plate = getNearestCleanEmptyPlate()
-    if not plate then
-        log("Sem Plate limpo vazio para pegar carne.")
-        return
-    end
-
-    local gotPlate = interactUntil(plate, function()
-        return heldIs("Plate")
-    end, "pegar Plate limpo", 8)
-
-    if not gotPlate then return end
-
-    if not heldIs("Plate") then
-        log("Bloqueado: não vou para panela sem Plate na mão.")
-        return
-    end
-
-    waitUntil(function()
-        return isPanReady(hob) or isPanBurnt(hob)
-    end, "carne da panela ficar pronta", 16)
-
-    if isPanBurnt(hob) then
-        log("Carne queimou. Não vou pegar.")
-        return
-    end
-
-    interactUntil(hob, function()
-        return heldPlateHas("CookedMeat")
-    end, "pegar CookedMeat com Plate", 10)
-
-    if heldPlateHas("CookedMeat") then
-        local counter = getNearestEmptyCountertop()
-        if counter then
-            interactUntil(counter, function()
-                return handEmpty()
-            end, "colocar Plate com CookedMeat na bancada", 8)
+local function getNearestCookingPan()
+    return getNearestWhere(function(obj)
+        if obj:GetAttribute("ApplianceType") ~= "Hob" and obj.Name ~= "Hob" then
+            return false
         end
-    else
-        log("Bloqueado: Plate ainda não tem CookedMeat, não vou para bancada.")
-    end
+        return panHasChoppedMeat(obj) and not isPanReady(obj) and not isPanBurnt(obj)
+    end)
 end
 
 ------------------------------------------------------------
--- PIA / SINK
+-- PIA
 ------------------------------------------------------------
 
 local function isSinkWashing(sink)
@@ -829,9 +556,7 @@ local function isSinkWashing(sink)
 
     if bar and bar:IsA("GuiObject") then
         local scale = bar.Size.X.Scale
-        if scale and scale > 0.01 then
-            return true
-        end
+        if scale and scale > 0.01 then return true end
     end
 
     return false
@@ -843,314 +568,404 @@ local function waitForSinkToFinish(sink)
     end, "pia terminar lavagem", 14)
 end
 
-local function handleDirtyPlate()
-    local sink = getNearestAppliance("Sink")
-    if not sink then return end
+------------------------------------------------------------
+-- TELEPORTE / INTERACAO: 1 CLIQUE POR ETAPA
+------------------------------------------------------------
 
-    if not heldIs("DirtyPlate") then
-        log("Bloqueado: preciso estar com DirtyPlate para lavar.")
-        return
-    end
+local function teleportNear(target)
+    local root = getRoot()
+    local cf = safeCFrame(target)
+    if not root or not cf then return false end
 
-    interactUntil(sink, function()
-        return isSinkWashing(sink) or not heldIs("DirtyPlate")
-    end, "colocar DirtyPlate na Sink", 8)
+    task.wait(PRE_TELEPORT_DELAY)
 
-    waitForSinkToFinish(sink)
+    local pos = cf.Position
+    local look = cf.LookVector
+    local targetPos = pos - (look * TELEPORT_OFFSET) + Vector3.new(0, 2.5, 0)
 
-    task.wait(0.3)
+    root.CFrame = CFrame.lookAt(targetPos, pos)
+    task.wait(PROMPT_SETTLE_DELAY)
 
-    if heldIs("Plate") then
-        local counter = getNearestEmptyCountertop()
-        if counter then
-            interactUntil(counter, function()
-                return handEmpty()
-            end, "colocar Plate limpo na bancada", 8)
+    return true
+end
+
+local function walkNear(target)
+    local humanoid = getHumanoid()
+    local root = getRoot()
+    local pos = safePivot(target)
+    if not humanoid or not root or not pos then return false end
+
+    task.wait(PRE_TELEPORT_DELAY)
+    humanoid:MoveTo(pos)
+
+    local started = now()
+    while now() - started < 4 do
+        root = getRoot()
+        if not root then return false end
+        if (root.Position - pos).Magnitude <= INTERACT_DISTANCE then
+            task.wait(PROMPT_SETTLE_DELAY)
+            return true
         end
+        task.wait(0.05)
     end
+
+    return false
+end
+
+local function goNear(target)
+    if USE_TELEPORT then
+        local ok = teleportNear(target)
+        if ok then return true end
+    end
+    return walkNear(target)
+end
+
+local function findPrompt(target)
+    if not target then return nil end
+    if target:IsA("ProximityPrompt") then return target end
+    return target:FindFirstChildWhichIsA("ProximityPrompt", true)
+end
+
+local function clickPromptOnce(prompt)
+    if not prompt then return false end
+
+    local hold = prompt.HoldDuration or 0
+
+    pcall(function()
+        prompt:InputHoldBegin()
+    end)
+
+    task.wait(math.max(hold + 0.04, 0.10))
+
+    pcall(function()
+        prompt:InputHoldEnd()
+    end)
+
+    return true
+end
+
+local function interactOnce(target, label)
+    if not target then
+        log("Alvo nil:", label)
+        return false
+    end
+
+    local prompt = findPrompt(target)
+    if not prompt then
+        warn("[Autofarm] Nenhum ProximityPrompt encontrado em:", target:GetFullName())
+        return false
+    end
+
+    log("Clique unico:", label)
+    return clickPromptOnce(prompt)
+end
+
+-- Faz UMA tentativa: teleporta, espera 0.5s, clica UMA vez, depois apenas verifica.
+-- Se nao confirmar, nao avanca para a proxima etapa; o loop principal podera tentar de novo depois.
+local function doOneClickStep(target, label, confirmFn, timeout)
+    timeout = timeout or VERIFY_TIMEOUT
+
+    if confirmFn and confirmFn() then
+        log("Ja confirmado:", label)
+        return true
+    end
+
+    if not goNear(target) then
+        log("Falhou ao chegar:", label)
+        return false
+    end
+
+    local clicked = interactOnce(target, label)
+    if not clicked then return false end
+
+    if not confirmFn then return true end
+
+    return waitUntil(confirmFn, label, timeout)
 end
 
 ------------------------------------------------------------
--- FINAL INGREDIENTS / SELL
+-- EXECUCAO SEGURA DE ACOES
 ------------------------------------------------------------
 
-local function addFinalIngredient(itemType)
+local function doAction(stateName, fn)
+    if not canAct() then return end
+
+    setBusy(true, stateName)
+    lastAction = now()
+    log("Acao:", stateName)
+
+    task.spawn(function()
+        local ok, err = pcall(fn)
+        if not ok then
+            warn("[Autofarm erro][" .. tostring(stateName) .. "]", err)
+        end
+
+        task.wait(ACTION_COOLDOWN)
+        setBusy(false, "Idle")
+    end)
+end
+
+------------------------------------------------------------
+-- FLUXOS
+------------------------------------------------------------
+
+local function cutIngredient(rawType, choppedType)
+    if not heldIs(rawType) then
+        log("Bloqueado: preciso estar com", rawType, "na mao.")
+        return
+    end
+
+    local board = getNearestAppliance("ChoppingBoard")
+    if not board then
+        log("Sem ChoppingBoard.")
+        return
+    end
+
+    local placed = doOneClickStep(board, "colocar " .. rawType .. " na ChoppingBoard", function()
+        return not heldIs(rawType) or hasIngredient(board, rawType) or hasIngredient(board, choppedType)
+    end, 5)
+
+    if not placed then return end
+
+    waitUntil(function()
+        return hasIngredient(board, choppedType) or heldIs(choppedType)
+    end, rawType .. " virar " .. choppedType, 12)
+
+    if heldIs(choppedType) then return end
+
+    doOneClickStep(board, "pegar " .. choppedType .. " da ChoppingBoard", function()
+        return heldIs(choppedType)
+    end, 8)
+end
+
+local function putChoppedMeatOnPan()
+    if not heldIs("ChoppedMeat") then
+        log("Bloqueado: so vou para a panela com ChoppedMeat na mao.")
+        return
+    end
+
+    local hob = getNearestHobWithPan()
+    if not hob then
+        log("Sem Hob/FryingPan.")
+        return
+    end
+
+    if isPanBurnt(hob) then
+        log("Panela queimada. Ignorando.")
+        return
+    end
+
+    doOneClickStep(hob, "colocar ChoppedMeat na panela", function()
+        return not heldIs("ChoppedMeat") and panHasChoppedMeat(hob)
+    end, 7)
+end
+
+local function getPlateAndTakeCookedMeat(hob)
+    if not hob then return end
+
+    if not heldIs("Plate") then
+        if not handEmpty() then
+            log("Bloqueado: mao ocupada, nao vou buscar Plate.")
+            return
+        end
+
+        local plate = getNearestCleanEmptyPlate()
+        if not plate then
+            log("Sem Plate limpo vazio.")
+            return
+        end
+
+        local gotPlate = doOneClickStep(plate, "pegar Plate limpo", function()
+            return heldIs("Plate")
+        end, 7)
+
+        if not gotPlate then return end
+    end
+
+    if not heldIs("Plate") then
+        log("Bloqueado: nao vou para panela sem Plate na mao.")
+        return
+    end
+
+    waitUntil(function()
+        return isPanReady(hob) or isPanBurnt(hob)
+    end, "carne ficar pronta na panela", 18)
+
+    if isPanBurnt(hob) then
+        log("Carne queimou. Nao vou pegar.")
+        return
+    end
+
+    local gotMeat = doOneClickStep(hob, "pegar CookedMeat com Plate", function()
+        return heldPlateHas("CookedMeat")
+    end, 8)
+
+    if not gotMeat then return end
+
+    local counter = getNearestEmptyCountertop()
+    if counter and heldPlateHas("CookedMeat") then
+        doOneClickStep(counter, "colocar Plate com CookedMeat na bancada", function()
+            return handEmpty()
+        end, 7)
+    end
+end
+
+local function addFinalIngredientToPlate(itemType)
     if not heldIs(itemType) then
-        log("Bloqueado: não estou com", itemType, "na mão.")
+        log("Bloqueado: preciso estar com", itemType, "na mao.")
         return
     end
 
     local plate = getBestPlate(itemType)
     if not plate then
-        log("Nenhum prato válido para", itemType)
+        log("Nenhum prato valido para", itemType)
         return
     end
 
-    interactUntil(plate, function()
+    doOneClickStep(plate, "colocar " .. itemType .. " no melhor Plate", function()
         return not heldIs(itemType)
-    end, "colocar " .. itemType .. " no melhor Plate", 8)
+    end, 7)
 end
 
-local function sellCompletePlate()
+local function sellHeldCompletePlate()
+    if not heldPlateComplete() then return false end
+
     local sellPoint = getNearestByName("SellPoint")
         or getNearestAppliance("Sell")
         or getNearestByName("Sell")
 
     if not sellPoint then
-        log("SellPoint não encontrado.")
-        return
+        log("Sem SellPoint.")
+        return false
     end
 
-    if heldIs("Plate") and heldPlateComplete() then
-        interactUntil(sellPoint, function()
-            return handEmpty()
-        end, "vender Plate completo", 8)
-        return
-    end
+    return doOneClickStep(sellPoint, "vender Plate completo", function()
+        return handEmpty()
+    end, 7)
+end
 
+local function pickAndSellWorldCompletePlate()
     local completePlate = getNearestCompletePlate()
-    if completePlate then
-        local got = interactUntil(completePlate, function()
-            return heldIs("Plate") and heldPlateComplete()
-        end, "pegar Plate completo", 8)
+    if not completePlate then return false end
 
-        if got then
-            interactUntil(sellPoint, function()
+    local got = doOneClickStep(completePlate, "pegar Plate completo", function()
+        return heldIs("Plate") and heldPlateComplete()
+    end, 7)
+
+    if got then
+        return sellHeldCompletePlate()
+    end
+
+    return false
+end
+
+local function washDirtyPlate()
+    if not heldIs("DirtyPlate") then
+        log("Bloqueado: preciso estar com DirtyPlate na mao.")
+        return
+    end
+
+    local sink = getNearestAppliance("Sink")
+    if not sink then
+        log("Sem Sink.")
+        return
+    end
+
+    doOneClickStep(sink, "colocar DirtyPlate na Sink", function()
+        return isSinkWashing(sink) or not heldIs("DirtyPlate")
+    end, 7)
+
+    waitForSinkToFinish(sink)
+
+    if heldIs("Plate") then
+        local counter = getNearestEmptyCountertop()
+        if counter then
+            doOneClickStep(counter, "colocar Plate limpo na bancada", function()
                 return handEmpty()
-            end, "vender Plate completo", 8)
+            end, 7)
         end
     end
 end
 
-------------------------------------------------------------
--- FLUXOS PRINCIPAIS
-------------------------------------------------------------
+local function pickDirtyPlateIfAny()
+    local dirty = getNearestWhere(function(obj)
+        return obj:GetAttribute("Type") == "DirtyPlate" or obj.Name == "DirtyPlate"
+    end)
 
-local function makeMeatFlow()
-    local _, itemType = getHeldItem()
+    if not dirty then return false end
 
-    if itemType == "RawBeef" then
-        cutIngredient("RawBeef", "ChoppedMeat")
-        return
-    end
-
-    if itemType == "ChoppedMeat" then
-        putChoppedMeatOnPan()
-        return
-    end
-
-    if handEmpty() then
-        local readyPan = getNearestReadyPan()
-        if readyPan then
-            pickPlateForReadyPan(readyPan)
-            return
-        end
-
-        local cookingPan = getNearestWhere(function(obj)
-            if obj:GetAttribute("ApplianceType") ~= "Hob" and obj.Name ~= "Hob" then
-                return false
-            end
-            return panHasChoppedMeat(obj) and not isPanReady(obj) and not isPanBurnt(obj)
-        end)
-
-        if cookingPan then
-            local plate = getNearestCleanEmptyPlate()
-            if plate then
-                local got = interactUntil(plate, function()
-                    return heldIs("Plate")
-                end, "pegar Plate enquanto carne assa", 8)
-
-                if got and heldIs("Plate") then
-                    waitUntil(function()
-                        return isPanReady(cookingPan) or isPanBurnt(cookingPan)
-                    end, "carne assar enquanto seguro Plate", 16)
-
-                    if isPanReady(cookingPan) then
-                        interactUntil(cookingPan, function()
-                            return heldPlateHas("CookedMeat")
-                        end, "pegar CookedMeat com Plate", 10)
-
-                        if heldPlateHas("CookedMeat") then
-                            local counter = getNearestEmptyCountertop()
-                            if counter then
-                                interactUntil(counter, function()
-                                    return handEmpty()
-                                end, "colocar Plate com CookedMeat na bancada", 8)
-                            end
-                        end
-                    end
-                end
-            end
-            return
-        end
-
-        local rawBeefBin = getNearestFoodBin("RawBeef")
-        if rawBeefBin then
-            interactUntil(rawBeefBin, function()
-                return heldIs("RawBeef")
-            end, "pegar RawBeef", 8)
-        end
-    end
+    return doOneClickStep(dirty, "pegar DirtyPlate", function()
+        return heldIs("DirtyPlate")
+    end, 7)
 end
 
-local function makePineappleFlow()
-    local _, itemType = getHeldItem()
+local function placeHeldPlateIfNeeded()
+    if not heldIs("Plate") then return end
 
-    if itemType == "Pineapple" then
-        cutIngredient("Pineapple", "PineappleRings")
-        return
-    end
-
-    if itemType == "PineappleRings" then
-        addFinalIngredient("PineappleRings")
-        return
-    end
-
-    if handEmpty() then
-        local bin = getNearestFoodBin("Pineapple")
-        if bin then
-            interactUntil(bin, function()
-                return heldIs("Pineapple")
-            end, "pegar Pineapple", 8)
-        end
-    end
-end
-
-local function makeTomatoFlow()
-    local _, itemType = getHeldItem()
-
-    if itemType == "Tomato" then
-        cutIngredient("Tomato", "ChoppedTomato")
-        return
-    end
-
-    if itemType == "ChoppedTomato" then
-        addFinalIngredient("ChoppedTomato")
-        return
-    end
-
-    if handEmpty() then
-        local bin = getNearestFoodBin("Tomato")
-        if bin then
-            interactUntil(bin, function()
-                return heldIs("Tomato")
-            end, "pegar Tomato", 8)
-        end
-    end
-end
-
-local function handlePlateInHand()
     if heldPlateComplete() then
-        sellCompletePlate()
+        sellHeldCompletePlate()
         return
     end
 
     local readyPan = getNearestReadyPan()
     if readyPan then
-        interactUntil(readyPan, function()
-            return heldPlateHas("CookedMeat")
-        end, "pegar CookedMeat com Plate", 10)
-
-        if heldPlateHas("CookedMeat") then
-            local counter = getNearestEmptyCountertop()
-            if counter then
-                interactUntil(counter, function()
-                    return handEmpty()
-                end, "colocar Plate com CookedMeat na bancada", 8)
-            end
-        end
+        getPlateAndTakeCookedMeat(readyPan)
         return
     end
 
     local counter = getNearestEmptyCountertop()
     if counter then
-        interactUntil(counter, function()
+        doOneClickStep(counter, "colocar Plate na bancada", function()
             return handEmpty()
-        end, "colocar Plate na bancada", 8)
+        end, 7)
     end
 end
 
+local function getFoodBinItem(foodType)
+    local bin = getNearestFoodBin(foodType)
+    if not bin then
+        log("Sem FoodBin:", foodType)
+        return
+    end
+
+    doOneClickStep(bin, "pegar " .. foodType .. " no FoodBin", function()
+        return heldIs(foodType)
+    end, 7)
+end
+
 local function handleEmptyHands()
-    -- 1. vender prato completo
-    local completePlate = getNearestCompletePlate()
-    if completePlate then
-        sellCompletePlate()
-        return
-    end
+    -- 1. Vender prato pronto se existir.
+    if pickAndSellWorldCompletePlate() then return end
 
-    -- 2. lavar prato sujo
-    local dirty = getNearestWhere(function(obj)
-        return obj:GetAttribute("Type") == "DirtyPlate" or obj.Name == "DirtyPlate"
-    end)
+    -- 2. Se tiver prato sujo, lavar.
+    if pickDirtyPlateIfAny() then return end
 
-    if dirty then
-        local got = interactUntil(dirty, function()
-            return heldIs("DirtyPlate")
-        end, "pegar DirtyPlate", 8)
-
-        if got and heldIs("DirtyPlate") then
-            handleDirtyPlate()
-        end
-
-        return
-    end
-
-    -- 3. carne sempre primeiro
-    local plateWithMeat = getNearestWhere(function(obj)
-        if not isPlateObject(obj) then return false end
-        local state = getPlateState(obj)
-        return state.hasMeat and not state.complete
-    end)
-
+    -- 3. Se a carne estiver pronta, pegar Plate e retirar da panela.
     local readyPan = getNearestReadyPan()
-    local anyCookingMeat = getNearestWhere(function(obj)
-        if obj:GetAttribute("ApplianceType") ~= "Hob" and obj.Name ~= "Hob" then
-            return false
-        end
-        return panHasChoppedMeat(obj) and not isPanBurnt(obj)
-    end)
-
-    if not plateWithMeat then
-        if readyPan then
-            pickPlateForReadyPan(readyPan)
-            return
-        end
-
-        if anyCookingMeat then
-            makeMeatFlow()
-            return
-        end
-
-        makeMeatFlow()
+    if readyPan then
+        getPlateAndTakeCookedMeat(readyPan)
         return
     end
 
-    -- 4. depois abacaxi
-    local needPineapple = getNearestWhere(function(obj)
-        if not isPlateObject(obj) then return false end
-        local s = getPlateState(obj)
-        return s.hasMeat and not s.hasPineapple and not s.complete
-    end)
-
-    if needPineapple then
-        makePineappleFlow()
+    -- 4. Se a carne ainda estiver assando, esperar. Nao spammar panela.
+    local cookingPan = getNearestCookingPan()
+    if cookingPan then
+        log("Carne ainda assando. Aguardando ficar pronta antes de buscar Plate.")
         return
     end
 
-    -- 5. depois tomate
-    local needTomato = getNearestWhere(function(obj)
-        if not isPlateObject(obj) then return false end
-        local s = getPlateState(obj)
-        return s.hasMeat and s.hasPineapple and not s.hasTomato and not s.complete
-    end)
-
-    if needTomato then
-        makeTomatoFlow()
+    -- 5. Carne sempre primeiro. Depois abacaxi. Depois tomate.
+    if existsPlateWithMeatPineappleNeedsTomato() then
+        getFoodBinItem("Tomato")
         return
     end
 
-    -- fallback: se não achou progresso claro, começa carne
-    makeMeatFlow()
+    if existsPlateWithMeatNeedsPineapple() then
+        getFoodBinItem("Pineapple")
+        return
+    end
+
+    getFoodBinItem("RawBeef")
 end
 
 ------------------------------------------------------------
@@ -1158,14 +973,10 @@ end
 ------------------------------------------------------------
 
 RunService.Heartbeat:Connect(function()
-    if not canAct() then
-        return
-    end
+    if not canAct() then return end
+    if not getCharacter() then return end
 
-    local char = getCharacter()
-    if not char then return end
-
-    -- Se alguma pia está lavando, não executar nada.
+    -- Durante lavagem, nao faz nada.
     local activeSink = getNearestWhere(function(obj)
         if obj:GetAttribute("ApplianceType") == "Sink" or obj.Name == "Sink" then
             return isSinkWashing(obj)
@@ -1173,61 +984,55 @@ RunService.Heartbeat:Connect(function()
         return false
     end)
 
-    if activeSink then
-        return
-    end
+    if activeSink then return end
 
-    local held, itemType = getHeldItem()
+    local _, itemType = getHeldItem()
 
     if itemType == "RawBeef" then
-        doAction("RawBeef -> ChoppingBoard", function()
+        doAction("RawBeef > ChoppingBoard > ChoppedMeat", function()
             cutIngredient("RawBeef", "ChoppedMeat")
         end)
 
     elseif itemType == "ChoppedMeat" then
-        doAction("ChoppedMeat -> Hob/FryingPan", function()
+        doAction("ChoppedMeat > Hob/FryingPan", function()
             putChoppedMeatOnPan()
         end)
 
     elseif itemType == "Pineapple" then
-        doAction("Pineapple -> ChoppingBoard", function()
+        doAction("Pineapple > ChoppingBoard > PineappleRings", function()
             cutIngredient("Pineapple", "PineappleRings")
         end)
 
     elseif itemType == "PineappleRings" then
-        doAction("PineappleRings -> Plate", function()
-            addFinalIngredient("PineappleRings")
+        doAction("PineappleRings > Plate", function()
+            addFinalIngredientToPlate("PineappleRings")
         end)
 
     elseif itemType == "Tomato" then
-        doAction("Tomato -> ChoppingBoard", function()
+        doAction("Tomato > ChoppingBoard > ChoppedTomato", function()
             cutIngredient("Tomato", "ChoppedTomato")
         end)
 
     elseif itemType == "ChoppedTomato" then
-        doAction("ChoppedTomato -> Plate", function()
-            addFinalIngredient("ChoppedTomato")
+        doAction("ChoppedTomato > Plate", function()
+            addFinalIngredientToPlate("ChoppedTomato")
         end)
 
     elseif itemType == "DirtyPlate" then
-        doAction("DirtyPlate -> Sink", function()
-            handleDirtyPlate()
+        doAction("DirtyPlate > Sink", function()
+            washDirtyPlate()
         end)
 
     elseif itemType == "Plate" then
-        doAction("Plate Handling", function()
-            handlePlateInHand()
+        doAction("Plate na mao", function()
+            placeHeldPlateIfNeeded()
         end)
 
     else
-        doAction("Empty Hands Flow", function()
+        doAction("Mao vazia > proxima tarefa", function()
             handleEmptyHands()
         end)
     end
 end)
 
-------------------------------------------------------------
--- PRINT DE CARREGAMENTO NO FINAL DO CÓDIGO
-------------------------------------------------------------
-
-print("[Autofarm] Cooking Chaos carregado | Teleport=true | Delay antes do TP=1s | Delay prompt=0.35s | Confirmação obrttigatória de item ativa")
+print("[Autofarm] Cooking Chaos carregado | 1 clique por etapa | TP delay 2s | espera interacao 0.5s")
