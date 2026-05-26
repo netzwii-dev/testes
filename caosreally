@@ -1,73 +1,271 @@
--- AUTOFARM: CAOS NA COZINHA (COMPLETO)
-local RunService = game:GetService("RunService")
+-- TRANCAR EM LOOP ATÉ ENCONTRAR O JOGADOR
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
+local Workspace = game:GetService("Workspace")
 local Interactables = Workspace:WaitForChild("Interactables")
 
--- 1. UTILS DE BUSCA (REGRA 18)
-local function getNearest(name)
-    local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-    local closest, minD = nil, math.huge
-    for _, obj in pairs(Interactables:GetChildren()) do
-        if obj.Name == name or obj:FindFirstChild(name) then
-            local dist = (root.Position - obj:GetPivot().Position).Magnitude
-            if dist < minD then closest, minD = obj, dist end
+-- VARIÁVEL DE CONTROLE PARA EVITAR SPAM DE CLIQUES
+local executandoAcao = false
+
+-- 1. FUNÇÃO PARA MOVER O PERSONAGEM ATÉ O ALVO (REGRA 18 - PROXIMIDADE)
+local function andarAte(alvo)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if root and hum and alvo then
+        -- Mover usando o sistema nativo do Roblox
+        hum:MoveTo(alvo:GetPivot().Position)
+        
+        -- Espera chegar perto (magnitude menor que 4 studs)
+        local timeout = 0
+        while (root.Position - alvo:GetPivot().Position).Magnitude > 4 and timeout < 30 do
+            RunService.Heartbeat:Wait()
+            timeout = timeout + 1
         end
     end
-    return closest
 end
 
--- 2. LÓGICA DE PRIORIDADE DE PRATOS (REGRA 10)
-local function getBestPlate(ingredientType)
-    local plates = {} -- Listar todas as placas disponíveis na bancada
-    -- Regra 10: Priorizar prato que completa o pedido, depois prato com mais itens, depois vazio.
-    -- Implementar lógica de busca dentro de Workspace.Interactables procurando "Plate"
-    -- ... (Lógica de avaliação de estado dos filhos do prato)
+-- 2. FUNÇÃO PARA INTERAGIR COM O OBJETO (CLICKDETECTOR OU PROXIMITYPROMPT)
+local function interagir(alvo)
+    if not alvo then return end
+    
+    -- Tenta encontrar um ProximityPrompt ou ClickDetector para ativar a ação
+    local prompt = alvo:FindFirstChildOfClass("ProximityPrompt") or alvo:FindFirstChildWhichIsA("ProximityPrompt", true)
+    local click = alvo:FindFirstChildOfClass("ClickDetector") or alvo:FindFirstChildWhichIsA("ClickDetector", true)
+    
+    if prompt then
+        fireproximityprompt(prompt)
+    elseif click then
+        fireclickdetector(click)
+    end
+    task.wait(0.3) -- Delay seguro para o servidor registrar o clique
 end
 
--- 3. LOOP PRINCIPAL (REGRA 17)
+-- 3. FUNÇÃO DE BUSCA POR PROXIMIDADE (REGRA 18)
+local function obterMaisProximo(nomeDoObjeto)
+    local char = LocalPlayer.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    
+    local alvoMaisProximo = nil
+    local menorDistancia = math.huge
+    
+    for _, obj in pairs(Interactables:GetChildren()) do
+        if obj.Name == nomeDoObjeto then
+            local dist = (root.Position - obj:GetPivot().Position).Magnitude
+            if dist < menorDistancia then
+                menorDistancia = dist
+                alvoMaisProximo = obj
+            end
+        end
+    end
+    return alvoMaisProximo
+end
+
+-- 4. LOGICA DE PRIORIDADE DOS PRATOS (SEÇÃO 10)
+local function obterMelhorPratoPara(ingrediente)
+    local melhorPrato = nil
+    local maiorProgresso = -1
+    
+    for _, obj in pairs(Interactables:GetChildren()) do
+        if obj.Name == "Plate" and obj:GetAttribute("Type") == "Plate" then
+            local kebab = obj:FindFirstChild("Kebab")
+            local salad = obj:FindFirstChild("Salad")
+            
+            local temCarne = kebab and kebab:FindFirstChild("CookedMeat")
+            local temAbacaxi = kebab and kebab:FindFirstChild("PineappleRings")
+            local temTomate = salad and salad:FindFirstChild("ChoppedTomato")
+            
+            -- Ignorar prato que já tem o mesmo ingrediente (Regra 10.1)
+            if (ingrediente == "CookedMeat" and temCarne) or
+               (ingrediente == "PineappleRings" and temAbacaxi) or
+               (ingrediente == "ChoppedTomato" and temTomate) then
+                continue
+            end
+            
+            -- Calcular quantos ingredientes úteis ele já tem
+            local contagem = 0
+            if temCarne then contagem = contagem + 1 end
+            if temAbacaxi then contagem = contagem + 1 end
+            if temTomate then contagem = contagem + 1 end
+            
+            -- Regra 10.2 e 10.3: Preferir o que tem mais progresso / vai completar
+            if contagem > maiorProgresso then
+                maiorProgresso = contagem
+                melhorPrato = obj
+            end
+        end
+    end
+    
+    -- Se não achou nenhum prato com ingredientes, procura uma bancada com prato vazio (Regra 10.5)
+    if not melhorPrato then
+        melhorPrato = obterMaisProximo("Plate")
+    end
+    
+    return melhorPrato
+end
+
+-- 5. CHECAGEM DOS INGREDIENTES NO PRATO SELECIONADO (SEÇÃO 6.4)
+local function pratoEstaCompleto(prato)
+    if not prato then return false end
+    local kebab = prato:FindFirstChild("Kebab")
+    local salad = prato:FindFirstChild("Salad")
+    
+    [span_3](start_span)local hasMeat = kebab and kebab:FindFirstChild("CookedMeat")[span_3](end_span)
+    [span_4](start_span)local hasPineapple = kebab and kebab:FindFirstChild("PineappleRings")[span_4](end_span)
+    [span_5](start_span)local hasTomato = salad and salad:FindFirstChild("ChoppedTomato")[span_5](end_span)
+    
+    [span_6](start_span)return hasMeat and hasPineapple and hasTomato[span_6](end_span)
+end
+
+
+-- ============================================================
+-- LOOP EXECUTOR DA MÁQUINA DE ESTADOS (SEÇÃO 17)
+-- ============================================================
 RunService.Heartbeat:Connect(function()
+    if executandoAcao then return end -- Bloqueia o loop para não encavalar comandos
+    
     local char = LocalPlayer.Character
     if not char then return end
     
-    local tool = char:FindFirstChildOfClass("Tool")
-    local item = tool and tool:GetAttribute("Type")
+    -- Identificar o item na mão do personagem via Atributo (Seção 9 e Regra 18)
+    local ferramenta = char:FindFirstChildOfClass("Tool")
+    local itemNaMao = ferramenta and ferramenta:GetAttribute("Type")
     
-    -- FLUXO DE CORTE (REGRA 11.1, 11.2, 11.3)
-    if item == "RawBeef" or item == "Pineapple" or item == "Tomato" then
-        local board = getNearest("ChoppingBoard")
-        if board then -- Interagir e aguardar mudança de estado
+    -- SE ESTIVER COM AS MÃOS VAZIAS: Decidir o que pegar baseado nas prioridades do mapa
+    if not itemNaMao then
+        executandoAcao = true
+        
+        -- 1. Prioridade Máxima: Se houver prato sujo no Spawner, coletar para lavar (Seção 16)
+        local spawnerPrato = obterMaisProximo("PlateSpawner")
+        if spawnerPrato and spawnerPrato:FindFirstChild("DirtyPlate") then
+            andarAte(spawnerPrato)
+            interagir(spawnerPrato)
+            executandoAcao = false
+            return
+        end
+        
+        -- 2. Verificar se tem carne pronta na Panela (Seção 4.2 e 12.12)
+        local panela = obterMaisProximo("Hob")
+        local fryingPan = panela and panela:FindFirstChild("FryingPan")
+        local barraProgresso = fryingPan and fryingPan:FindFirstChild("ProgressBar", true)
+        local tickPronto = barraProgresso and barraProgresso:FindFirstChild("TickImage", true)
+        
+        if tickPronto and tickPronto.Visible == true and tickPronto.ImageTransparency < 0.5 then
+            -- REGRA CRÍTICA 11.7 e 12.12: Precisa de um Plate limpo ANTES de pegar a carne!
+            local pratoLimpo = obterMaisProximo("Plate")
+            if pratoLimpo then
+                andarAte(pratoLimpo)
+                interagir(pratoLimpo)
+            end
+            executandoAcao = false
+            return
+        end
+        
+        -- 3. Fluxo Padrão: Pegar ingredientes brutos dos FoodBins (Seção 2)
+        -- Alterna de forma simples escolhendo o primeiro disponível
+        local binCarne = obterMaisProximo("FoodBin") -- Vai buscar pelo nome genérico do arquivo
+        if binCarne then
+            andarAte(binCarne)
+            interagir(binCarne)
+        end
+        
+        executandoAcao = false
+        return
+    end
+    
+    -- ============================================================
+    -- SE JÁ POSSUI UM ITEM NA MÃO (SEÇÃO 11)
+    -- ============================================================
+    executandoAcao = true
+    
+    -- FLUXO: INGREDIENTES CRUS -> TÁBUA DE CORTE (Regras 11.1, 11.2, 11.3)
+    if itemNaMao == "RawBeef" or itemNaMao == "Pineapple" or itemNaMao == "Tomato" then
+        local tabua = obterMaisProximo("ChoppingBoard")
+        if tabua then
+            andarAte(tabua)
+            interagir(tabua)
+            -- Esperar o corte terminar (Seção 3.1)
+            local itemPronto = itemNaMao == "RawBeef" and "ChoppedMeat" or (itemNaMao == "Pineapple" and "PineappleRings" or "ChoppedTomato")
+            while tabua:GetAttribute("Contains") ~= itemPronto do 
+                task.wait(0.2) -- Aguarda virar o item cortado na tábua
+            end
+            interagir(tabua) -- Pega o item cortado de volta
         end
 
-    -- FLUXO DE FRITURA (REGRA 11.4)
-    elseif item == "ChoppedMeat" then
-        local hob = getNearest("Hob")
-        -- Monitorar TickImage e BurntImage (Regra 4.2, 4.3)
-        -- SE BurntImage visível, NÃO interagir.
-        
-    -- FLUXO DE MONTAGEM (REGRA 11.5, 11.6)
-    elseif item == "PineappleRings" or item == "ChoppedTomato" then
-        local plate = getBestPlate(item)
-        if plate then -- Colocar no prato
+    -- FLUXO: CARNE MOÍDA -> PANELA (Regra 11.4 e Seção 12)
+    elseif itemNaMao == "ChoppedMeat" then
+        local panela = obterMaisProximo("Hob")
+        if panela then
+            andarAte(panela)
+            interagir(panela)
+            -- Deixou fritando. O loop reseta e o robô vai fazer outra coisa enquanto frita.
         end
         
-    -- FLUXO DE LAVAGEM (REGRA 11.8)
-    elseif item == "DirtyPlate" then
-        local sink = getNearest("Sink")
-        -- Se interagir, travar loop até ProgressBar = 0 (Regra 7.1)
+    -- FLUXO: INGREDIENTES CORTADOS -> MELHOR PRATO (Regras 11.5 e 11.6)
+    elseif itemNaMao == "PineappleRings" or itemNaMao == "ChoppedTomato" then
+        local alvoPrato = obterMelhorPratoPara(itemNaMao)
+        if alvoPrato then
+            andarAte(alvoPrato)
+            interagir(alvoPrato)
+        else
+            -- Se não há prato livre, deixa em uma bancada vazia (Regra 11.9)
+            local bancada = obterMaisProximo("Countertop")
+            if bancada then andarAte(bancada); interagir(bancada) end
+        end
         
-    -- FLUXO FINAL (REGRA 15)
-    elseif item == "Plate" then
-        local hasMeat = tool:FindFirstChild("CookedMeat", true)
-        local hasPineapple = tool:FindFirstChild("PineappleRings", true)
-        local hasTomato = tool:FindFirstChild("ChoppedTomato", true)
+    -- FLUXO: PRATO SUJO -> PIA (Regra 11.8 e Seção 16)
+    elseif itemNaMao == "DirtyPlate" then
+        local pia = obterMaisProximo("Sink")
+        if pia then
+            andarAte(pia)
+            interagir(pia)
+            
+            -- TRAVA DE SEGURANÇA (Regra 11.8 / 16.7): Não faz nada enquanto lava
+            local barraPia = pia:FindFirstChild("ProgressBar", true)
+            if barraPia then
+                while barraPia.Enabled == true or (barraPia:FindFirstChild("Progress") and barraPia.Progress.Bar.Size.X.Scale > 0) do
+                    task.wait(0.2) -- Espera lavagem acabar de forma absoluta
+                end
+            end
+            interagir(pia) -- Coleta o prato limpo resultante
+        end
         
-        if hasMeat and hasPineapple and hasTomato then
-            local sell = getNearest("SellPoint")
-            -- Interagir com SellPoint
+    -- FLUXO: PRATO NA MÃO (Regra 11.7, 11.9, 15)
+    elseif itemNaMao == "Plate" then
+        -- 1. Ver se o prato na mão já está completo (Venda)
+        if pratoEstaCompleto(ferramenta) then
+            local pontoVenda = obterMaisProximo("SellPoint") or obterMaisProximo("Sell")
+            if pontoVenda then
+                andarAte(pontoVenda)
+                interagir(pontoVenda)
+            end
+        else
+            -- 2. Se pegou o prato para recolher carne pronta da panela (Seção 12.13 / 12.14)
+            local panela = obterMaisProximo("Hob")
+            local fryingPan = panela and panela:FindFirstChild("FryingPan")
+            local barraProgresso = fryingPan and fryingPan:FindFirstChild("ProgressBar", true)
+            local tickPronto = barraProgresso and barraProgresso:FindFirstChild("TickImage", true)
+            local imagemQueimado = barraProgresso and barraProgresso:FindFirstChild("BurntImage", true)
+            
+            -- Só interage se estiver com o Tick verde e NÃO estiver queimado (Regra 4.2 e 4.3)
+            if tickPronto and tickPronto.Visible == true and (not imagemQueimado or imagemQueimado.ImageTransparency == 1) then
+                andarAte(panela)
+                interagir(panela) -- Pega a carne usando o prato
+            else
+                -- 3. Se o prato não tem utilidade imediata, larga na bancada vazia (Regra 11.9 / 16.10)
+                local bancada = obterMaisProximo("Countertop")
+                if bancada then
+                    andarAte(bancada)
+                    interagir(bancada)
+                end
+            end
         end
     end
+    
+    executandoAcao = false
 end)
