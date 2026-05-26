@@ -1,467 +1,345 @@
--- Cooking Chaos - Stage/Object Scanner
--- Objetivo: detectar mesa de corte, panela, foodbins/ingredientes, pratos e entrega.
--- Não altera nada no jogo: só lista objetos próximos, prompts, clickdetectors, values e remotes.
--- Execute dentro da fase desejada e me mande o output do console.
+--// CK Kebab Scanner v1
+--// Scanner para a fase Cidade Symmetri / Kebab.
+--// Só imprime no console. Não faz auto-farm.
+--//
+--// Rotas dessa fase:
+--// carne -> panela/hob -> carne assada
+--// abacaxi -> mesa de corte -> anéis de abacaxi
+--// tomate -> mesa de corte -> tomate cortado
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CollectionService = game:GetService("CollectionService")
-local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
 
-local SCAN_RADIUS = 350
-local MAX_RESULTS_PER_GROUP = 80
+local lp = Players.LocalPlayer
+local pg = lp:WaitForChild("PlayerGui")
 
-local keywordGroups = {
-	CuttingTable = {
-		"cut", "cutting", "chop", "chopping", "slice", "slicer", "knife",
-		"mesa de corte", "corte", "tabua", "tábua"
-	},
+local GUI_NAME = "CK_KebabScannerV1"
+local RADIUS = 45
+local MAX_SCAN = 12000
 
-	PotPan = {
-		"pot", "pan", "cook", "cooking", "stove", "grill", "oven", "fry",
-		"panela", "fogao", "fogão", "assar", "cozinhar", "grelha"
-	},
-
-	FoodBins = {
-		"bin", "foodbin", "ingredient", "ingredients", "pickup", "dispenser", "crate",
-		"tomato", "tomate", "pineapple", "abacaxi", "meat", "carne", "kebab",
-		"alimento", "ingrediente", "caixa"
-	},
-
-	Plates = {
-		"plate", "dish", "prato", "tray", "bandeja", "serveplate"
-	},
-
-	Delivery = {
-		"delivery", "deliver", "serve", "serving", "counter", "customer", "order",
-		"entrega", "entregar", "balcao", "balcão", "cliente", "pedido"
-	},
-
-	RecipeOrder = {
-		"recipe", "receita", "order", "pedido", "kebab", "ingredient", "ingrediente"
-	}
+local GROUPS = {
+    FoodBins = {"foodbin","ingredient","ingredients","tomato","tomate","pineapple","abacaxi","beef","meat","carne","kebab"},
+    Appliances = {"chopping","chop","cut","knife","faca","board","hob","pan","saucepan","pot","grill","cook","cooking","countertop","counter"},
+    Plates = {"plate","platespawner","dish","serveplate"},
+    Delivery = {"delivery","deliver","serve","serving","customer","customers","order","orders","dropoff","window","cashier"}
 }
 
-local importantFoods = {
-	"carne", "meat", "beef", "steak", "rawmeat", "cookedmeat", "assada",
-	"abacaxi", "pineapple", "rings", "anel", "aneis", "anéis",
-	"tomate", "tomato", "cut", "cortado",
-	"kebab"
-}
+local function low(x) return string.lower(tostring(x or "")) end
 
-local function lower(s)
-	return tostring(s or ""):lower()
+local function path(obj)
+    local ok, res = pcall(function() return obj:GetFullName() end)
+    return ok and res or tostring(obj)
 end
 
-local function containsAny(text, list)
-	text = lower(text)
-	for _, key in ipairs(list) do
-		if text:find(lower(key), 1, true) then
-			return true, key
-		end
-	end
-	return false, nil
+local function asset(x)
+    x = tostring(x or "")
+    return x:match("rbxassetid://(%d+)") or x:match("id=(%d+)") or x
 end
 
-local function full(obj)
-	local ok, result = pcall(function()
-		return obj:GetFullName()
-	end)
-	return ok and result or tostring(obj)
+local function hrp()
+    local c = lp.Character or lp.CharacterAdded:Wait()
+    return c:FindFirstChild("HumanoidRootPart")
 end
 
-local function getHRP()
-	local char = LocalPlayer.Character
-	return char and char:FindFirstChild("HumanoidRootPart")
+local function pos(obj)
+    local p
+    if obj:IsA("BasePart") then
+        p = obj
+    elseif obj:IsA("Model") then
+        p = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
+    else
+        p = obj:FindFirstAncestorWhichIsA("BasePart")
+    end
+    return p and p.Position or nil
 end
 
-local function getPos(obj)
-	if not obj or not obj.Parent then
-		return nil
-	end
-
-	if obj:IsA("BasePart") then
-		return obj.Position
-	end
-
-	if obj:IsA("Model") then
-		local ok, cf = pcall(function()
-			return obj:GetPivot()
-		end)
-		if ok and cf then
-			return cf.Position
-		end
-
-		local part = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
-		return part and part.Position or nil
-	end
-
-	local part = obj:FindFirstAncestorWhichIsA("BasePart")
-	if part then
-		return part.Position
-	end
-
-	local model = obj:FindFirstAncestorOfClass("Model")
-	if model then
-		return getPos(model)
-	end
-
-	return nil
+local function dist(obj)
+    local h = hrp()
+    local p = pos(obj)
+    if not h or not p then return nil end
+    return math.floor((p - h.Position).Magnitude)
 end
 
-local function distFromMe(obj)
-	local hrp = getHRP()
-	local pos = getPos(obj)
-	if not hrp or not pos then
-		return math.huge
-	end
-
-	return (pos - hrp.Position).Magnitude
+local function posText(p)
+    if not p then return "sem pos" end
+    return math.floor(p.X)..","..math.floor(p.Y)..","..math.floor(p.Z)
 end
 
-local function getBestRoot(obj)
-	local current = obj
-	local bestModel = nil
-
-	while current and current ~= workspace do
-		if current:IsA("Model") then
-			bestModel = current
-		end
-
-		current = current.Parent
-	end
-
-	return bestModel or obj
+local function root()
+    return workspace:FindFirstChild("Interactables") or workspace
 end
 
-local function getTextData(obj)
-	local chunks = {
-		obj.Name,
-		obj.ClassName,
-		full(obj)
-	}
-
-	if obj:IsA("ProximityPrompt") then
-		table.insert(chunks, obj.ActionText)
-		table.insert(chunks, obj.ObjectText)
-	end
-
-	if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-		table.insert(chunks, obj.Text)
-	end
-
-	if obj:IsA("StringValue") or obj:IsA("BoolValue") or obj:IsA("IntValue") or obj:IsA("NumberValue") then
-		table.insert(chunks, tostring(obj.Value))
-	end
-
-	local ok, attrs = pcall(function()
-		return obj:GetAttributes()
-	end)
-
-	if ok and attrs then
-		for k, v in pairs(attrs) do
-			table.insert(chunks, tostring(k))
-			table.insert(chunks, tostring(v))
-		end
-	end
-
-	return table.concat(chunks, " ")
+local function matchAny(text, words)
+    text = low(text)
+    for _, w in ipairs(words) do
+        if text:find(low(w), 1, true) then return true, w end
+    end
+    return false, nil
 end
 
-local function getTags(obj)
-	local tags = {}
-	pcall(function()
-		tags = CollectionService:GetTags(obj)
-	end)
-
-	if #tags == 0 then
-		return "none"
-	end
-
-	return table.concat(tags, ", ")
+local function classify(obj)
+    local text = low(obj.Name.." "..path(obj))
+    local out = {}
+    for g, words in pairs(GROUPS) do
+        local ok, w = matchAny(text, words)
+        if ok then table.insert(out, g.."("..w..")") end
+    end
+    return table.concat(out, ", ")
 end
 
-local function listChildren(root)
-	local out = {}
-	local count = 0
-
-	for _, child in ipairs(root:GetChildren()) do
-		count += 1
-		if count <= 40 then
-			table.insert(out, child.Name .. "[" .. child.ClassName .. "]")
-		end
-	end
-
-	if count > 40 then
-		table.insert(out, "... +" .. tostring(count - 40) .. " more")
-	end
-
-	return table.concat(out, ", ")
+local function topModel(obj)
+    local r = root()
+    local cur = obj
+    while cur and cur.Parent and cur.Parent ~= r and cur.Parent ~= workspace do
+        cur = cur.Parent
+    end
+    return cur or obj
 end
 
-local function collectDescendantInfo(root)
-	local prompts = {}
-	local clicks = {}
-	local values = {}
-	local remotes = {}
-	local foodParts = {}
-	local texts = {}
-
-	for _, d in ipairs(root:GetDescendants()) do
-		if d:IsA("ProximityPrompt") then
-			table.insert(prompts, full(d) .. " | ActionText=" .. tostring(d.ActionText) .. " | ObjectText=" .. tostring(d.ObjectText) .. " | Enabled=" .. tostring(d.Enabled) .. " | MaxDist=" .. tostring(d.MaxActivationDistance))
-		elseif d:IsA("ClickDetector") then
-			table.insert(clicks, full(d) .. " | MaxActivationDistance=" .. tostring(d.MaxActivationDistance))
-		elseif d:IsA("StringValue") or d:IsA("BoolValue") or d:IsA("IntValue") or d:IsA("NumberValue") then
-			table.insert(values, full(d) .. " = " .. tostring(d.Value))
-		elseif d:IsA("RemoteEvent") or d:IsA("RemoteFunction") or d:IsA("BindableEvent") or d:IsA("BindableFunction") then
-			table.insert(remotes, full(d) .. " [" .. d.ClassName .. "]")
-		elseif d:IsA("BasePart") then
-			local hit = containsAny(d.Name, importantFoods)
-			if hit then
-				table.insert(foodParts, full(d) .. " | Size=" .. tostring(d.Size) .. " | Transparency=" .. tostring(d.Transparency) .. " | CanCollide=" .. tostring(d.CanCollide))
-			end
-		elseif d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox") then
-			local txt = tostring(d.Text or "")
-			if txt ~= "" and (#txt <= 80 or containsAny(txt, importantFoods)) then
-				table.insert(texts, full(d) .. " | Text=" .. txt)
-			end
-		end
-	end
-
-	return prompts, clicks, values, remotes, foodParts, texts
+local function attrs(obj)
+    local out = {}
+    for k, v in pairs(obj:GetAttributes()) do
+        table.insert(out, tostring(k).."="..tostring(v))
+    end
+    table.sort(out)
+    return out
 end
 
-local function printLimited(title, list, limit)
-	print(title .. ":")
-	if #list == 0 then
-		print("  none")
-		return
-	end
-
-	for i, v in ipairs(list) do
-		if i <= limit then
-			print("  " .. v)
-		end
-	end
-
-	if #list > limit then
-		print("  ... +" .. tostring(#list - limit) .. " more")
-	end
+local function important(obj, limit)
+    local out = {}
+    limit = limit or 32
+    for _, d in ipairs(obj:GetDescendants()) do
+        if #out >= limit then break end
+        if d:IsA("ProximityPrompt") then
+            table.insert(out, "PROMPT "..d.Name.." Action="..tostring(d.ActionText).." Object="..tostring(d.ObjectText).." | "..path(d))
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            table.insert(out, d.ClassName.." "..d.Name.." texture="..asset(d.Texture).." | "..path(d))
+        elseif d:IsA("ImageLabel") or d:IsA("ImageButton") then
+            table.insert(out, d.ClassName.." "..d.Name.." image="..asset(d.Image).." | "..path(d))
+        elseif d:IsA("MeshPart") then
+            local id = asset(d.TextureID)
+            if id and id ~= "" then table.insert(out, "MeshPart "..d.Name.." textureID="..id.." | "..path(d)) end
+        elseif d:IsA("SpecialMesh") then
+            local id = asset(d.TextureId)
+            if id and id ~= "" then table.insert(out, "SpecialMesh "..d.Name.." textureId="..id.." | "..path(d)) end
+        elseif d:IsA("StringValue") or d:IsA("IntValue") or d:IsA("NumberValue") or d:IsA("BoolValue") or d:IsA("ObjectValue") then
+            table.insert(out, "VALUE "..d.Name.." ["..d.ClassName.."] = "..tostring(d.Value).." | "..path(d))
+        end
+    end
+    return out
 end
 
-local function inspectRoot(groupName, info)
-	local root = info.root
-
-	print("")
-	print("-------------------- " .. groupName .. " #" .. tostring(info.index) .. " --------------------")
-	print("MATCHED KEY:", tostring(info.key))
-	print("ROOT:", full(root))
-	print("CLASS:", root.ClassName)
-	print("DISTANCE:", string.format("%.1f", info.dist))
-	print("TAGS:", getTags(root))
-	print("CHILDREN:", listChildren(root))
-
-	local prompts, clicks, values, remotes, foodParts, texts = collectDescendantInfo(root)
-
-	printLimited("PROMPTS", prompts, 20)
-	printLimited("CLICK DETECTORS", clicks, 20)
-	printLimited("VALUES", values, 40)
-	printLimited("REMOTES/BINDABLES", remotes, 30)
-	printLimited("FOOD/IMPORTANT PARTS", foodParts, 30)
-	printLimited("TEXTS", texts, 25)
+local function children(obj)
+    local out = {}
+    for _, c in ipairs(obj:GetChildren()) do
+        table.insert(out, "- "..c.Name.." ["..c.ClassName.."]")
+        if #out >= 18 then break end
+    end
+    return out
 end
 
-local function scanWorkspace()
-	local groups = {}
-	for groupName in pairs(keywordGroups) do
-		groups[groupName] = {}
-	end
-
-	local added = {}
-
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		local textData = getTextData(obj)
-
-		for groupName, keys in pairs(keywordGroups) do
-			local ok, key = containsAny(textData, keys)
-			if ok then
-				local root = getBestRoot(obj)
-				local id = groupName .. "::" .. full(root)
-
-				if root and root.Parent and not added[id] then
-					local dist = distFromMe(root)
-					if dist <= SCAN_RADIUS then
-						added[id] = true
-						table.insert(groups[groupName], {
-							root = root,
-							dist = dist,
-							key = key
-						})
-					end
-				end
-			end
-		end
-	end
-
-	for groupName, list in pairs(groups) do
-		table.sort(list, function(a, b)
-			return a.dist < b.dist
-		end)
-
-		for i, info in ipairs(list) do
-			info.index = i
-		end
-	end
-
-	return groups
+local function printBlock(title, lines)
+    warn("[CK SCAN] ===== "..title.." =====")
+    local buf = {}
+    for _, line in ipairs(lines) do
+        table.insert(buf, line)
+        if #buf >= 15 then
+            print("[CK SCAN]\n"..table.concat(buf, "\n"))
+            table.clear(buf)
+            task.wait(0.05)
+        end
+    end
+    if #buf > 0 then print("[CK SCAN]\n"..table.concat(buf, "\n")) end
+    warn("[CK SCAN] ===== FIM "..title.." =====")
 end
 
-local function scanReplicatedStorage()
-	print("")
-	print("========== REPLICATED STORAGE REMOTES/MODULES ==========")
-
-	local keys = {
-		"food", "ingredient", "recipe", "order", "cook", "cut", "chop",
-		"plate", "deliver", "serve", "kebab", "tomato", "pineapple", "meat",
-		"carne", "tomate", "abacaxi", "prato", "entrega", "pedido"
-	}
-
-	local count = 0
-
-	for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
-		if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") or obj:IsA("ModuleScript") or obj:IsA("StringValue") or obj:IsA("NumberValue") or obj:IsA("BoolValue") then
-			local data = getTextData(obj)
-			local hit, key = containsAny(data, keys)
-
-			if hit then
-				count += 1
-				print("RS #" .. tostring(count), full(obj), "[" .. obj.ClassName .. "]", "matched:", key)
-				if obj:IsA("StringValue") or obj:IsA("NumberValue") or obj:IsA("BoolValue") then
-					print("  value =", tostring(obj.Value))
-				end
-			end
-		end
-	end
-
-	print("RS candidates:", count)
+local function describe(obj, i)
+    local lines = {}
+    local d = dist(obj)
+    local p = pos(obj)
+    table.insert(lines, "---- OBJ #"..i.." ["..tostring(d or "?").." studs] ----")
+    table.insert(lines, "Name: "..obj.Name.." ["..obj.ClassName.."]")
+    table.insert(lines, "Class: "..(classify(obj) ~= "" and classify(obj) or "sem keyword"))
+    table.insert(lines, "Path: "..path(obj))
+    table.insert(lines, "Pos: "..posText(p))
+    local a = attrs(obj)
+    if #a > 0 then
+        table.insert(lines, "Attributes:")
+        for _, x in ipairs(a) do table.insert(lines, "  "..x) end
+    end
+    local ch = children(obj)
+    if #ch > 0 then
+        table.insert(lines, "Children:")
+        for _, x in ipairs(ch) do table.insert(lines, "  "..x) end
+    end
+    local im = important(obj)
+    if #im > 0 then
+        table.insert(lines, "Assets/Prompts/Values:")
+        for _, x in ipairs(im) do table.insert(lines, "  "..x) end
+    end
+    table.insert(lines, "")
+    return lines
 end
 
-local function monitorChanges(duration)
-	print("")
-	print("========== CHANGE MONITOR START ==========")
-	print("Agora interaja com:")
-	print("1) pegar carne/tomate/abacaxi")
-	print("2) colocar carne na panela")
-	print("3) colocar tomate/abacaxi na mesa de corte")
-	print("4) colocar no prato")
-	print("5) entregar")
-	print("Monitorando por " .. tostring(duration) .. " segundos.")
-
-	local watched = {}
-	local watchKeys = {
-		"carne", "meat", "tomate", "tomato", "abacaxi", "pineapple", "plate", "prato",
-		"cook", "cooked", "assada", "cut", "cortado", "rings", "aneis", "anéis",
-		"order", "pedido", "deliver", "entrega", "kebab", "ingredient"
-	}
-
-	local function log(prefix, obj, extra)
-		local d = distFromMe(obj)
-		if d <= SCAN_RADIUS or full(obj):find("PlayerGui", 1, true) then
-			print(prefix, full(obj), "[" .. obj.ClassName .. "]", extra or "", "dist=" .. string.format("%.1f", d))
-		end
-	end
-
-	local function attach(obj)
-		if watched[obj] then return end
-		watched[obj] = true
-
-		if obj:IsA("StringValue") or obj:IsA("BoolValue") or obj:IsA("IntValue") or obj:IsA("NumberValue") then
-			local hit = containsAny(getTextData(obj), watchKeys)
-			if hit then
-				pcall(function()
-					obj.Changed:Connect(function()
-						log("[VALUE CHANGE]", obj, "Value=" .. tostring(obj.Value))
-					end)
-				end)
-			end
-		elseif obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-			pcall(function()
-				obj:GetPropertyChangedSignal("Text"):Connect(function()
-					local txt = tostring(obj.Text or "")
-					local hit = containsAny(txt .. " " .. obj.Name, watchKeys)
-					if hit or txt:find("Kebab", 1, true) then
-						log("[TEXT CHANGE]", obj, "Text=" .. txt)
-					end
-				end)
-			end)
-		elseif obj:IsA("ProximityPrompt") then
-			pcall(function()
-				obj.Triggered:Connect(function(player)
-					log("[PROMPT TRIGGERED]", obj, "by=" .. tostring(player and player.Name))
-				end)
-			end)
-		elseif obj:IsA("RemoteEvent") then
-			local hit = containsAny(getTextData(obj), watchKeys)
-			if hit then
-				print("[REMOTE EVENT CANDIDATE]", full(obj))
-			end
-		elseif obj:IsA("RemoteFunction") then
-			local hit = containsAny(getTextData(obj), watchKeys)
-			if hit then
-				print("[REMOTE FUNCTION CANDIDATE]", full(obj))
-			end
-		end
-	end
-
-	for _, root in ipairs({workspace, ReplicatedStorage, LocalPlayer:FindFirstChild("PlayerGui") or LocalPlayer}) do
-		for _, obj in ipairs(root:GetDescendants()) do
-			attach(obj)
-		end
-
-		root.DescendantAdded:Connect(function(obj)
-			task.wait(0.05)
-			attach(obj)
-
-			local hit = containsAny(getTextData(obj), watchKeys)
-			if hit then
-				log("[NEW OBJECT]", obj, "name=" .. obj.Name)
-			end
-		end)
-	end
-
-	task.delay(duration, function()
-		print("========== CHANGE MONITOR END ==========")
-		print("Me mande os VALUE/TEXT/PROMPT/REMOTE que aparecerem quando você interagir.")
-	end)
+local function collect(words, radius)
+    local found, used = {}, {}
+    local n = 0
+    for _, obj in ipairs(root():GetDescendants()) do
+        n += 1
+        if n > MAX_SCAN then break end
+        local ok = matchAny(obj.Name.." "..path(obj), words)
+        if ok then
+            local target = obj:IsA("Model") and obj or obj:FindFirstAncestorOfClass("Model") or obj
+            target = topModel(target)
+            local d = dist(target)
+            if (not radius) or (d and d <= radius) then
+                local p = path(target)
+                if not used[p] then
+                    used[p] = true
+                    table.insert(found, target)
+                end
+            end
+        end
+    end
+    table.sort(found, function(a,b)
+        local da, db = dist(a) or 99999, dist(b) or 99999
+        if da == db then return path(a) < path(b) end
+        return da < db
+    end)
+    return found
 end
 
-print("===== COOKING CHAOS STAGE SCANNER =====")
-print("PlaceId:", game.PlaceId)
-print("LocalPlayer:", LocalPlayer.Name)
-print("Scan radius:", SCAN_RADIUS)
-
-local groups = scanWorkspace()
-
-for _, groupName in ipairs({"FoodBins", "CuttingTable", "PotPan", "Plates", "Delivery", "RecipeOrder"}) do
-	local list = groups[groupName] or {}
-
-	print("")
-	print("========== GROUP: " .. groupName .. " | found: " .. tostring(#list) .. " ==========")
-
-	for i, info in ipairs(list) do
-		if i <= MAX_RESULTS_PER_GROUP then
-			inspectRoot(groupName, info)
-		end
-	end
-
-	if #list > MAX_RESULTS_PER_GROUP then
-		print("... +" .. tostring(#list - MAX_RESULTS_PER_GROUP) .. " more in group " .. groupName)
-	end
+local function collectNearby()
+    local all = {}
+    for _, words in pairs(GROUPS) do
+        for _, obj in ipairs(collect(words, RADIUS)) do
+            all[path(obj)] = obj
+        end
+    end
+    local list = {}
+    for _, obj in pairs(all) do table.insert(list, obj) end
+    table.sort(list, function(a,b)
+        local da, db = dist(a) or 99999, dist(b) or 99999
+        if da == db then return path(a) < path(b) end
+        return da < db
+    end)
+    return list
 end
 
-scanReplicatedStorage()
-monitorChanges(60)
+local function scan(title, list)
+    local lines = {
+        "Player: "..lp.Name,
+        "Root: "..path(root()),
+        "Encontrados: "..#list,
+        ""
+    }
+    for i, obj in ipairs(list) do
+        for _, line in ipairs(describe(obj, i)) do table.insert(lines, line) end
+    end
+    printBlock(title, lines)
+end
 
-print("===== SCAN FINALIZADO =====")
-print("Agora faça as interações e me mande o output mais relevante.")
+local function scanPedido()
+    local lines = {}
+    local recipes = pg:FindFirstChild("Root") and pg.Root:FindFirstChild("HUD") and pg.Root.HUD:FindFirstChild("Recipes")
+    table.insert(lines, "Recipes path: "..(recipes and path(recipes) or "não achei Root.HUD.Recipes"))
+    table.insert(lines, "")
+    if recipes then
+        local i = 0
+        for _, d in ipairs(recipes:GetDescendants()) do
+            if (d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Visible then
+                local id = asset(d.Image)
+                if id and id ~= "" and id ~= "rbxasset://textures/ui/GuiImagePlaceholder.png" then
+                    i += 1
+                    table.insert(lines, i..") IMAGE "..d.Name.." id="..id)
+                    table.insert(lines, "   size="..math.floor(d.AbsoluteSize.X).."x"..math.floor(d.AbsoluteSize.Y).." pos="..math.floor(d.AbsolutePosition.X)..","..math.floor(d.AbsolutePosition.Y))
+                    table.insert(lines, "   path="..path(d))
+                end
+            elseif (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Visible and tostring(d.Text) ~= "" then
+                i += 1
+                table.insert(lines, i..") TEXT "..d.Name.." = "..tostring(d.Text))
+                table.insert(lines, "   path="..path(d))
+            end
+        end
+    end
+    printBlock("PEDIDO", lines)
+end
+
+-- GUI
+local old = pg:FindFirstChild(GUI_NAME)
+if old then old:Destroy() end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = GUI_NAME
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = pg
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 226, 0, 288)
+frame.Position = UDim2.new(0, 18, 0.34, 0)
+frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+frame.BackgroundTransparency = 0.12
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = gui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -20, 0, 36)
+title.Position = UDim2.new(0, 10, 0, 8)
+title.BackgroundTransparency = 1
+title.Text = "CK Kebab Scan"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = frame
+
+local function btn(text, y, cb)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -20, 0, 34)
+    b.Position = UDim2.new(0, 10, 0, y)
+    b.BackgroundColor3 = Color3.fromRGB(180, 25, 25)
+    b.TextColor3 = Color3.fromRGB(255,255,255)
+    b.TextScaled = true
+    b.Font = Enum.Font.GothamBold
+    b.Text = text
+    b.BorderSizePixel = 0
+    b.Parent = frame
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+    b.MouseButton1Click:Connect(cb)
+end
+
+btn("SCAN PERTO", 52, function() scan("SCAN PERTO", collectNearby()) end)
+btn("FOODBINS", 90, function() scan("FOODBINS", collect(GROUPS.FoodBins, nil)) end)
+btn("APARELHOS", 128, function() scan("APARELHOS", collect(GROUPS.Appliances, nil)) end)
+btn("PRATOS", 166, function() scan("PRATOS", collect(GROUPS.Plates, nil)) end)
+btn("ENTREGA", 204, function() scan("ENTREGA", collect(GROUPS.Delivery, nil)) end)
+btn("PEDIDO", 242, scanPedido)
+
+local dragging, dragStart, startPos = false, nil, nil
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and dragStart and startPos then
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end
+end)
+
+warn("[CK SCAN] Scanner Kebab carregado.")
+warn("[CK SCAN] Chegue perto do objeto e clique SCAN PERTO.")
+warn("[CK SCAN] Use FOODBINS/APARELHOS/PRATOS/ENTREGA/PEDIDO para scans separados.")
