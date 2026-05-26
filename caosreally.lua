@@ -1,8 +1,9 @@
 -- AUTOFARM: CAOS NA COZINHA / COOKING CHAOS
 -- Fluxo corrigido: carne primeiro -> abacaxi -> tomate -> vender
+-- Versão rápida: teleporta para perto do alvo antes de interagir
 -- Baseado nas regras do TXT: Kebab / Cidade Symmetri
 
-print("[Autofarm] Carregado: Cooking Chaos / Caos na Cozinha - fluxo corrigido")
+print("[Autofarm] Carregado: Cooking Chaos / Caos na Cozinha - modo rápido com teleport")
 
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
@@ -15,9 +16,15 @@ local Interactables = Workspace:WaitForChild("Interactables")
 -- CONFIG
 ------------------------------------------------------------
 
-local ACTION_COOLDOWN = 0.45
-local MOVE_TIMEOUT = 4
-local INTERACT_DISTANCE = 8
+local ACTION_COOLDOWN = 0.18
+local MOVE_TIMEOUT = 1.2
+local INTERACT_DISTANCE = 9
+
+-- Use apenas no seu próprio jogo/teste.
+local USE_TELEPORT = true
+local TELEPORT_OFFSET = 4
+local TELEPORT_Y_OFFSET = 2
+local AFTER_TELEPORT_WAIT = 0.05
 
 -- Observação: este arquivo corrige a detecção de item na mão.
 -- Noclip/forçar speed não foi incluído aqui; use apenas mecânicas permitidas no seu próprio projeto/teste.
@@ -28,6 +35,8 @@ local WAIT_SINK_TIMEOUT = 12
 local busy = false
 local lastAction = 0
 local currentState = "Idle"
+
+print("[Autofarm] Config: ACTION_COOLDOWN=" .. ACTION_COOLDOWN .. " | USE_TELEPORT=" .. tostring(USE_TELEPORT))
 
 -- Ordem principal de produção.
 -- A carne SEMPRE vem primeiro. Depois Pineapple e Tomato.
@@ -416,7 +425,38 @@ end
 -- MOVIMENTO E INTERAÇÃO
 ------------------------------------------------------------
 
-local function moveNear(target)
+local function teleportNear(target)
+    local root = getRoot()
+    local pos = safePivot(target)
+
+    if not root or not pos then
+        return false
+    end
+
+    if (root.Position - pos).Magnitude <= INTERACT_DISTANCE then
+        return true
+    end
+
+    -- Teleporta para frente do alvo, olhando para ele.
+    local direction = root.Position - pos
+    if direction.Magnitude < 0.1 then
+        direction = Vector3.new(0, 0, 1)
+    else
+        direction = direction.Unit
+    end
+
+    local targetPos = pos + (direction * TELEPORT_OFFSET) + Vector3.new(0, TELEPORT_Y_OFFSET, 0)
+    local cf = CFrame.lookAt(targetPos, pos)
+
+    root.AssemblyLinearVelocity = Vector3.zero
+    root.AssemblyAngularVelocity = Vector3.zero
+    root.CFrame = cf
+
+    task.wait(AFTER_TELEPORT_WAIT)
+    return (root.Position - pos).Magnitude <= INTERACT_DISTANCE + 3
+end
+
+local function walkNear(target)
     local humanoid = getHumanoid()
     local root = getRoot()
     local pos = safePivot(target)
@@ -440,10 +480,21 @@ local function moveNear(target)
             return true
         end
 
-        task.wait(0.05)
+        task.wait(0.03)
     end
 
     return false
+end
+
+local function moveNear(target)
+    if USE_TELEPORT then
+        local ok = teleportNear(target)
+        if ok then
+            return true
+        end
+    end
+
+    return walkNear(target)
 end
 
 local function findPrompt(target)
