@@ -1,54 +1,36 @@
---// Caos na Cozinha - Scan Frente v1
---// Só tem 1 botão: SCAN FRENTE
---// Ele tenta detectar o objeto que está na sua frente / perto da marcação de interação do jogo.
---// Não faz auto-farm, não interage, só imprime no console.
---//
---// Como usar:
---// 1) fica de frente para a coisa que quer identificar
---// 2) chega perto o suficiente para aparecer a marcação/interação vermelha do jogo
---// 3) aperta SCAN FRENTE
---// 4) manda o console
+--// Caos na Cozinha - Scan Frente + Scan Panela v2
+--// SCAN FRENTE: mantém o scan normal do objeto/interação na frente.
+--// SCAN PANELA: scan focado em propriedades visuais da Hob/FryingPan.
+--// Ambos copiam o resultado para a área de transferência, se o executor suportar.
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local lp = Players.LocalPlayer
 local pg = lp:WaitForChild("PlayerGui")
 local cam = Workspace.CurrentCamera
+local GUI_NAME = "CK_ScanFrentePanelaV2"
 
-local GUI_NAME = "CK_ScanFrenteV1"
-
-local RAY_DISTANCE = 70
-local PROMPT_RADIUS = 18
-local SCREEN_CENTER_WEIGHT = 1.35
-
-local IMPORTANT_WORDS = {
-    "foodbin","ingredient","ingredients",
-    "tomato","tomate",
-    "pineapple","abacaxi",
-    "beef","meat","carne",
-    "kebab",
-
-    "chopping","chop","cut","knife","faca","board",
-    "hob","pan","saucepan","pot","grill","cook","cooking",
-    "countertop","counter",
-
-    "plate","platespawner","dish","serveplate",
-
-    "delivery","deliver","serve","serving","customer","customers",
-    "order","orders","dropoff","window","cashier"
+local WORDS = {
+    "foodbin","ingredient","tomato","pineapple","beef","meat","carne",
+    "chopping","cut","knife","faca","hob","pan","saucepan","pot","cook",
+    "countertop","plate","sink","sell","sellpoint","delivery","serve"
 }
 
-local function low(x)
-    return string.lower(tostring(x or ""))
+local function low(x) return string.lower(tostring(x or "")) end
+local function root() return workspace:FindFirstChild("Interactables") or workspace end
+
+local function copy(txt)
+    if setclipboard then setclipboard(txt) return true end
+    if toclipboard then toclipboard(txt) return true end
+    if syn and syn.write_clipboard then syn.write_clipboard(txt) return true end
+    return false
 end
 
-local function path(obj)
-    local ok, res = pcall(function()
-        return obj:GetFullName()
-    end)
-    return ok and res or tostring(obj)
+local function path(o)
+    local ok, r = pcall(function() return o:GetFullName() end)
+    return ok and r or tostring(o)
 end
 
 local function asset(x)
@@ -56,459 +38,379 @@ local function asset(x)
     return x:match("rbxassetid://(%d+)") or x:match("id=(%d+)") or x
 end
 
-local function getChar()
-    return lp.Character or lp.CharacterAdded:Wait()
-end
-
-local function getHRP()
-    local c = getChar()
+local function hrp()
+    local c = lp.Character or lp.CharacterAdded:Wait()
     return c:FindFirstChild("HumanoidRootPart")
 end
 
-local function objPart(obj)
-    if not obj then return nil end
-
-    if obj:IsA("BasePart") then
-        return obj
-    end
-
-    if obj:IsA("Model") then
-        return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
-    end
-
-    return obj:FindFirstAncestorWhichIsA("BasePart")
+local function part(o)
+    if not o then return nil end
+    if o:IsA("BasePart") then return o end
+    if o:IsA("Model") then return o.PrimaryPart or o:FindFirstChildWhichIsA("BasePart", true) end
+    return o:FindFirstAncestorWhichIsA("BasePart")
 end
 
-local function objPos(obj)
-    local p = objPart(obj)
-    return p and p.Position or nil
+local function pos(o)
+    local p = part(o)
+    return p and p.Position
 end
 
-local function dist(obj)
-    local h = getHRP()
-    local p = objPos(obj)
-
-    if not h or not p then
-        return nil
-    end
-
+local function dist(o)
+    local h, p = hrp(), pos(o)
+    if not h or not p then return nil end
     return math.floor((p - h.Position).Magnitude)
 end
 
-local function posText(p)
-    if not p then return "sem pos" end
-    return math.floor(p.X)..","..math.floor(p.Y)..","..math.floor(p.Z)
+local function posText(v)
+    if not v then return "sem pos" end
+    return math.floor(v.X)..","..math.floor(v.Y)..","..math.floor(v.Z)
 end
 
-local function root()
-    return workspace:FindFirstChild("Interactables") or workspace
-end
-
-local function hasImportantWord(obj)
-    local text = low(obj.Name .. " " .. path(obj))
-
-    for _, w in ipairs(IMPORTANT_WORDS) do
-        if text:find(low(w), 1, true) then
-            return true, w
-        end
+local function hasWord(o)
+    local t = low(o.Name.." "..path(o))
+    for _, w in ipairs(WORDS) do
+        if t:find(low(w), 1, true) then return true, w end
     end
-
     return false, nil
 end
 
-local function topInteractable(obj)
-    if not obj then return nil end
-
+local function top(o)
+    if not o then return nil end
     local r = root()
-    local cur = obj
-
-    if not cur:IsA("Model") then
-        cur = cur:FindFirstAncestorOfClass("Model") or cur
-    end
-
+    local cur = o:IsA("Model") and o or o:FindFirstAncestorOfClass("Model") or o
     while cur and cur.Parent and cur.Parent ~= r and cur.Parent ~= workspace do
-        local parent = cur.Parent
-
-        -- se o objeto atual já parece importante, para nele
-        local ok = hasImportantWord(cur)
-        if ok then
-            break
-        end
-
-        cur = parent
+        if hasWord(cur) then break end
+        cur = cur.Parent
     end
-
     return cur
 end
 
-local function attrs(obj)
-    local out = {}
-
-    for k, v in pairs(obj:GetAttributes()) do
-        table.insert(out, tostring(k).."="..tostring(v))
-    end
-
-    table.sort(out)
-    return out
-end
-
-local function children(obj)
-    local out = {}
-
-    for _, c in ipairs(obj:GetChildren()) do
-        table.insert(out, "- "..c.Name.." ["..c.ClassName.."]")
-        if #out >= 25 then
-            break
-        end
-    end
-
-    return out
-end
-
-local function importantDesc(obj, limit)
-    local out = {}
-    limit = limit or 55
-
-    for _, d in ipairs(obj:GetDescendants()) do
-        if #out >= limit then
-            break
-        end
-
-        if d:IsA("ProximityPrompt") then
-            table.insert(out, "PROMPT "..d.Name.." ActionText="..tostring(d.ActionText).." ObjectText="..tostring(d.ObjectText).." Hold="..tostring(d.HoldDuration).." | "..path(d))
-
-        elseif d:IsA("Decal") or d:IsA("Texture") then
-            local id = asset(d.Texture)
-            if id and id ~= "" then
-                table.insert(out, d.ClassName.." "..d.Name.." texture="..id.." | "..path(d))
-            end
-
-        elseif d:IsA("ImageLabel") or d:IsA("ImageButton") then
-            local id = asset(d.Image)
-            if id and id ~= "" then
-                table.insert(out, d.ClassName.." "..d.Name.." image="..id.." | "..path(d))
-            end
-
-        elseif d:IsA("MeshPart") then
-            local id = asset(d.TextureID)
-            if id and id ~= "" then
-                table.insert(out, "MeshPart "..d.Name.." textureID="..id.." | "..path(d))
-            end
-
-        elseif d:IsA("SpecialMesh") then
-            local id = asset(d.TextureId)
-            if id and id ~= "" then
-                table.insert(out, "SpecialMesh "..d.Name.." textureId="..id.." | "..path(d))
-            end
-
-        elseif d:IsA("StringValue") or d:IsA("IntValue") or d:IsA("NumberValue") or d:IsA("BoolValue") or d:IsA("ObjectValue") then
-            table.insert(out, "VALUE "..d.Name.." ["..d.ClassName.."] = "..tostring(d.Value).." | "..path(d))
-        end
-    end
-
-    return out
-end
-
-local function screenScore(obj)
-    local p = objPos(obj)
+local function screenScore(o)
+    local p = pos(o)
     if not p or not cam then return math.huge end
-
-    local v, onScreen = cam:WorldToViewportPoint(p)
-    if not onScreen then
-        return math.huge
-    end
-
-    local center = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y / 2)
-    local point = Vector2.new(v.X, v.Y)
-
-    return (point - center).Magnitude
+    local v, on = cam:WorldToViewportPoint(p)
+    if not on then return math.huge end
+    return (Vector2.new(v.X, v.Y) - Vector2.new(cam.ViewportSize.X/2, cam.ViewportSize.Y/2)).Magnitude
 end
 
-local function nearestPromptTarget()
-    local h = getHRP()
+local function promptTarget()
+    local h = hrp()
     if not h then return nil end
-
-    local bestObj = nil
-    local bestScore = math.huge
-
+    local best, score = nil, math.huge
     for _, d in ipairs(root():GetDescendants()) do
         if d:IsA("ProximityPrompt") then
-            local part = d.Parent
-            local p = objPos(part)
-
+            local p = pos(d.Parent)
             if p then
-                local distance = (p - h.Position).Magnitude
-
-                if distance <= PROMPT_RADIUS then
-                    local target = topInteractable(part)
-                    local s = distance + (screenScore(target or part) / 120) * SCREEN_CENTER_WEIGHT
-
-                    if s < bestScore then
-                        bestScore = s
-                        bestObj = target or part
-                    end
+                local dd = (p - h.Position).Magnitude
+                if dd <= 18 then
+                    local t = top(d.Parent) or d.Parent
+                    local s = dd + screenScore(t)/120
+                    if s < score then best, score = t, s end
                 end
             end
         end
     end
-
-    return bestObj
+    return best
 end
 
 local function rayTarget()
     if not cam then return nil end
-
-    local centerX = cam.ViewportSize.X / 2
-    local centerY = cam.ViewportSize.Y / 2
-
-    local ray = cam:ViewportPointToRay(centerX, centerY)
-
+    local ray = cam:ViewportPointToRay(cam.ViewportSize.X/2, cam.ViewportSize.Y/2)
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Blacklist
     params.IgnoreWater = true
-
-    local ignore = {}
-    local char = lp.Character
-    if char then table.insert(ignore, char) end
-    params.FilterDescendantsInstances = ignore
-
-    local result = workspace:Raycast(ray.Origin, ray.Direction * RAY_DISTANCE, params)
-
-    if result and result.Instance then
-        return topInteractable(result.Instance) or result.Instance, result.Instance, result.Position
-    end
-
+    params.FilterDescendantsInstances = lp.Character and {lp.Character} or {}
+    local r = workspace:Raycast(ray.Origin, ray.Direction * 70, params)
+    if r and r.Instance then return top(r.Instance) or r.Instance, r.Instance, r.Position end
     return nil
 end
 
-local function frontalImportantTarget()
-    local h = getHRP()
+local function frontImportant()
+    local h = hrp()
     if not h or not cam then return nil end
-
-    local best = nil
-    local bestScore = math.huge
-
-    for _, obj in ipairs(root():GetDescendants()) do
-        local ok = hasImportantWord(obj)
-        if ok then
-            local target = topInteractable(obj)
-            local p = objPos(target)
-
+    local best, score = nil, math.huge
+    for _, o in ipairs(root():GetDescendants()) do
+        if hasWord(o) then
+            local t = top(o)
+            local p = pos(t)
             if p then
-                local offset = p - h.Position
-                local distance = offset.Magnitude
-
-                if distance <= RAY_DISTANCE then
-                    local dir = cam.CFrame.LookVector
-                    local dot = dir:Dot(offset.Unit)
-
-                    -- só coisas na frente da câmera/personagem
-                    if dot > 0.45 then
-                        local s = screenScore(target) + distance * 2
-
-                        if s < bestScore then
-                            bestScore = s
-                            best = target
-                        end
-                    end
+                local off = p - h.Position
+                if off.Magnitude <= 70 and cam.CFrame.LookVector:Dot(off.Unit) > 0.45 then
+                    local s = screenScore(t) + off.Magnitude * 2
+                    if s < score then best, score = t, s end
                 end
             end
         end
     end
-
     return best
 end
 
-local function printBlock(title, lines)
-    warn("[CK FRENTE] ===== "..title.." =====")
-
-    local buf = {}
-
-    for _, line in ipairs(lines) do
-        table.insert(buf, line)
-
-        if #buf >= 16 then
-            print("[CK FRENTE]\n"..table.concat(buf, "\n"))
-            table.clear(buf)
-            task.wait(0.05)
-        end
-    end
-
-    if #buf > 0 then
-        print("[CK FRENTE]\n"..table.concat(buf, "\n"))
-    end
-
-    warn("[CK FRENTE] ===== FIM "..title.." =====")
+local function getTarget()
+    local p = promptTarget()
+    if p then return p, "ProximityPrompt" end
+    local r, hit, hitPos = rayTarget()
+    if r then return r, "Raycast", hit, hitPos end
+    local f = frontImportant()
+    if f then return f, "Objeto na frente" end
+    return nil, "nenhum"
 end
 
-local function describe(obj, source, hitPart, hitPos)
-    local lines = {}
-
-    if not obj then
-        table.insert(lines, "Nada detectado.")
-        table.insert(lines, "Dica: chegue mais perto, deixe a marcação vermelha aparecer, olhe para o objeto e aperte de novo.")
-        printBlock("SCAN FRENTE", lines)
-        return
-    end
-
-    local p = objPos(obj)
-    local d = dist(obj)
-    local ok, word = hasImportantWord(obj)
-
-    table.insert(lines, "Fonte da detecção: "..tostring(source))
-    table.insert(lines, "Player: "..lp.Name)
-    table.insert(lines, "Root: "..path(root()))
-    table.insert(lines, "")
-    table.insert(lines, "TARGET")
-    table.insert(lines, "Name: "..obj.Name.." ["..obj.ClassName.."]")
-    table.insert(lines, "Path: "..path(obj))
-    table.insert(lines, "Pos: "..posText(p))
-    table.insert(lines, "Distância: "..tostring(d or "?").." studs")
-    table.insert(lines, "Keyword: "..tostring(word or "nenhuma"))
-    table.insert(lines, "ScreenScore: "..tostring(math.floor(screenScore(obj))))
-    table.insert(lines, "")
-
-    if hitPart then
-        table.insert(lines, "HitPart/Raycast")
-        table.insert(lines, "HitPart: "..hitPart.Name.." ["..hitPart.ClassName.."]")
-        table.insert(lines, "HitPartPath: "..path(hitPart))
-        table.insert(lines, "HitPos: "..posText(hitPos))
-        table.insert(lines, "")
-    end
-
-    local a = attrs(obj)
-    if #a > 0 then
-        table.insert(lines, "Attributes:")
-        for _, x in ipairs(a) do
-            table.insert(lines, "  "..x)
+local function printCopy(title, lines)
+    local txt = "[CK] ===== "..title.." =====\n"..table.concat(lines, "\n").."\n[CK] ===== FIM "..title.." ====="
+    local ok = copy(txt)
+    warn("[CK] ===== "..title.." =====")
+    warn(ok and "[CK] COPIADO" or "[CK] NÃO COPIOU")
+    local buf = {}
+    for _, line in ipairs(lines) do
+        table.insert(buf, line)
+        if #buf >= 16 then
+            print("[CK]\n"..table.concat(buf, "\n"))
+            table.clear(buf)
+            task.wait(0.03)
         end
-        table.insert(lines, "")
     end
+    if #buf > 0 then print("[CK]\n"..table.concat(buf, "\n")) end
+    warn("[CK] ===== FIM "..title.." =====")
+end
 
-    local ch = children(obj)
-    if #ch > 0 then
-        table.insert(lines, "Children:")
-        for _, x in ipairs(ch) do
-            table.insert(lines, "  "..x)
+local function attrs(o)
+    local a = {}
+    for k,v in pairs(o:GetAttributes()) do table.insert(a, tostring(k).."="..tostring(v)) end
+    table.sort(a)
+    return a
+end
+
+local function infoDesc(o, limit)
+    local out = {}
+    for _, d in ipairs(o:GetDescendants()) do
+        if #out >= (limit or 70) then break end
+        if d:IsA("ProximityPrompt") then
+            table.insert(out, "PROMPT "..d.Name.." Action="..tostring(d.ActionText).." Object="..tostring(d.ObjectText).." | "..path(d))
+        elseif d:IsA("ImageLabel") or d:IsA("ImageButton") then
+            table.insert(out, d.ClassName.." "..d.Name.." image="..asset(d.Image).." | "..path(d))
+        elseif d:IsA("Decal") or d:IsA("Texture") then
+            table.insert(out, d.ClassName.." "..d.Name.." texture="..asset(d.Texture).." | "..path(d))
+        elseif d:IsA("MeshPart") then
+            if tostring(d.TextureID) ~= "" then table.insert(out, "MeshPart "..d.Name.." textureID="..asset(d.TextureID).." | "..path(d)) end
+        elseif d:IsA("SpecialMesh") then
+            if tostring(d.TextureId) ~= "" then table.insert(out, "SpecialMesh "..d.Name.." textureId="..asset(d.TextureId).." | "..path(d)) end
+        elseif d:IsA("StringValue") or d:IsA("IntValue") or d:IsA("NumberValue") or d:IsA("BoolValue") or d:IsA("ObjectValue") then
+            table.insert(out, "VALUE "..d.Name.." ["..d.ClassName.."]="..tostring(d.Value).." | "..path(d))
         end
-        table.insert(lines, "")
     end
-
-    local im = importantDesc(obj, 70)
-    if #im > 0 then
-        table.insert(lines, "Assets/Prompts/Values:")
-        for _, x in ipairs(im) do
-            table.insert(lines, "  "..x)
-        end
-        table.insert(lines, "")
-    end
-
-    printBlock("SCAN FRENTE", lines)
+    return out
 end
 
 local function scanFrente()
-    -- prioridade 1: ProximityPrompt perto da marcação/interação
-    local ptarget = nearestPromptTarget()
-    if ptarget then
-        describe(ptarget, "ProximityPrompt mais próximo/central")
+    local o, source, hit, hitPos = getTarget()
+    local lines = {}
+    if not o then
+        table.insert(lines, "Nada detectado.")
+        printCopy("SCAN FRENTE", lines)
         return
     end
-
-    -- prioridade 2: raycast no centro da câmera
-    local rtarget, hitPart, hitPos = rayTarget()
-    if rtarget then
-        describe(rtarget, "Raycast centro da câmera", hitPart, hitPos)
-        return
+    local ok, word = hasWord(o)
+    table.insert(lines, "Fonte: "..source)
+    table.insert(lines, "Name: "..o.Name.." ["..o.ClassName.."]")
+    table.insert(lines, "Path: "..path(o))
+    table.insert(lines, "Pos: "..posText(pos(o)))
+    table.insert(lines, "Dist: "..tostring(dist(o) or "?"))
+    table.insert(lines, "Keyword: "..tostring(word or "nenhuma"))
+    if hit then
+        table.insert(lines, "HitPart: "..hit.Name.." ["..hit.ClassName.."]")
+        table.insert(lines, "HitPath: "..path(hit))
+        table.insert(lines, "HitPos: "..posText(hitPos))
     end
-
-    -- prioridade 3: objeto importante mais central na frente
-    local ftarget = frontalImportantTarget()
-    if ftarget then
-        describe(ftarget, "Objeto importante na frente")
-        return
-    end
-
-    describe(nil, "nenhuma")
+    table.insert(lines, "")
+    table.insert(lines, "Attributes:")
+    for _, x in ipairs(attrs(o)) do table.insert(lines, "  "..x) end
+    table.insert(lines, "")
+    table.insert(lines, "Children:")
+    for _, c in ipairs(o:GetChildren()) do table.insert(lines, "  - "..c.Name.." ["..c.ClassName.."]") end
+    table.insert(lines, "")
+    table.insert(lines, "Assets/Prompts/Values:")
+    for _, x in ipairs(infoDesc(o, 80)) do table.insert(lines, "  "..x) end
+    printCopy("SCAN FRENTE", lines)
 end
 
--- remove GUI antiga
+local function findHob()
+    local o = getTarget()
+    if o and (o:GetAttribute("ApplianceType") == "Hob" or low(o.Name):find("hob", 1, true)) then return o, "frente" end
+    if o then
+        local cur = o
+        while cur and cur ~= workspace do
+            if cur:IsA("Model") and (cur:GetAttribute("ApplianceType") == "Hob" or low(cur.Name):find("hob", 1, true)) then return cur, "ancestor" end
+            cur = cur.Parent
+        end
+    end
+    local h = hrp()
+    local best, bd = nil, math.huge
+    for _, x in ipairs(root():GetDescendants()) do
+        if x:IsA("Model") and (x:GetAttribute("ApplianceType") == "Hob" or low(x.Name):find("hob", 1, true)) then
+            local p = pos(x)
+            if p and h then
+                local d = (p - h.Position).Magnitude
+                if d < bd and d <= 25 then best, bd = x, d end
+            end
+        end
+    end
+    return best, "mais próximo"
+end
+
+local function guiLine(g)
+    local t = {}
+    table.insert(t, g.Name.." ["..g.ClassName.."]")
+    table.insert(t, "Path="..path(g))
+    if g:IsA("BillboardGui") or g:IsA("SurfaceGui") or g:IsA("ScreenGui") then
+        table.insert(t, "Enabled="..tostring(g.Enabled))
+    end
+    if g:IsA("GuiObject") then
+        table.insert(t, "Visible="..tostring(g.Visible))
+        table.insert(t, "Size="..tostring(g.Size))
+        table.insert(t, "AbsoluteSize="..math.floor(g.AbsoluteSize.X).."x"..math.floor(g.AbsoluteSize.Y))
+        table.insert(t, "Position="..tostring(g.Position))
+        table.insert(t, "BGTransparency="..tostring(g.BackgroundTransparency))
+        table.insert(t, "BGColor="..tostring(g.BackgroundColor3))
+    end
+    if g:IsA("ImageLabel") or g:IsA("ImageButton") then
+        table.insert(t, "Image="..tostring(g.Image))
+        table.insert(t, "ImageId="..tostring(asset(g.Image)))
+        table.insert(t, "ImageTransparency="..tostring(g.ImageTransparency))
+        table.insert(t, "ImageColor="..tostring(g.ImageColor3))
+    end
+    return t
+end
+
+local function addPath(lines, base, names)
+    local cur = base
+    for _, n in ipairs(names) do cur = cur and cur:FindFirstChild(n) end
+    table.insert(lines, "")
+    table.insert(lines, "----- "..table.concat(names, ".").." -----")
+    if cur then
+        for _, x in ipairs(guiLine(cur)) do table.insert(lines, x) end
+    else
+        table.insert(lines, "NÃO EXISTE")
+    end
+end
+
+local function scanPanela()
+    local hob, source = findHob()
+    local lines = {}
+    if not hob then
+        table.insert(lines, "Nenhuma Hob detectada. Fique perto/de frente da panela.")
+        printCopy("SCAN PANELA", lines)
+        return
+    end
+    local pan = hob:FindFirstChild("FryingPan", true)
+    table.insert(lines, "Fonte: "..tostring(source))
+    table.insert(lines, "Hob="..path(hob))
+    table.insert(lines, "Dist="..tostring(dist(hob) or "?"))
+    table.insert(lines, "ApplianceType="..tostring(hob:GetAttribute("ApplianceType")))
+    table.insert(lines, "UtensilType="..tostring(hob:GetAttribute("UtensilType")))
+    table.insert(lines, "FryingPan="..(pan and path(pan) or "não encontrado"))
+    table.insert(lines, "")
+    table.insert(lines, "Children Hob:")
+    for _, c in ipairs(hob:GetChildren()) do table.insert(lines, "  - "..c.Name.." ["..c.ClassName.."]") end
+    if pan then
+        table.insert(lines, "Children FryingPan:")
+        for _, c in ipairs(pan:GetChildren()) do table.insert(lines, "  - "..c.Name.." ["..c.ClassName.."]") end
+    end
+
+    addPath(lines, hob, {"ProgressBar"})
+    addPath(lines, hob, {"ProgressBar","WarningImage"})
+    addPath(lines, hob, {"ProgressBar","TickImage"})
+    addPath(lines, hob, {"ProgressBar","BurntImage"})
+    addPath(lines, hob, {"ProgressBar","Progress"})
+    addPath(lines, hob, {"ProgressBar","Progress","Background"})
+    addPath(lines, hob, {"ProgressBar","Progress","Shadow"})
+
+    if pan then
+        addPath(lines, pan, {"ProgressBar"})
+        addPath(lines, pan, {"ProgressBar","WarningImage"})
+        addPath(lines, pan, {"ProgressBar","TickImage"})
+        addPath(lines, pan, {"ProgressBar","BurntImage"})
+        addPath(lines, pan, {"ProgressBar","Progress"})
+        addPath(lines, pan, {"ProgressBar","Progress","Background"})
+        addPath(lines, pan, {"ProgressBar","Progress","Shadow"})
+        addPath(lines, pan, {"ItemPosition","IngredientsUi"})
+        addPath(lines, pan, {"ItemPosition","IngredientsUi","Frame"})
+        addPath(lines, pan, {"ItemPosition","IngredientsUi","Frame","PlusIcon","Icon"})
+        addPath(lines, pan, {"ItemPosition","IngredientsUi","Frame","IngredientTemplate"})
+        addPath(lines, pan, {"ItemPosition","IngredientsUi","Frame","IngredientTemplate","Icon"})
+    end
+
+    table.insert(lines, "")
+    table.insert(lines, "Todos GuiObjects importantes da panela:")
+    local scanRoot = pan or hob
+    for _, d in ipairs(scanRoot:GetDescendants()) do
+        if d:IsA("BillboardGui") or d:IsA("ImageLabel") or d:IsA("ImageButton") or d:IsA("Frame") then
+            local n, pth = low(d.Name), low(path(d))
+            if n:find("warning",1,true) or n:find("tick",1,true) or n:find("burnt",1,true)
+            or n:find("progress",1,true) or n:find("ingredient",1,true) or n:find("icon",1,true)
+            or pth:find("progressbar",1,true) or pth:find("ingredientsui",1,true) then
+                table.insert(lines, "")
+                for _, x in ipairs(guiLine(d)) do table.insert(lines, x) end
+            end
+        end
+    end
+    printCopy("SCAN PANELA", lines)
+end
+
 local old = pg:FindFirstChild(GUI_NAME)
 if old then old:Destroy() end
 
--- GUI com 1 botão só
 local gui = Instance.new("ScreenGui")
 gui.Name = GUI_NAME
 gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = pg
 
-local button = Instance.new("TextButton")
-button.Name = "ScanFrente"
-button.Size = UDim2.new(0, 190, 0, 48)
-button.Position = UDim2.new(0, 110, 0.34, 0)
-button.BackgroundColor3 = Color3.fromRGB(180, 25, 25)
-button.BorderSizePixel = 0
-button.Text = "SCAN FRENTE"
-button.TextColor3 = Color3.fromRGB(255,255,255)
-button.TextScaled = true
-button.Font = Enum.Font.GothamBlack
-button.Active = true
-button.Parent = gui
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 108)
+frame.Position = UDim2.new(0, 110, 0.34, 0)
+frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+frame.BackgroundTransparency = 0.12
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = gui
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
 
-local corner = Instance.new("UICorner")
-corner.CornerRadius = UDim.new(0, 12)
-corner.Parent = button
-
-local stroke = Instance.new("UIStroke")
-stroke.Color = Color3.fromRGB(255,255,255)
-stroke.Thickness = 1
-stroke.Transparency = 0.55
-stroke.Parent = button
-
-button.MouseButton1Down:Connect(function()
-    button.BackgroundColor3 = Color3.fromRGB(120, 15, 15)
-end)
-
-button.MouseButton1Up:Connect(function()
-    button.BackgroundColor3 = Color3.fromRGB(180, 25, 25)
-end)
-
-button.MouseButton1Click:Connect(scanFrente)
-
--- arrastar botão
-do
-    local dragging = false
-    local dragStart
-    local startPos
-
-    button.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = button.Position
-        end
-    end)
-
-    button.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and dragStart and startPos then
-            if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-                local delta = input.Position - dragStart
-                button.Position = UDim2.new(
-                    startPos.X.Scale,
-                    startPos.X.Offset + delta.X,
-                    startPos.Y.Scale,
-                    startPos.Y.Offset + delta.Y
-                )
-            end
-        end
-    end)
+local function makeBtn(text, y, cb)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -16, 0, 42)
+    b.Position = UDim2.new(0, 8, 0, y)
+    b.BackgroundColor3 = Color3.fromRGB(180,25,25)
+    b.TextColor3 = Color3.fromRGB(255,255,255)
+    b.TextScaled = true
+    b.Font = Enum.Font.GothamBlack
+    b.Text = text
+    b.BorderSizePixel = 0
+    b.Parent = frame
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
+    b.MouseButton1Click:Connect(cb)
 end
 
-warn("[CK FRENTE] carregado.")
-warn("[CK FRENTE] Fique de frente/perto da marcação vermelha e aperte SCAN FRENTE.")
+makeBtn("SCAN FRENTE", 8, scanFrente)
+makeBtn("SCAN PANELA", 58, scanPanela)
+
+local dragging, dragStart, startPos = false, nil, nil
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+    end
+end)
+frame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+end)
+UIS.InputChanged:Connect(function(input)
+    if dragging and dragStart and startPos then
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end
+end)
+
+warn("[CK] carregado. SCAN FRENTE e SCAN PANELA copiam o resultado.")
