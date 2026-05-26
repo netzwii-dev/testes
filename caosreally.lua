@@ -1,5 +1,5 @@
 -- AUTOFARM: CAOS NA COZINHA / COOKING CHAOS
--- Versao: 1 clique por etapa + delay 2s antes de teleporte + espera 0.5s antes de interagir
+-- Versao: 1 clique por etapa + delay especial em ChoppingBoard/Hob + filtro estrito de Plate
 -- Baseado nas regras do TXT: Kebab / Cidade Symmetri
 -- Uso recomendado: somente em jogo proprio / ambiente de teste.
 
@@ -17,6 +17,8 @@ local Interactables = Workspace:WaitForChild("Interactables")
 local USE_TELEPORT = true
 local PRE_TELEPORT_DELAY = 2.00      -- espera ANTES de teleportar para a proxima etapa
 local PROMPT_SETTLE_DELAY = 0.50     -- espera DEPOIS de teleportar, antes do unico clique
+local SPECIAL_APPLIANCE_CLICK_DELAY = 2.00 -- somente ChoppingBoard/Hob: espera extra ANTES do clique
+local POST_CONFIRMED_DELAY = 0.20    -- respiro depois de confirmar uma etapa; o proximo TP ainda espera PRE_TELEPORT_DELAY
 local ACTION_COOLDOWN = 0.30
 local INTERACT_DISTANCE = 8
 local TELEPORT_OFFSET = 4.5
@@ -313,6 +315,70 @@ local function hasIngredient(container, ingredientName)
 end
 
 ------------------------------------------------------------
+-- FILTROS DE ALVOS / EVITA CONFUNDIR PANELA COM PRATO
+------------------------------------------------------------
+
+local function hasAncestorMatching(obj, predicate)
+    local current = obj
+    while current and current ~= Interactables do
+        if predicate(current) then
+            return true, current
+        end
+        current = current.Parent
+    end
+    return false, nil
+end
+
+local function isChoppingBoardTarget(obj)
+    if not obj then return false end
+    return obj:GetAttribute("ApplianceType") == "ChoppingBoard"
+        or obj.Name == "ChoppingBoard"
+        or obj:GetAttribute("ObjectText") == "ChoppingBoard"
+end
+
+local function isHobTarget(obj)
+    if not obj then return false end
+    return obj:GetAttribute("ApplianceType") == "Hob"
+        or obj.Name == "Hob"
+        or obj:GetAttribute("ObjectText") == "Hob"
+        or obj.Name == "FryingPan"
+        or obj:GetAttribute("UtensilType") == "FryingPan"
+end
+
+local function isInsideNonPlateAppliance(obj)
+    local inside = hasAncestorMatching(obj, function(a)
+        local appliance = a:GetAttribute("ApplianceType")
+        return appliance == "Hob"
+            or appliance == "ChoppingBoard"
+            or appliance == "Sink"
+            or appliance == "FoodBin"
+            or appliance == "PlateSpawner"
+            or a.Name == "Hob"
+            or a.Name == "FryingPan"
+            or a.Name == "ChoppingBoard"
+            or a.Name == "Sink"
+            or a.Name == "FoodBin"
+            or a.Name == "PlateSpawner"
+    end)
+
+    return inside
+end
+
+local function isSpecialSlowTarget(target)
+    if not target then return false end
+
+    if isChoppingBoardTarget(target) or isHobTarget(target) then
+        return true
+    end
+
+    local insideSpecial = hasAncestorMatching(target, function(a)
+        return isChoppingBoardTarget(a) or isHobTarget(a)
+    end)
+
+    return insideSpecial
+end
+
+------------------------------------------------------------
 -- PRATOS / BANCADAS
 ------------------------------------------------------------
 
@@ -332,7 +398,18 @@ local BLOCK_COUNTER = {
 
 local function isPlateObject(obj)
     if not obj then return false end
-    return obj:GetAttribute("Type") == "Plate" or obj.Name == "Plate"
+
+    -- Prato real precisa ser exatamente Type=Plate ou Name=Plate.
+    -- E NAO pode estar dentro de Hob/FryingPan/ChoppingBoard/Sink/FoodBin/PlateSpawner.
+    -- Isso impede a panela/FryingPan ou objetos internos dela de serem tratados como prato.
+    local isNamedPlate = obj:GetAttribute("Type") == "Plate" or obj.Name == "Plate"
+    if not isNamedPlate then return false end
+
+    if isInsideNonPlateAppliance(obj) then
+        return false
+    end
+
+    return true
 end
 
 local function getPlateState(plate)
@@ -381,7 +458,11 @@ end
 local function getNearestCleanEmptyPlate()
     return getNearestWhere(function(obj)
         if not isPlateObject(obj) then return false end
-        return getPlateState(obj).count == 0
+        if getPlateState(obj).count ~= 0 then return false end
+
+        -- Para pegar prato, ele precisa ser um alvo interagivel ou conter prompt.
+        -- Evita selecionar UI/partes decorativas chamadas Plate.
+        return obj:FindFirstChildWhichIsA("ProximityPrompt", true) ~= nil
     end)
 end
 
@@ -675,12 +756,24 @@ local function doOneClickStep(target, label, confirmFn, timeout)
         return false
     end
 
+    if isSpecialSlowTarget(target) then
+        log("Delay especial antes do clique:", label, SPECIAL_APPLIANCE_CLICK_DELAY .. "s")
+        task.wait(SPECIAL_APPLIANCE_CLICK_DELAY)
+    end
+
     local clicked = interactOnce(target, label)
     if not clicked then return false end
 
-    if not confirmFn then return true end
+    if not confirmFn then
+        task.wait(POST_CONFIRMED_DELAY)
+        return true
+    end
 
-    return waitUntil(confirmFn, label, timeout)
+    local confirmed = waitUntil(confirmFn, label, timeout)
+    if confirmed then
+        task.wait(POST_CONFIRMED_DELAY)
+    end
+    return confirmed
 end
 
 ------------------------------------------------------------
@@ -1035,4 +1128,4 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
-print("[Autofarm] Cooking Chaos carregado | 1 clique por etapa | TP delay 2s | espera interacao 0.5s")
+print("[Autofarm] Cooking Chaos carregado | 1 clique | TP delay 2s | interacao 0.5s | ChoppingBoard/Hob delay extra 2s | Plate estrito")
