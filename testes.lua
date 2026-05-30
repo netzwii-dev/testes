@@ -51,6 +51,7 @@ local DEFAULT_TOGGLE_XRAY_KEY = Enum.KeyCode.X
 local DEFAULT_TOGGLE_NON_SPAM_KEY = Enum.KeyCode.U
 local DEFAULT_TOGGLE_CLIP_DANCE2_KEY = Enum.KeyCode.P
 local DEFAULT_TOGGLE_FLOORBANG_ESP_KEY = Enum.KeyCode.F
+local DEFAULT_TOGGLE_SILENT_MOVE_KEY = Enum.KeyCode.S
 
 local KEYBINDS_FILE = "nyhito_ftf_wallhop_keybinds.json"
 local PREFS_FILE = "nyhito_ftf_wallhop_prefs.json"
@@ -65,6 +66,7 @@ toggleXrayKey = DEFAULT_TOGGLE_XRAY_KEY
 toggleNonSpamKey = DEFAULT_TOGGLE_NON_SPAM_KEY
 toggleClipDance2Key = DEFAULT_TOGGLE_CLIP_DANCE2_KEY
 toggleFloorbangEspKey = DEFAULT_TOGGLE_FLOORBANG_ESP_KEY
+toggleSilentMoveKey = DEFAULT_TOGGLE_SILENT_MOVE_KEY
 
 waitingForHideKey = false
 waitingForToggleKey = false
@@ -1608,6 +1610,98 @@ local function applySilentMovement()
 	end
 end
 
+
+local function debugSilentMoveSoundScan(duration)
+	duration = tonumber(duration) or 12
+	local started = tick()
+	local logs = {}
+
+	local function add(line)
+		table.insert(logs, line)
+		print(line)
+	end
+
+	add("===== Silent Move Sound Scan START =====")
+	add("Move/jump for " .. tostring(duration) .. " seconds, then send the copied console output.")
+
+	local function inspectSound(sound, prefix)
+		if not sound or not sound:IsA("Sound") then
+			return
+		end
+
+		local char = LocalPlayer.Character
+		local inLocalCharacter = char and sound:IsDescendantOf(char)
+		local path = "unknown"
+
+		pcall(function()
+			path = sound:GetFullName()
+		end)
+
+		local line = string.format(
+			"%s | %s | Name=%s | SoundId=%s | Volume=%s | Playing=%s | LocalCharacter=%s",
+			prefix,
+			path,
+			tostring(sound.Name),
+			tostring(sound.SoundId),
+			tostring(sound.Volume),
+			tostring(sound.Playing),
+			tostring(inLocalCharacter)
+		)
+
+		add(line)
+	end
+
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Sound") then
+			local name = tostring(obj.Name):lower()
+			if name:find("run", 1, true)
+				or name:find("walk", 1, true)
+				or name:find("step", 1, true)
+				or name:find("jump", 1, true)
+				or name:find("land", 1, true)
+				or name:find("freefall", 1, true)
+				or name:find("climb", 1, true)
+				or obj.Playing then
+				inspectSound(obj, "[EXISTING]")
+			end
+		end
+	end
+
+	local con
+	con = workspace.DescendantAdded:Connect(function(obj)
+		if tick() - started > duration then
+			if con then
+				con:Disconnect()
+			end
+			return
+		end
+
+		if obj:IsA("Sound") then
+			task.defer(function()
+				inspectSound(obj, "[NEW]")
+			end)
+		end
+	end)
+
+	task.delay(duration, function()
+		if con then
+			con:Disconnect()
+		end
+
+		add("===== Silent Move Sound Scan END =====")
+
+		if setclipboard then
+			pcall(function()
+				setclipboard(table.concat(logs, "\n"))
+				print("Silent Move scan copied to clipboard.")
+			end)
+		end
+	end)
+end
+
+-- To debug whether other players hear the sounds, run this in console after loading:
+-- debugSilentMoveSoundScan(12)
+
 local function setSilentMovementEnabled(state)
 	isSilentMovementEnabled = state and true or false
 
@@ -1619,7 +1713,7 @@ local function setSilentMovementEnabled(state)
 
 	if selectedMode == "PC" then
 		updateBindButtons()
-		showNotice(isSilentMovementEnabled and "Silent Movement enabled" or "Silent Movement disabled")
+		showNotice(isSilentMovementEnabled and "Silent Move enabled" or "Silent Move disabled")
 	end
 
 	updateMobilePanelButtons()
@@ -2299,7 +2393,7 @@ updateMobilePanelButtons = function()
 		MobileFloorbangEspRow.Label.Text = "Floorbang ESP"
 	end
 	if MobileSilentMovementRow and MobileSilentMovementRow:FindFirstChild("Label") then
-		MobileSilentMovementRow.Label.Text = "Silent Movement"
+		MobileSilentMovementRow.Label.Text = "Silent Move"
 	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
@@ -2364,7 +2458,7 @@ local function updateBindButtons()
 		FloorbangEspBindButton.Text = waitingForFloorbangEspKey and "Press any key..." or ("Keybind Toggle Floorbang ESP: " .. toggleFloorbangEspKey.Name)
 	end
 	if PcSilentMovementButton then
-		PcSilentMovementButton.Text = isSilentMovementEnabled and "Silent Movement: On" or "Silent Movement: Off"
+		PcSilentMovementButton.Text = isSilentMovementEnabled and "Silent Move: On  [S]" or "Silent Move: Off  [S]"
 	end
 end
 
@@ -3527,7 +3621,7 @@ local function buildMobileGui()
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 198, "Beast Slow")
 	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 240, "Clip Dance2")
 	MobileFloorbangEspRow, mobileFloorbangEspSwitch, mobileFloorbangEspKnob = createSwitchRow(MobileFunctionsPage, 282, "Floorbang ESP")
-	MobileSilentMovementRow, mobileSilentMovementSwitch, mobileSilentMovementKnob = createSwitchRow(MobileFunctionsPage, 324, "Silent Movement")
+	MobileSilentMovementRow, mobileSilentMovementSwitch, mobileSilentMovementKnob = createSwitchRow(MobileFunctionsPage, 324, "Silent Move")
 
 	MobileFlickTypesTitle = Instance.new("TextLabel")
 	MobileFlickTypesTitle.Size = UDim2.new(1, -14, 0, 22)
@@ -6268,6 +6362,12 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if key == toggleFloorbangEspKey then
 			setFloorbangESPEnabled(not isFloorbangEspEnabled)
 			showNotice(isFloorbangEspEnabled and "Floorbang ESP enabled" or "Floorbang ESP disabled")
+			return
+		end
+
+		if key == toggleSilentMoveKey then
+			setSilentMovementEnabled(not isSilentMovementEnabled)
+			showNotice(isSilentMovementEnabled and "Silent Move enabled" or "Silent Move disabled")
 			return
 		end
 
