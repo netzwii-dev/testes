@@ -231,6 +231,7 @@ playerESPHighlights = {}
 roleWatchConnections = {}
 computerESPMarkers = {}
 floorbangEspMarkers = {}
+updateComputerESP = nil
 FLOORBANG_HORIZONTAL_RANGE = 35
 dance2TurnToken = 0
 dance2NoclipActive = false
@@ -651,7 +652,9 @@ local function setXrayEnabled(state)
 		clearXray()
 	end
 
-	updateMobilePanelButtons()
+	if updateMobilePanelButtons then
+		updateMobilePanelButtons()
+	end
 	saveUserPreferences()
 end
 
@@ -1133,7 +1136,9 @@ updateESPButtons = function()
 	end
 
 	updateChamsSwitchVisual()
-	updateSwitchVisual(mobileComputersESPSwitch, mobileComputersESPKnob, computersESPEnabled)
+	if updateSwitchVisual then
+		updateSwitchVisual(mobileComputersESPSwitch, mobileComputersESPKnob, computersESPEnabled)
+	end
 end
 
 local function setChamsESPEnabled(state)
@@ -1220,13 +1225,13 @@ local function scanComputerTables()
 		lastComputerTableScan = tick()
 		computerTableScanRunning = false
 
-		if computersESPEnabled then
+		if computersESPEnabled and updateComputerESP then
 			updateComputerESP()
 		end
 	end)
 end
 
-local function updateComputerESP()
+updateComputerESP = function()
 	if not computersESPEnabled then
 		clearComputerESP()
 		return
@@ -1701,6 +1706,18 @@ end
 
 -- To debug whether other players hear the sounds, run this in console after loading:
 -- debugSilentMoveSoundScan(12)
+pcall(function()
+	_G.debugSilentMoveSoundScan = debugSilentMoveSoundScan
+end)
+
+-- Auto scan once after load, so you do not need to execute anything manually.
+pcall(function()
+	task.delay(2, function()
+		if debugSilentMoveSoundScan then
+			debugSilentMoveSoundScan(12)
+		end
+	end)
+end)
 
 local function setSilentMovementEnabled(state)
 	isSilentMovementEnabled = state and true or false
@@ -2425,7 +2442,9 @@ updateMobilePanelButtons = function()
 	setMobileBeastSlowButtonVisible(mobileBeastSlowButtonVisible)
 	updateToggleButton()
 	updateFlickButtons()
-	updateESPButtons()
+	if updateESPButtons then
+		updateESPButtons()
+	end
 end
 
 local function updateBindButtons()
@@ -3923,7 +3942,9 @@ local function buildMobileGui()
 	end)
 
 	switchMobileTab("Functions")
-	updateMobilePanelButtons()
+	if updateMobilePanelButtons then
+		updateMobilePanelButtons()
+	end
 	updateSettingsInputs()
 	if realXrayEnabled then
 		applyXray()
@@ -6410,4 +6431,4 @@ createModeSelector(function(mode)
 	end
 end)
 
-print("Cerber X V1.1 • Loaded Successfully ✅")
+print("Cerber X V1.1 • Loaded Successfulllly ✅")
