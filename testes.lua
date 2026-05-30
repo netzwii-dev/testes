@@ -99,6 +99,7 @@ XrayBindButton = nil
 RealXrayBindButton = nil
 ClipDance2BindButton = nil
 FloorbangEspBindButton = nil
+PcSilentMovementButton = nil
 Notice = nil
 NoticeStroke = nil
 NoticeBar = nil
@@ -170,6 +171,7 @@ MobileXrayRow = nil
 MobileRealXrayRow = nil
 MobileDance2TurnRow = nil
 MobileFloorbangEspRow = nil
+MobileSilentMovementRow = nil
 MobileHideGuiRow = nil
 MobileChamsESPRow = nil
 MobileComputersESPRow = nil
@@ -188,6 +190,8 @@ mobileDance2TurnSwitch = nil
 mobileDance2TurnKnob = nil
 mobileFloorbangEspSwitch = nil
 mobileFloorbangEspKnob = nil
+mobileSilentMovementSwitch = nil
+mobileSilentMovementKnob = nil
 mobileHideGuiSwitch = nil
 mobileHideGuiKnob = nil
 mobileChamsESPSwitch = nil
@@ -217,6 +221,8 @@ isXrayEnabled = false
 realXrayEnabled = false
 isDance2TurnEnabled = false
 isFloorbangEspEnabled = false
+isSilentMovementEnabled = false
+silentMovementOriginalVolumes = {}
 chamsESPEnabled = false
 computersESPEnabled = true
 playerESPHighlights = {}
@@ -432,6 +438,7 @@ local function saveUserPreferences()
 		realXrayEnabled = realXrayEnabled,
 		isDance2TurnEnabled = isDance2TurnEnabled,
 		isFloorbangEspEnabled = isFloorbangEspEnabled,
+		isSilentMovementEnabled = isSilentMovementEnabled,
 		chamsESPEnabled = chamsESPEnabled,
 		computersESPEnabled = computersESPEnabled,
 		mobileWallhopGuiHidden = mobileWallhopGuiHidden,
@@ -498,6 +505,9 @@ local function loadUserPreferences()
 		end
 		if type(decoded.isFloorbangEspEnabled) == "boolean" then
 			isFloorbangEspEnabled = decoded.isFloorbangEspEnabled
+		end
+		if type(decoded.isSilentMovementEnabled) == "boolean" then
+			isSilentMovementEnabled = decoded.isSilentMovementEnabled
 		end
 		if type(decoded.chamsESPEnabled) == "boolean" then
 			chamsESPEnabled = decoded.chamsESPEnabled
@@ -1531,6 +1541,127 @@ local function setDance2TurnEnabled(state)
 	saveUserPreferences()
 end
 
+local silentMovementKeywords = {
+	"running", "walking", "walk", "footstep", "footsteps", "step",
+	"jump", "jumping", "land", "landing", "freefall", "freefalling",
+	"climb", "climbing"
+}
+
+local function isSilentMovementSound(sound)
+	if not sound or not sound:IsA("Sound") then
+		return false
+	end
+
+	local name = tostring(sound.Name or ""):lower()
+	for _, keyword in ipairs(silentMovementKeywords) do
+		if name:find(keyword, 1, true) then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function muteSilentMovementSound(sound)
+	if not sound or not sound:IsA("Sound") then
+		return
+	end
+
+	if silentMovementOriginalVolumes[sound] == nil then
+		silentMovementOriginalVolumes[sound] = sound.Volume
+	end
+
+	pcall(function()
+		sound.Volume = 0
+		if sound.IsPlaying then
+			sound:Stop()
+		end
+	end)
+end
+
+local function restoreSilentMovementSounds()
+	for sound, oldVolume in pairs(silentMovementOriginalVolumes) do
+		if sound and sound.Parent then
+			pcall(function()
+				sound.Volume = oldVolume
+			end)
+		end
+	end
+
+	table.clear(silentMovementOriginalVolumes)
+end
+
+local function applySilentMovement()
+	if not isSilentMovementEnabled then
+		return
+	end
+
+	local char = LocalPlayer.Character
+	if not char then
+		return
+	end
+
+	for _, obj in ipairs(char:GetDescendants()) do
+		if obj:IsA("Sound") and isSilentMovementSound(obj) then
+			muteSilentMovementSound(obj)
+		end
+	end
+end
+
+local function setSilentMovementEnabled(state)
+	isSilentMovementEnabled = state and true or false
+
+	if isSilentMovementEnabled then
+		applySilentMovement()
+	else
+		restoreSilentMovementSounds()
+	end
+
+	if selectedMode == "PC" then
+		updateBindButtons()
+		showNotice(isSilentMovementEnabled and "Silent Movement enabled" or "Silent Movement disabled")
+	end
+
+	updateMobilePanelButtons()
+	saveUserPreferences()
+end
+
+LocalPlayer.CharacterAdded:Connect(function(char)
+	if isSilentMovementEnabled then
+		task.wait(0.25)
+		applySilentMovement()
+	end
+
+	char.DescendantAdded:Connect(function(obj)
+		if isSilentMovementEnabled and obj:IsA("Sound") and isSilentMovementSound(obj) then
+			task.defer(function()
+				muteSilentMovementSound(obj)
+			end)
+		end
+	end)
+end)
+
+if LocalPlayer.Character then
+	LocalPlayer.Character.DescendantAdded:Connect(function(obj)
+		if isSilentMovementEnabled and obj:IsA("Sound") and isSilentMovementSound(obj) then
+			task.defer(function()
+				muteSilentMovementSound(obj)
+			end)
+		end
+	end)
+end
+
+RunService.Heartbeat:Connect(function()
+	if not isThisScriptActive or not isThisScriptActive() then
+		restoreSilentMovementSounds()
+		return
+	end
+
+	if isSilentMovementEnabled then
+		applySilentMovement()
+	end
+end)
+
 local function isDance2Command(message)
 	local msg = tostring(message or ""):lower()
 	msg = msg:gsub("^%s+", ""):gsub("%s+$", "")
@@ -2167,6 +2298,9 @@ updateMobilePanelButtons = function()
 	if MobileFloorbangEspRow and MobileFloorbangEspRow:FindFirstChild("Label") then
 		MobileFloorbangEspRow.Label.Text = "Floorbang ESP"
 	end
+	if MobileSilentMovementRow and MobileSilentMovementRow:FindFirstChild("Label") then
+		MobileSilentMovementRow.Label.Text = "Silent Movement"
+	end
 	if MobileBeastSlowRow and MobileBeastSlowRow:FindFirstChild("Label") then
 		MobileBeastSlowRow.Label.Text = "Beast Slow"
 	end
@@ -2189,6 +2323,7 @@ updateMobilePanelButtons = function()
 	updateSwitchVisual(mobileRealXraySwitch, mobileRealXrayKnob, realXrayEnabled)
 	updateSwitchVisual(mobileDance2TurnSwitch, mobileDance2TurnKnob, isDance2TurnEnabled)
 	updateSwitchVisual(mobileFloorbangEspSwitch, mobileFloorbangEspKnob, isFloorbangEspEnabled)
+	updateSwitchVisual(mobileSilentMovementSwitch, mobileSilentMovementKnob, isSilentMovementEnabled)
 	updateSwitchVisual(mobileBeastSlowSwitch, mobileBeastSlowKnob, mobileBeastSlowButtonVisible)
 
 	setMobileWallhopVisualHidden(mobileWallhopGuiHidden)
@@ -2227,6 +2362,9 @@ local function updateBindButtons()
 	end
 	if FloorbangEspBindButton then
 		FloorbangEspBindButton.Text = waitingForFloorbangEspKey and "Press any key..." or ("Keybind Toggle Floorbang ESP: " .. toggleFloorbangEspKey.Name)
+	end
+	if PcSilentMovementButton then
+		PcSilentMovementButton.Text = isSilentMovementEnabled and "Silent Movement: On" or "Silent Movement: Off"
 	end
 end
 
@@ -3389,6 +3527,7 @@ local function buildMobileGui()
 	MobileBeastSlowRow, mobileBeastSlowSwitch, mobileBeastSlowKnob = createSwitchRow(MobileFunctionsPage, 198, "Beast Slow")
 	MobileDance2TurnRow, mobileDance2TurnSwitch, mobileDance2TurnKnob = createSwitchRow(MobileFunctionsPage, 240, "Clip Dance2")
 	MobileFloorbangEspRow, mobileFloorbangEspSwitch, mobileFloorbangEspKnob = createSwitchRow(MobileFunctionsPage, 282, "Floorbang ESP")
+	MobileSilentMovementRow, mobileSilentMovementSwitch, mobileSilentMovementKnob = createSwitchRow(MobileFunctionsPage, 324, "Silent Movement")
 
 	MobileFlickTypesTitle = Instance.new("TextLabel")
 	MobileFlickTypesTitle.Size = UDim2.new(1, -14, 0, 22)
@@ -3657,6 +3796,10 @@ local function buildMobileGui()
 		setFloorbangESPEnabled(not isFloorbangEspEnabled)
 	end)
 
+	bindRowPress(MobileSilentMovementRow and MobileSilentMovementRow:FindFirstChild("SwitchHitbox"), function()
+		setSilentMovementEnabled(not isSilentMovementEnabled)
+	end)
+
 	bindRowPress(MobileNormalWallhopRow, function()
 		setFlickMode("Normal Wallhop")
 	end)
@@ -3690,6 +3833,9 @@ local function buildMobileGui()
 	updateSettingsInputs()
 	if realXrayEnabled then
 		applyXray()
+	end
+	if isSilentMovementEnabled then
+		applySilentMovement()
 	end
 end
 
@@ -3892,7 +4038,7 @@ local function buildPCGui()
 	PcFunctionsPage.BorderSizePixel = 0
 	PcFunctionsPage.ScrollBarThickness = 4
 	PcFunctionsPage.ScrollingDirection = Enum.ScrollingDirection.Y
-	PcFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 190)
+	PcFunctionsPage.CanvasSize = UDim2.new(0, 0, 0, 230)
 	PcFunctionsPage.Parent = MainFrame
 
 	PcFlicksPage = Instance.new("ScrollingFrame")
@@ -4044,6 +4190,19 @@ local function buildPCGui()
 	FloorbangEspBindButton.Parent = PcFunctionsPage
 	noTextStroke(FloorbangEspBindButton)
 	setTargetTransparency(FloorbangEspBindButton, 1, 0)
+
+	PcSilentMovementButton = Instance.new("TextButton")
+	PcSilentMovementButton.Size = UDim2.new(1, -36, 0, 20)
+	PcSilentMovementButton.Position = UDim2.new(0, 18, 0, 188)
+	PcSilentMovementButton.BackgroundTransparency = 1
+	PcSilentMovementButton.TextColor3 = Color3.fromRGB(255,255,255)
+	PcSilentMovementButton.Font = Enum.Font.Gotham
+	PcSilentMovementButton.TextSize = 14
+	PcSilentMovementButton.TextXAlignment = Enum.TextXAlignment.Left
+	PcSilentMovementButton.AutoButtonColor = false
+	PcSilentMovementButton.Parent = PcFunctionsPage
+	noTextStroke(PcSilentMovementButton)
+	setTargetTransparency(PcSilentMovementButton, 1, 0)
 
 	PcMinimalSettingsTitle = Instance.new("TextLabel")
 	PcMinimalSettingsTitle.Size = UDim2.new(1, -36, 0, 20)
@@ -4419,6 +4578,13 @@ local function buildPCGui()
 			waitingForFloorbangEspKey = false
 			updateBindButtons()
 			showNotice("Press a key...")
+		end)
+	end
+
+
+	if PcSilentMovementButton then
+		PcSilentMovementButton.MouseButton1Click:Connect(function()
+			setSilentMovementEnabled(not isSilentMovementEnabled)
 		end)
 	end
 
